@@ -264,3 +264,13 @@ was checked (it resolved to nothing) and declared as a custom domain in
 `wrangler.jsonc`, following tonydefazio.com's own pattern. It is deployed
 through `npm run deploy`. The card on tonydefazio.com waits until the owner
 has reviewed the live site, as asked earlier.
+
+Deployed: `npm run deploy` passed every gate and went live on workers.dev at
+once. The custom domain took a few minutes for its certificate. This Mac had
+cached the pre-deploy "no such host", so the live checks pinned Cloudflare's
+address. All six routes, the CSP, `no-transform` and the absence of a beacon
+were confirmed on `gaba.tonydefazio.com`, and a real-browser pass was clean.
+One finding outside this repository: every tonydefazio.com site now answers
+AI crawlers with 403, a zone-wide Cloudflare setting that no_peak's
+robots.txt records as having been off. It was reported to the owner, not
+changed.

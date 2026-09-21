@@ -8,7 +8,9 @@ const url = process.argv[2] ?? "http://localhost:5173/";
 const out = process.argv[3] ?? "screenshots";
 mkdirSync(out, { recursive: true });
 
-const browser = await chromium.launch();
+// CHROMIUM_ARGS lets a check reach a host this machine's DNS cache does not yet
+// know, e.g. CHROMIUM_ARGS="--host-resolver-rules=MAP gaba.tonydefazio.com 104.21.29.154"
+const browser = await chromium.launch({ args: process.env.CHROMIUM_ARGS ? [process.env.CHROMIUM_ARGS] : [] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
 const problems = [];
 const origin = new URL(url).origin;

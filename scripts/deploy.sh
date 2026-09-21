@@ -66,7 +66,7 @@ for u in "${URLS[@]}"; do
     n="$(curl -sL --max-time 15 -H "User-Agent: $UA" "$u$route" | grep -c cloudflareinsights || true)"
     [[ "$n" == 0 ]] || fail "third-party beacon injected into $u$route"
   done
-  echo "  no third-party beacon on / or /methods (asked as a browser)"
+  echo "  no third-party beacon on /, /methods or /lit (asked as a browser)"
 done
 
 step "Recording -> DEPLOYED.md"
