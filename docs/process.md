@@ -235,3 +235,18 @@ explanation is a focusable element tied to its trigger with
 aria-describedby, so it works from the keyboard and by tap as well as by
 hover. It was checked at phone width, where a hidden tooltip can still widen
 the page.
+
+### The owner's slow K⁺ inactivation, tried on Caroline's model
+
+Asked, "for a big laugh", to pull the owner's GnRH potassium-current paper
+(DeFazio & Moenter 2021, eNeuro) and to say what its very slow inactivation
+would do to the Adams et al. 2018 model, which the owner struggled to run in
+QuB. The inactivation parameters were read off Fig. 3 by eye, added to the
+model's I_K as a slow gate, and swept in an experiment kept out of the app
+(`tools/experiments/`). At the measured V½ (−30 mV) it changes nothing: not
+the Fig. 7F counts, and not a 30 s step. Two reasons, each measured rather
+than argued. The cell spends 94% of its firing time below −45 mV, so the gate
+never closes. And this model's I_K has little leverage over firing rate: even
+84% inactivated, firing rises only 14%. The full table and its reading are in
+`lit/notes/defazio2021.md`, with the protocol where it could still matter
+(long depolarized episodes, such as tonic depolarizing GABA).

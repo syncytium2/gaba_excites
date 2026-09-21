@@ -180,3 +180,21 @@ Jaime J, DeFazio RA, Moenter SM (2026). Response of gonadotropin-releasing hormo
 [doi:10.1111/jne.70144](https://doi.org/10.1111/jne.70144) · [PMID 41652850](https://pubmed.ncbi.nlm.nih.gov/41652850/) · [PMC12881841](https://pmc.ncbi.nlm.nih.gov/articles/PMC12881841/) · *open (PubMed Central)* · models: GnRH
 
 **Took:** Nothing yet. Dynamic-clamp GABA conductances of 1–10 nS with 7 or 10 ms decay in GnRH neurons — a source for realistic GnRH GABA presets.
+
+### `defazio2021`
+
+DeFazio RA, Moenter SM (2021). Gonadotropin-releasing hormone (GnRH) neuron potassium currents and excitability in both sexes exhibit minimal changes upon removal of negative feedback. eNeuro 8(4):ENEURO.0126-21.2021.
+
+[doi:10.1523/ENEURO.0126-21.2021](https://doi.org/10.1523/ENEURO.0126-21.2021) · [PMID 34135001](https://pubmed.ncbi.nlm.nih.gov/34135001/) · [PMC8266219](https://pmc.ncbi.nlm.nih.gov/articles/PMC8266219/) · *open (PubMed Central)* · models: GnRH
+
+**Took:** Not used in the app. The slowly inactivating K⁺ current's inactivation (V½ ≈ −30 mV, slope ≈ 4.7, τ of seconds to tens of seconds) was added to the GnRH model's I_K in an experiment, to ask what it would do: at the published V½, nothing measurable.
+
+> full inactivation and recovery required >10s at +50 and −100 mV, respectively.
+> — Materials and Methods, Voltage-gated potassium current characterization
+
+> Because inactivation was incomplete even after 51.29 s at −30 mV, this remaining current was not subtracted and the inactivation graphs level off at ∼30%.
+> — Materials and Methods, Activation and inactivation of the slow current
+
+**Used in:** [`tools/experiments/slow_ik_inactivation.ts`](../tools/experiments/slow_ik_inactivation.ts)
+
+**Notes:** [`notes/defazio2021.md`](notes/defazio2021.md)
