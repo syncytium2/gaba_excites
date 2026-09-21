@@ -1,0 +1,30 @@
+{
+  "name": "gaba_excites",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Browser current-clamp simulator of a cortical pyramidal neuron: passive properties, current-step families, F-I curves, and GABA/glutamate PSCs.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "fi": "node scripts/fi.ts",
+    "deploy": "bash scripts/deploy.sh"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "uplot": "^1.6.32"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.3",
+    "vitest": "^2.1.9",
+    "wrangler": "^4.136.0"
+  }
+}
