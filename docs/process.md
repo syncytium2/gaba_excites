@@ -208,3 +208,17 @@ transcriptions. The most valuable is the GnRH model's: every table and
 equation as read, how the flattened tables were reassigned to columns, and
 the one ambiguity. The identifiers of each citation were checked in PubMed
 before they went in.
+
+### Collapsible panels
+
+The owner asked for the left panels to be an accordion. They are
+independent collapsible sections rather than one-open-at-a-time, because
+comparing, say, Cell and GABA side by side is the point of the tool. Model,
+Cell and Protocol start open; Electrode, the two PSC panels and Noise start
+closed. A closed panel shows a one-line summary of its settings, so collapsing
+never hides what the cell is doing. The PSC on/off checkboxes stay in the
+header and work while collapsed, and ticking one, or choosing a preset that
+switches an input on, opens its panel. Headers are real buttons with
+aria-expanded. Checked by driving the page: click and Enter both toggle, and
+the open state survives a reload. The state is kept in localStorage as a
+convenience only, and every access is guarded.

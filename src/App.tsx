@@ -11,6 +11,7 @@ import type { CellInfo, Request, Response } from "./worker.ts";
 import { NumField } from "./ui/NumField.tsx";
 import { Plot } from "./ui/Plot.tsx";
 import { PhasePlot } from "./ui/PhasePlot.tsx";
+import { Panel, usePanels } from "./ui/Panel.tsx";
 import { AQUA, AXIS, BLUE, GRID, INK2, MUTED, ORANGE, rampColor } from "./ui/palette.ts";
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 
@@ -51,6 +52,8 @@ export function App() {
   const [refined, setRefined] = useState<{ value: number; tol: number; key: string } | null>(null);
 
   const protocol = useMemo(() => toProtocol(form), [form]);
+  // The left panels collapse. The ones you reach for first start open.
+  const panels = usePanels({ model: true, cell: true, electrode: false, protocol: true, glu: false, gaba: false, noise: false });
 
   // ------------------------------------------------------------ worker
   const worker = useRef<Worker | null>(null);
@@ -111,6 +114,8 @@ export function App() {
     setForm(p.protocol);
     setGlu(p.glu);
     setGaba(p.gaba);
+    if (p.glu.enabled) panels.set("glu", true);
+    if (p.gaba.enabled) panels.set("gaba", true);
     setNoise({ ...noise, memSigma: 0 }); // membrane noise is in pA, and the right scale differs by ~10× between cells
     setPins([]);
     setSelected(null);
@@ -123,6 +128,9 @@ export function App() {
     setForm(p.protocol);
     setGlu(p.glu);
     setGaba(p.gaba);
+    // a preset that switches an input on opens its panel, so the change is visible
+    if (p.glu.enabled) panels.set("glu", true);
+    if (p.gaba.enabled) panels.set("gaba", true);
     setSelected(null);
   };
 
@@ -193,8 +201,8 @@ export function App() {
 
       <div className="layout">
         <aside className="tools">
-          <section className="panel">
-            <h2>Model</h2>
+          <Panel title="Model" open={panels.open.model} onToggle={() => panels.toggle("model")}
+            summary={model.label}>
             <label className="select">
               <span className="sr-only">Cell model</span>
               <select id="model-select" value={cell.model} onChange={(e) => switchModel(e.target.value as ModelId)}>
@@ -205,10 +213,10 @@ export function App() {
             <p className="small">
               {model.validation} <a href={`https://doi.org/${model.doi}`}>{model.citation}</a>.
             </p>
-          </section>
+          </Panel>
 
-          <section className="panel">
-            <h2>Cell</h2>
+          <Panel title="Cell" open={panels.open.cell} onToggle={() => panels.toggle("cell")}
+            summary={`Rin ${fmt(cell.rin, 0)} MΩ · Cm ${fmt(cell.cm, 1)} pF · Ihold ${ihold} pA`}>
             <NumField label="Rin" unit="MΩ" value={cell.rin} min={model.ranges.rin.min} max={model.ranges.rin.max} step={model.ranges.rin.step} slider digits={1}
               onChange={(rin) => setCell({ ...cell, rin })} />
             <NumField label="Cm" unit="pF" value={cell.cm} min={model.ranges.cm.min} max={model.ranges.cm.max} step={model.ranges.cm.step} slider digits={1}
@@ -230,10 +238,10 @@ export function App() {
             <button className="linkish" onClick={() => { setCell(publishedParams(cell.model)); setIhold(model.defaults.ihold); }}>
               Reset to the published cell
             </button>
-          </section>
+          </Panel>
 
-          <section className="panel">
-            <h2>Electrode</h2>
+          <Panel title="Electrode" open={panels.open.electrode} onToggle={() => panels.toggle("electrode")}
+            summary={`Rs ${electrode.rs} MΩ · bridge ${Math.round(electrode.bridge * 100)}% · pipette ${electrode.cp} pF`}>
             <NumField label="Rs" unit="MΩ" value={electrode.rs} min={0} max={100} step={1} slider
               onChange={(rs) => setElectrode({ ...electrode, rs })} />
             <NumField label="Bridge balance" unit="%" value={Math.round(electrode.bridge * 100)} min={0} max={100} step={5} slider
@@ -241,10 +249,10 @@ export function App() {
             <NumField label="Pipette C" unit="pF" value={electrode.cp} min={0} max={20} step={0.5} slider
               hint="Left over after capacitance neutralization. With 0 pF, Rs only offsets the record."
               onChange={(cp) => setElectrode({ ...electrode, cp })} />
-          </section>
+          </Panel>
 
-          <section className="panel">
-            <h2>Protocol</h2>
+          <Panel title="Protocol" open={panels.open.protocol} onToggle={() => panels.toggle("protocol")}
+            summary={`${preset ? preset.label : "Custom"} · ${protocol.amps.length} sweep${protocol.amps.length === 1 ? "" : "s"}, ${protocol.stepDur} ms steps`}>
             <label className="select">
               <span>Preset</span>
               <select id="preset-select" value={presetId} onChange={(e) => applyPreset(e.target.value)}>
@@ -279,14 +287,17 @@ export function App() {
               <NumField label="Sweep" unit="ms" value={form.sweepMs} min={10} max={10000} step={100} onChange={(sweepMs) => { setForm({ ...form, sweepMs }); setPresetId("custom"); }} />
             </div>
             <div className="small">{protocol.amps.length} sweep{protocol.amps.length === 1 ? "" : "s"}: {protocol.amps.slice(0, 12).join(", ")}{protocol.amps.length > 12 ? ", …" : ""} pA</div>
-          </section>
+          </Panel>
 
           <SynPanel title="Glutamate" color={ORANGE} syn={glu} erevEditable={false}
+            open={panels.open.glu} onToggle={() => panels.toggle("glu")} onEnable={() => panels.set("glu", true)}
             onChange={(g) => { setGlu(g); setPresetId("custom"); }} />
           <SynPanel title="GABA" color={AQUA} syn={gaba} erevEditable
             erevHint={`Default for this cell: ${model.eGabaSource}.`}
+            open={panels.open.gaba} onToggle={() => panels.toggle("gaba")} onEnable={() => panels.set("gaba", true)}
             onChange={(g) => { setGaba(g); setPresetId("custom"); }} />
-          <NoisePanel noise={noise} memRange={model.ranges.memNoise} onChange={setNoise} />
+          <NoisePanel noise={noise} memRange={model.ranges.memNoise} onChange={setNoise}
+            open={panels.open.noise} onToggle={() => panels.toggle("noise")} />
           {(synOn || noiseOn) && (
             <section className="panel compact">
               <div className="seedrow">
@@ -370,17 +381,20 @@ function defaultSelection(s?: FamilySummary): number {
 
 // ------------------------------------------------------------------ synapses
 
-function SynPanel({ title, color, syn, erevEditable, erevHint, onChange }: {
+function SynPanel({ title, color, syn, erevEditable, erevHint, onChange, open, onToggle, onEnable }: {
   title: string; color: string; syn: SynInput; erevEditable: boolean; erevHint?: string; onChange: (s: SynInput) => void;
+  open: boolean; onToggle: () => void; onEnable: () => void;
 }) {
+  const summary = syn.enabled
+    ? `${syn.rate} Hz · ${syn.gPeak} nS · ${syn.tauRise}/${syn.tauDecay} ms · E ${syn.erev} mV · ${syn.pattern}`
+    : `off · E ${syn.erev} mV`;
   return (
-    <section className={"panel syn" + (syn.enabled ? "" : " off")}>
-      <h2>
-        <label className="check">
-          <input type="checkbox" checked={syn.enabled} onChange={(e) => onChange({ ...syn, enabled: e.target.checked })} />
-          <span className="swatch" style={{ background: color }} /> {title} PSCs
-        </label>
-      </h2>
+    <Panel className={"syn" + (syn.enabled ? "" : " off")} open={open} onToggle={onToggle} summary={summary}
+      title={<><span className="swatch" style={{ background: color }} /> {title} PSCs</>}
+      extra={
+        <input type="checkbox" className="ph-check" aria-label={`${title} PSCs on`} checked={syn.enabled}
+          onChange={(e) => { onChange({ ...syn, enabled: e.target.checked }); if (e.target.checked) onEnable(); }} />
+      }>
       <div className="row2">
         <NumField label="Rate" unit="Hz" value={syn.rate} min={0} max={2000} step={10} disabled={!syn.enabled} onChange={(rate) => onChange({ ...syn, rate })} />
         <NumField label="Peak g" unit="nS" value={syn.gPeak} min={0} max={100} step={0.5} disabled={!syn.enabled} onChange={(gPeak) => onChange({ ...syn, gPeak })} />
@@ -401,18 +415,22 @@ function SynPanel({ title, color, syn, erevEditable, erevHint, onChange }: {
           </button>
         ))}
       </div>
-    </section>
+    </Panel>
   );
 }
 
 // ------------------------------------------------------------------ noise
 
-function NoisePanel({ noise, memRange, onChange }: {
+function NoisePanel({ noise, memRange, onChange, open, onToggle }: {
   noise: NoiseParams; memRange: { min: number; max: number; step: number }; onChange: (n: NoiseParams) => void;
+  open: boolean; onToggle: () => void;
 }) {
+  const rec = noise.recSigma > 0 || noise.humAmp > 0
+    ? `recording ${noise.recSigma} mV${noise.humAmp > 0 ? ` + ${noise.humAmp} mV hum` : ""}`
+    : "recording off";
+  const mem = noise.memSigma > 0 ? `membrane ${noise.memSigma} pA, τ ${noise.memTau} ms` : "membrane off";
   return (
-    <section className="panel">
-      <h2>Noise</h2>
+    <Panel title="Noise" open={open} onToggle={onToggle} summary={`${rec} · ${mem}`}>
       <div className="subhead">Recording — on the trace only</div>
       <div className="row2">
         <NumField label="RMS" unit="mV" value={noise.recSigma} min={0} max={3} step={0.05} onChange={(recSigma) => onChange({ ...noise, recSigma })} />
@@ -434,7 +452,7 @@ function NoisePanel({ noise, memRange, onChange }: {
       <NumField label="τ" unit="ms" value={noise.memTau} min={0.5} max={100} step={0.5}
         onChange={(memTau) => onChange({ ...noise, memTau })} />
       <div className="nf-hint">A fluctuating current (Ornstein–Uhlenbeck) injected at the membrane: no added conductance, so Rin is unchanged. Near rheobase, whether a step fires becomes a matter of chance.</div>
-    </section>
+    </Panel>
   );
 }
 
