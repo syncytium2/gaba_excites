@@ -2,10 +2,12 @@
   // Cloudflare Workers config — assets-only, the shape colonel_kernel, no_peak
   // and tonydefazio.com use: no server script, Cloudflare serves ./dist.
   //
-  // The custom domain is NOT declared here yet. Declaring it makes
-  // `wrangler deploy` claim the hostname in the tonydefazio.com zone, which is
-  // an outward-facing change the owner has to approve first. Once approved:
-  //   "routes": [{ "pattern": "gaba.tonydefazio.com", "custom_domain": true }],
+  // The custom domain, declared rather than clicked (tonydefazio.com's own
+  // pattern): on `wrangler deploy` Cloudflare creates the DNS record and binds
+  // the hostname. Approved by the owner 2026-09-21 ("lets build the website",
+  // for a lecture on 2026-09-23). Checked first: gaba.tonydefazio.com resolved
+  // to nothing, so this creates the record rather than taking one over.
+  "routes": [{ "pattern": "gaba.tonydefazio.com", "custom_domain": true }],
   "name": "gaba-excites",
   "compatibility_date": "2026-09-01",
   "workers_dev": true,

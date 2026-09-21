@@ -250,3 +250,17 @@ never closes. And this model's I_K has little leverage over firing rate: even
 84% inactivated, firing rises only 14%. The full table and its reading are in
 `lit/notes/defazio2021.md`, with the protocol where it could still matter
 (long depolarized episodes, such as tonic depolarizing GABA).
+
+## 2026-09-21, afternoon — going live for Wednesday's lecture
+
+The owner asked that the slow-I_K experiment "persists in the repo". It was
+already committed. It has now been refactored so that it can't quietly rot:
+it exports its pieces, its model swap restores the published channels even
+on error, `src/experiments.test.ts` checks both of those plus the headline
+result on every run, and `tools/` is type-checked.
+
+The site is for a lecture on Wednesday 2026-09-23. `gaba.tonydefazio.com`
+was checked (it resolved to nothing) and declared as a custom domain in
+`wrangler.jsonc`, following tonydefazio.com's own pattern. It is deployed
+through `npm run deploy`. The card on tonydefazio.com waits until the owner
+has reviewed the live site, as asked earlier.

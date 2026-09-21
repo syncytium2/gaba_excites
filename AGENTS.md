@@ -20,6 +20,10 @@ uPlot; the simulation runs in `src/worker.ts`.
 - `node scripts/fi.ts --help` — the model from the command line.
 - `node scripts/screenshot.mjs <url> <outdir>` — look at the app; fails on
   console errors, third-party requests, phone overflow. Run it after any UI change.
+- `tools/experiments/` — questions asked of the models that are not part of
+  the app (e.g. slow I_K inactivation on the GnRH cell). Each exports its
+  pieces and `src/experiments.test.ts` imports them, so a model change that
+  breaks an experiment fails CI. Keep them out of the shipped model.
 - `npm run deploy` — the only way to deploy. Do not hand-roll `wrangler deploy`.
 
 ## Rules that are load-bearing
