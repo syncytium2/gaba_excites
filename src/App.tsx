@@ -12,6 +12,7 @@ import { NumField } from "./ui/NumField.tsx";
 import { Plot } from "./ui/Plot.tsx";
 import { PhasePlot } from "./ui/PhasePlot.tsx";
 import { Panel, usePanels } from "./ui/Panel.tsx";
+import { Tip } from "./ui/Tip.tsx";
 import { AQUA, AXIS, BLUE, GRID, INK2, MUTED, ORANGE, rampColor } from "./ui/palette.ts";
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 
@@ -320,7 +321,16 @@ export function App() {
               <figure className="card">
                 <figcaption>
                   <span>Recorded voltage{showVm ? ", with true Vm of the selected sweep dashed" : ""}</span>
-                  <label className="check"><input type="checkbox" checked={showVm} onChange={(e) => setShowVm(e.target.checked)} /> show true Vm</label>
+                  <span className="check">
+                    <input id="show-vm" type="checkbox" checked={showVm} onChange={(e) => setShowVm(e.target.checked)} />
+                    <label htmlFor="show-vm">show</label>
+                    <Tip text={<>
+                      <b>True Vm</b> is the membrane potential itself. The <b>recorded</b> trace is what the amplifier reports, taken at the
+                      pipette: Vm, plus I·Rs from series resistance (less what bridge balance removes), smoothed by pipette capacitance, plus
+                      recording noise. At a rig you only ever see the recorded trace; the simulation knows both. Every number on this page is
+                      measured on true Vm.
+                    </>}>true Vm</Tip>
+                  </span>
                 </figcaption>
                 <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} />
                 <p className="legendline">
@@ -341,7 +351,8 @@ export function App() {
                   </figcaption>
                   <FIPlot summary={summary!} pins={pins} />
                   <p className="legendline">
-                    Mean rate is spikes in the step ÷ its duration; initial rate is 1 / the first interspike interval.
+                    Mean rate is spikes in the step ÷ its duration; initial rate is 1 / the first interspike interval. Steps below
+                    0 pA are left off; they are in the table.
                     {pins.map((p, i) => <span key={i} className="pinlabel"><br /><span className="dash">- -</span> {p.label}</span>)}
                   </p>
                 </figure>
@@ -600,8 +611,10 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect }: {
 // ------------------------------------------------------------------ F–I
 
 function FIPlot({ summary, pins }: { summary: FamilySummary; pins: Pin[] }) {
-  const stats = [...summary.stats].sort((a, b) => a.amp - b.amp);
-  const xs = Array.from(new Set([...stats.map((s) => s.amp), ...pins.flatMap((p) => p.points.map((q) => q.amp))])).sort((a, b) => a - b);
+  // The F–I curve starts at 0 pA: hyperpolarizing steps fire nothing and belong
+  // to the Rin measurement. They stay in the table below.
+  const stats = [...summary.stats].filter((s) => s.amp >= 0).sort((a, b) => a.amp - b.amp);
+  const xs = Array.from(new Set([...stats.map((s) => s.amp), ...pins.flatMap((p) => p.points.filter((q) => q.amp >= 0).map((q) => q.amp))])).sort((a, b) => a - b);
   const at = (pts: { amp: number; v: number }[]) => xs.map((x) => pts.find((p) => p.amp === x)?.v ?? null);
   const data = [
     xs,
@@ -624,7 +637,10 @@ function FIPlot({ summary, pins }: { summary: FamilySummary; pins: Pin[] }) {
         height: 260,
         legend: { show: true, live: true },
         cursor: { drag: { x: false, y: false } },
-        scales: { x: { time: false }, y: { range: (_u, _lo, hi) => [0, Math.max(10, hi * 1.08)] } },
+        scales: {
+          x: { time: false, range: (_u, _lo, hi) => [0, Math.max(hi ?? 0, 1)] },
+          y: { range: (_u, _lo, hi) => [0, Math.max(10, hi * 1.08)] },
+        },
         axes: [axisOpts("step current (pA)", 40), axisOpts("firing rate (Hz)", 50)],
         series,
       })} />

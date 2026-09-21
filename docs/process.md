@@ -222,3 +222,16 @@ switches an input on, opens its panel. Headers are real buttons with
 aria-expanded. Checked by driving the page: click and Enter both toggle, and
 the open state survives a reload. The state is kept in localStorage as a
 convenience only, and every access is guarded.
+
+### F–I from 0 pA, and what "true Vm" means
+
+The F–I curve now starts at 0 pA, as the owner asked. Hyperpolarizing steps
+fire nothing and serve the Rin measurement; they stay in the per-sweep table,
+and the caption says so. "true Vm" gained a hover explanation: the membrane
+potential itself, as opposed to the recorded trace, which is Vm plus I·Rs
+(less bridge balance), smoothed by pipette capacitance, plus recording noise.
+It also says that every number on the page is measured on true Vm. The
+explanation is a focusable element tied to its trigger with
+aria-describedby, so it works from the keyboard and by tap as well as by
+hover. It was checked at phone width, where a hidden tooltip can still widen
+the page.
