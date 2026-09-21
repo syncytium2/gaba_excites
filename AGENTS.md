@@ -47,6 +47,12 @@ uPlot; the simulation runs in `src/worker.ts`.
   it so HMR works.
 - **The Born stamp comes from the root commit** (`git log --max-parents=0`).
   Never rewrite the root commit; never build from a shallow clone.
+- **Cite through `lit/sources.json`.** Any new number, equation or method
+  taken from a paper gets an entry there (what was taken, where it is used)
+  and, if it is more than one value, a transcription in `lit/notes/`. Then run
+  `node scripts/lit.ts`; `src/lit.test.ts` fails on a stale render or on a
+  DOI the methods page cites that the list lacks. Never commit a PDF:
+  `lit/pdf/` is gitignored because this repository is public.
 - **Log the process.** `docs/process.md` is the running record of decisions
   and why; add to it when you make one. The owner asked for this.
 - House style: "data" is plural. Name things instead of pointing at

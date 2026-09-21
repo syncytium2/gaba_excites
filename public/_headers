@@ -13,3 +13,7 @@
   Cache-Control: public, max-age=0, must-revalidate, no-transform
 /methods.html
   Cache-Control: public, max-age=0, must-revalidate, no-transform
+/lit
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+/lit.html
+  Cache-Control: public, max-age=0, must-revalidate, no-transform

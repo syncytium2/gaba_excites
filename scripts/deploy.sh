@@ -40,7 +40,7 @@ echo "  CSP present"
 BORN="$(git log --max-parents=0 --format=%cI | tail -1)"
 grep -rqF "$BORN" dist/assets/ || fail "root-commit time $BORN not baked into the bundle"
 echo "  Born stamp baked: $BORN"
-[[ -f dist/methods.html && -f dist/_headers && -f dist/llms.txt ]] || fail "static pages missing from dist/"
+[[ -f dist/methods.html && -f dist/lit.html && -f dist/_headers && -f dist/llms.txt ]] || fail "static pages missing from dist/"
 LOCAL_HASH="$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' dist/index.html)"
 echo "  bundle: $LOCAL_HASH"
 
@@ -62,7 +62,7 @@ for u in "${URLS[@]}"; do
   done
   [[ $ok == 1 ]] || fail "$u never served $LOCAL_HASH"
   UA='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
-  for route in / /methods; do
+  for route in / /methods /lit; do
     n="$(curl -sL --max-time 15 -H "User-Agent: $UA" "$u$route" | grep -c cloudflareinsights || true)"
     [[ "$n" == 0 ]] || fail "third-party beacon injected into $u$route"
   done

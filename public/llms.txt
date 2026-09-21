@@ -6,7 +6,8 @@
 
 This is a hand-maintained plain-text summary of https://gaba.tonydefazio.com/
 for readers that do not run JavaScript. The full account, with every equation,
-is at https://gaba.tonydefazio.com/methods (static HTML).
+is at https://gaba.tonydefazio.com/methods (static HTML), and every source,
+with what was taken from it, is at https://gaba.tonydefazio.com/lit.
 
 ## What it does
 

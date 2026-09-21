@@ -187,7 +187,7 @@ export function App() {
         <div className="tagline">Current-clamp excitability, simulated in your browser</div>
         <p className="privacy">
           {model.label} · runs entirely on your machine, nothing is sent anywhere ·{" "}
-          <a href="/methods">Methods &amp; model</a> · <a href="https://github.com/syncytium2/gaba_excites">source</a>
+          <a href="/methods">Methods &amp; models</a> · <a href="/lit">Sources</a> · <a href="https://github.com/syncytium2/gaba_excites">code</a>
         </p>
       </header>
 

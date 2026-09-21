@@ -5,3 +5,7 @@ dist/
 .wrangler/
 tsconfig.tsbuildinfo
 screenshots/
+
+# Local copies of papers. Never committed: this repository is public.
+lit/pdf/*
+!lit/pdf/.gitkeep

@@ -98,6 +98,16 @@ The build stamps the **born-on date and time** — the root commit,
 21 Sep 2026, 11:53 (UTC−04:00) — and refuses to build from a shallow clone,
 where that commit is missing.
 
+## Literature
+
+[`lit/`](lit/) holds every source the app takes a number, an equation or a
+method from, with what it took and where that lives in the code:
+[`lit/sources.json`](lit/sources.json) is the list, rendered into
+[`lit/README.md`](lit/README.md), [`lit/references.bib`](lit/references.bib)
+and the website's `/lit` page; [`lit/notes/`](lit/notes/) has the
+transcriptions (for the GnRH model, every table and equation as read). PDFs
+live only in the gitignored `lit/pdf/`: this repository is public.
+
 ## Process
 
 This repository was public from its first push, and how it was built is

@@ -185,3 +185,26 @@ perforated patch. The default now belongs to the model (`defaults.eGaba`,
 with its source string shown under the slider): −80 mV for the pyramidal
 cell as before, −36.5 mV for GnRH. The GnRH presets carry it, GABA stays off
 until ticked, and the CLI uses it when `--gaba` gives no E.
+
+### A literature folder, and a companion page
+
+The owner asked for "a lit folder for the repo and possibly as a companion to
+the website". The owner's `murderboard-lit` is a local PDF library, not a
+repository. This repository is public, so one rule was added: metadata, notes
+and transcriptions are committed, and papers never are. `lit/pdf/` is
+gitignored, and `lit/NEEDED.md` lists what to fetch by hand. Even the
+open-access papers stay out, because a licence to read is not a licence to
+redistribute. Automated download failed anyway: PMC and Europe PMC both answer
+scripts with a browser challenge.
+
+One file, `lit/sources.json`, is the source of truth for 14 sources. Each
+entry records what was taken from the source, the exact quote where a single
+number came from one, and the files that use it. `node scripts/lit.ts` renders
+it three ways: `lit/README.md` for the repository, `lit/references.bib` for
+citing, and `public/lit.html`, the website's `/lit` companion page.
+`src/lit.test.ts` fails if a render is stale, if the methods page cites a DOI
+the list lacks, or if a listed file does not exist. `lit/notes/` holds the
+transcriptions. The most valuable is the GnRH model's: every table and
+equation as read, how the flattened tables were reassigned to columns, and
+the one ambiguity. The identifiers of each citation were checked in PubMed
+before they went in.
