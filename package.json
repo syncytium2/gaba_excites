@@ -1,7 +1,7 @@
 {
   "name": "gaba_excites",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Browser current-clamp simulator of a cortical pyramidal neuron: passive properties, current-step families, F-I curves, and GABA/glutamate PSCs.",
   "scripts": {

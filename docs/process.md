@@ -118,3 +118,57 @@ dropped its darkest step, which could not be told from the one before it.
 - **Born-on date and time**: the root commit, 2026-09-21T11:53:40−04:00,
   made early for exactly this reason and baked into the bundle at build;
   shown in the header and footer in the offset it was committed in.
+
+## 2026-09-21, afternoon — noise, and a second model
+
+### Noise
+
+Asked how to make the recording noisy, the recommendation was two separate
+controls, because they teach different things. **Recording noise** is on the
+trace only: filtered Gaussian at a chosen bandwidth, rescaled so the RMS set
+is the RMS seen, plus mains hum. **Membrane noise** is felt by the cell: an
+Ornstein–Uhlenbeck current injected at the membrane, not through the pipette
+(so no bridge error), current-based so that Rin does not change. The owner
+said to build both and to "hold on the measurement". Read as: keep measuring
+on Vm, and defer the "measure on the recorded trace" switch and the
+repeated-trials/probability view to the roadmap. Recording noise defaults to
+0.2 mV RMS at 10 kHz; membrane noise defaults off, so every published number
+still stands. Tests check that the RMS is what was set at every bandwidth,
+that recording noise never touches Vm, and that the OU process has the SD
+and correlation time asked for.
+
+### The GnRH model
+
+The owner asked whether there is a decent GnRH neuron model, noting "we
+published one", and asked for a model selector. PubMed, searched by the
+owner's name, turned up Adams, Stroberg, DeFazio, Schnell & Moenter (2018,
+J Neurosci 38:1249), which fits a GnRH model with MCMC and adapts Moran et
+al. 2016 and LeBeau et al. 2000. No code was public and none was on this
+machine. PubMed Central's text came through without the equations, which are
+images, so all 25 equation images were downloaded and read, and the
+parameters were taken from Tables 1–3. The negative-feedback (OVX+E AM)
+parameter set was used: Table 1's Step 2 conductances, with I_A's V½
+inactivation at −69.8 mV.
+
+The only check available was the paper's own numbers: −6 pA holds the cell
+at −70 mV, and Fig. 7F's spike counts. The port gave −70.09 mV and exactly
+0/0/0/1/4/6 **on the first run, with nothing tuned**. This is a weaker check
+than the NEURON comparison for the pyramidal cell, and the app, methods page,
+README and AGENTS.md all say which kind of check each model had.
+
+One ambiguity was found and measured rather than guessed away: Table 2 lists
+a fourth constant, d, for I_h's time constants that the printed Equation 15
+omits. It is read as an additive floor. With and without it the spike counts
+are identical, and a −30 pA trough moves by 0.4 mV.
+
+To make room for a second model the core was generalized, not forked:
+models became data (`models.ts`); the channel interface gained a calcium
+argument; the state vector gained a calcium slot; and new builders cover
+steady-state/τ gates, the three-state Markov Na⁺ scheme (advanced by the exact
+2×2 matrix exponential), and I_KCa. The pyramidal cell's NEURON check
+passed unchanged after the refactor. Presets now belong to one model each,
+because they quote measured numbers. Two claims drafted for the GnRH presets
+were measured before shipping. One of them was wrong: 0.5 pA is 0.2 mV at
+this cell's Rin at −70 mV, not a quarter of a millivolt, and the note was
+fixed. dt = 0.01 ms was checked against 0.0025 ms for this faster Na⁺ scheme
+and is within 0.13 ms on every spike.

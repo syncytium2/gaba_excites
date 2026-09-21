@@ -10,7 +10,7 @@ import { summarize, sweepStats, type FamilySummary } from "./core/analysis.ts";
 
 export type Request =
   | { kind: "run"; id: number; cell: CellParams; inputs: Inputs; protocol: StepProtocol; seed: number }
-  | { kind: "rheobase"; id: number; cell: CellParams; inputs: Inputs; protocol: StepProtocol; seed: number; lo: number; hi: number };
+  | { kind: "rheobase"; id: number; cell: CellParams; inputs: Inputs; protocol: StepProtocol; seed: number; lo: number; hi: number; tol: number };
 
 export interface CellInfo {
   gLeak: number;
@@ -49,14 +49,14 @@ ctx.onmessage = (ev: MessageEvent<Request>) => {
       const msg: Response = { kind: "run", id: r.id, sweeps, summary, cell: info, ms: performance.now() - t0 };
       ctx.postMessage(msg, transfer);
     } else {
-      // Bisection to 1 pA between a step that did not fire and one that did.
+      // Bisection to `tol` pA between a step that did not fire and one that did.
       // Sweep index 0 for every probe, so each sees the same synaptic barrage.
-      const settled = settle(cell, r.inputs.electrode, r.inputs.ihold, opt.settleMs, opt.dt);
+      const settled = settle(cell, r.inputs.electrode, r.inputs.ihold, opt.settleMs ?? cell.model.settleMs, opt.dt);
       const fires = (amp: number) =>
         sweepStats(runSweep(cell, r.inputs, r.protocol, amp, settled, opt, 0), r.protocol).nInStep > 0;
       let lo = r.lo;
       let hi = r.hi;
-      for (let it = 0; it < 40 && hi - lo > 1; it++) {
+      for (let it = 0; it < 60 && hi - lo > r.tol; it++) {
         const mid = 0.5 * (lo + hi);
         if (fires(mid)) hi = mid;
         else lo = mid;

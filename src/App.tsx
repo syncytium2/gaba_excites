@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type uPlot from "uplot";
-import { PUBLISHED_RS, type CellParams } from "./core/cell.ts";
+import { PUBLISHED_RS, publishedParams, type CellParams } from "./core/cell.ts";
+import { MODELS, MODEL_LIST, type ModelId } from "./core/models.ts";
+import { DEFAULT_NOISE, type NoiseParams } from "./core/noise.ts";
 import { DEFAULT_ELECTRODE, type Electrode, type Sweep } from "./core/simulate.ts";
 import type { FamilySummary } from "./core/analysis.ts";
-import { PRESETS, toProtocol, MAX_SWEEPS, type ProtocolForm } from "./core/protocol.ts";
+import { PRESETS, presetsFor, toProtocol, MAX_SWEEPS, type ProtocolForm } from "./core/protocol.ts";
 import type { SynInput } from "./core/synapses.ts";
 import type { CellInfo, Request, Response } from "./worker.ts";
 import { NumField } from "./ui/NumField.tsx";
@@ -37,6 +39,9 @@ export function App() {
   const [glu, setGlu] = useState<SynInput>(preset0.glu);
   const [gaba, setGaba] = useState<SynInput>(preset0.gaba);
   const [seed, setSeed] = useState(1);
+  // Recording noise on by default at a typical whole-cell level: it touches the
+  // trace only, so no measurement moves. Membrane noise starts off.
+  const [noise, setNoise] = useState<NoiseParams>({ ...DEFAULT_NOISE, recSigma: 0.2 });
   const [showVm, setShowVm] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
   const [pins, setPins] = useState<Pin[]>([]);
@@ -71,14 +76,14 @@ export function App() {
     return () => w.terminate();
   }, []);
 
-  const runKey = JSON.stringify({ cell, ihold, electrode, protocol, glu, gaba, seed });
+  const runKey = JSON.stringify({ cell, ihold, electrode, protocol, glu, gaba, seed, noise });
   useEffect(() => {
     if (protocol.amps.length === 0) return;
     setBusy(true);
     const h = setTimeout(() => {
       const id = ++lastId.current;
       pendingProto.current = protocol;
-      const msg: Request = { kind: "run", id, cell, inputs: { ihold, electrode, glu, gaba }, protocol, seed };
+      const msg: Request = { kind: "run", id, cell, inputs: { ihold, electrode, glu, gaba, noise }, protocol, seed };
       worker.current?.postMessage(msg);
     }, 90);
     return () => clearTimeout(h);
@@ -93,8 +98,23 @@ export function App() {
     const below = byAmp.filter((x) => x.amp < hi && x.nInStep === 0);
     const lo = below.length ? below[below.length - 1].amp : Math.min(0, hi - 100);
     setRefined({ value: NaN, tol: NaN, key: runKey });
-    const msg: Request = { kind: "rheobase", id: lastId.current, cell, inputs: { ihold, electrode, glu, gaba }, protocol, seed, lo, hi };
+    const msg: Request = { kind: "rheobase", id: lastId.current, cell, inputs: { ihold, electrode, glu, gaba, noise }, protocol, seed, lo, hi, tol: model.rheobaseTol };
     worker.current?.postMessage(msg);
+  };
+
+  const switchModel = (id: ModelId) => {
+    const m = MODELS[id];
+    const p = presetsFor(id)[0];
+    setCell(publishedParams(id));
+    setIhold(m.defaults.ihold);
+    setPresetId(p.id);
+    setForm(p.protocol);
+    setGlu(p.glu);
+    setGaba(p.gaba);
+    setNoise({ ...noise, memSigma: 0 }); // membrane noise is in pA, and the right scale differs by ~10× between cells
+    setPins([]);
+    setSelected(null);
+    setRefined(null);
   };
 
   const applyPreset = (id: string) => {
@@ -117,25 +137,29 @@ export function App() {
   }, [sweeps]);
   const sel = selected !== null && selected < sweeps.length ? selected : defaultSelection(summary);
   const synOn = glu.enabled || gaba.enabled;
+  const model = MODELS[cell.model];
+  const noiseOn = noise.recSigma > 0 || noise.humAmp > 0 || noise.memSigma > 0;
+  const presets = presetsFor(cell.model);
   const tauM = (cell.rin * cell.cm) / 1000;
-  const preset = PRESETS.find((p) => p.id === presetId);
+  const preset = presets.find((p) => p.id === presetId);
   const refinedValid = refined && refined.key === runKey ? refined : null;
 
   const pinCurrent = () => {
     if (!summary) return;
-    const label = `Pin ${pins.length + 1}: Rin ${fmt(cell.rin, 0)} MΩ, Cm ${fmt(cell.cm, 0)} pF` +
-      (gaba.enabled ? `, GABA ${gaba.erev} mV` : "") + (glu.enabled ? ", glu on" : "") + (ihold ? `, Ihold ${ihold} pA` : "");
+    const label = `Pin ${pins.length + 1}: ${cell.model === "rs" ? "pyramidal" : "GnRH"}, Rin ${fmt(cell.rin, 0)} MΩ, Cm ${fmt(cell.cm, 0)} pF` +
+      (gaba.enabled ? `, GABA ${gaba.erev} mV` : "") + (glu.enabled ? ", glu on" : "") + (ihold ? `, Ihold ${ihold} pA` : "") + (noise.memSigma ? `, noise ${noise.memSigma} pA` : "");
     setPins([...pins, { label, points: summary.stats.map((s) => ({ amp: s.amp, rate: s.meanRate })).sort((a, b) => a.amp - b.amp) }].slice(-4));
   };
 
   const downloadCsv = () => {
     if (!summary || !result) return;
     const head = [
-      `# gaba_excites ${VERSION}`,
+      `# gaba_excites ${VERSION}; model: ${model.label} (${model.citation})`,
       `# Rin ${cell.rin} MOhm, Cm ${cell.cm} pF, Ihold ${ihold} pA, Rs ${electrode.rs} MOhm, Cp ${electrode.cp} pF, bridge ${electrode.bridge * 100}%`,
       `# step ${protocol.stepStart}-${protocol.stepStart + protocol.stepDur} ms of ${protocol.sweepMs} ms`,
       `# glutamate ${glu.enabled ? `${glu.rate} Hz ${glu.gPeak} nS rise ${glu.tauRise} decay ${glu.tauDecay} ms E ${glu.erev} mV ${glu.pattern}` : "off"}`,
       `# GABA ${gaba.enabled ? `${gaba.rate} Hz ${gaba.gPeak} nS rise ${gaba.tauRise} decay ${gaba.tauDecay} ms E ${gaba.erev} mV ${gaba.pattern}` : "off"}`,
+      `# noise: recording ${noise.recSigma} mV RMS at ${noise.recBandwidth} kHz, hum ${noise.humAmp} mV at ${noise.humHz} Hz; membrane ${noise.memSigma} pA SD, tau ${noise.memTau} ms`,
       `# seed ${seed}; measurements on Vm`,
       "step_pA,spikes_in_step,mean_rate_Hz,initial_rate_Hz,final_rate_Hz,latency_ms,v_baseline_mV,v_steady_mV",
     ];
@@ -162,7 +186,7 @@ export function App() {
         </h1>
         <div className="tagline">Current-clamp excitability, simulated in your browser</div>
         <p className="privacy">
-          A cortical pyramidal cell (Pospischil et al. 2008) · runs entirely on your machine, nothing is sent anywhere ·{" "}
+          {model.label} · runs entirely on your machine, nothing is sent anywhere ·{" "}
           <a href="/methods">Methods &amp; model</a> · <a href="https://github.com/syncytium2/gaba_excites">source</a>
         </p>
       </header>
@@ -170,12 +194,26 @@ export function App() {
       <div className="layout">
         <aside className="tools">
           <section className="panel">
+            <h2>Model</h2>
+            <label className="select">
+              <span className="sr-only">Cell model</span>
+              <select id="model-select" value={cell.model} onChange={(e) => switchModel(e.target.value as ModelId)}>
+                {MODEL_LIST.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+              </select>
+            </label>
+            <p className="note">{model.blurb}</p>
+            <p className="small">
+              {model.validation} <a href={`https://doi.org/${model.doi}`}>{model.citation}</a>.
+            </p>
+          </section>
+
+          <section className="panel">
             <h2>Cell</h2>
-            <NumField label="Rin" unit="MΩ" value={cell.rin} min={10} max={600} step={1} slider digits={1}
+            <NumField label="Rin" unit="MΩ" value={cell.rin} min={model.ranges.rin.min} max={model.ranges.rin.max} step={model.ranges.rin.step} slider digits={1}
               onChange={(rin) => setCell({ ...cell, rin })} />
-            <NumField label="Cm" unit="pF" value={cell.cm} min={20} max={600} step={1} slider digits={1}
+            <NumField label="Cm" unit="pF" value={cell.cm} min={model.ranges.cm.min} max={model.ranges.cm.max} step={model.ranges.cm.step} slider digits={1}
               onChange={(cm) => setCell({ ...cell, cm })} />
-            <NumField label="Ihold" unit="pA" value={ihold} min={-500} max={1000} step={5} slider
+            <NumField label="Ihold" unit="pA" value={ihold} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={model.ranges.ihold.step} slider
               onChange={setIhold} />
             <div className="derived">
               <div>τm = Rin·Cm = <b>{fmt(tauM, 1)} ms</b></div>
@@ -189,7 +227,7 @@ export function App() {
                 <div className="warn">This Rin is out of reach: the channels open at rest alone conduct more than 1/Rin. Using the smallest possible leak.</div>
               )}
             </div>
-            <button className="linkish" onClick={() => { setCell(PUBLISHED_RS); setIhold(0); }}>
+            <button className="linkish" onClick={() => { setCell(publishedParams(cell.model)); setIhold(model.defaults.ihold); }}>
               Reset to the published cell
             </button>
           </section>
@@ -209,8 +247,8 @@ export function App() {
             <h2>Protocol</h2>
             <label className="select">
               <span>Preset</span>
-              <select value={presetId} onChange={(e) => applyPreset(e.target.value)}>
-                {PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              <select id="preset-select" value={presetId} onChange={(e) => applyPreset(e.target.value)}>
+                {presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                 {!preset && <option value={presetId}>Custom</option>}
               </select>
             </label>
@@ -247,11 +285,12 @@ export function App() {
             onChange={(g) => { setGlu(g); setPresetId("custom"); }} />
           <SynPanel title="GABA" color={AQUA} syn={gaba} erevEditable
             onChange={(g) => { setGaba(g); setPresetId("custom"); }} />
-          {synOn && (
+          <NoisePanel noise={noise} memRange={model.ranges.memNoise} onChange={setNoise} />
+          {(synOn || noiseOn) && (
             <section className="panel compact">
               <div className="seedrow">
-                <span className="small">Barrage #{seed}: the same events whatever you change about the cell; each sweep gets its own</span>
-                <button onClick={() => setSeed(seed + 1)}>New barrage</button>
+                <span className="small">Random draw #{seed} — PSC timing and noise. The same draw replays whatever you change about the cell; each sweep gets its own.</span>
+                <button onClick={() => setSeed(seed + 1)}>New draw</button>
               </div>
             </section>
           )}
@@ -262,7 +301,7 @@ export function App() {
             {error ? <span className="warn">Simulation failed: {error}</span> : busy ? "simulating…" : result ? `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms` : ""}
           </div>
 
-          <Stats summary={summary} rinSet={cell.rin} refined={refinedValid} onRefine={refineRheobase} />
+          <Stats summary={summary} rinSet={cell.rin} rinHold={result?.cell.rinAtHold ?? NaN} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} />
 
           {result && sweeps.length > 0 && (
             <>
@@ -308,9 +347,9 @@ export function App() {
 
       <footer>
         <p>
-          Model: the regular-spiking pyramidal cell of Pospischil M, Toledo-Rodriguez M, Monier C, et al. (2008) Minimal Hodgkin–Huxley
-          type models for different classes of cortical and thalamic neurons. <i>Biol Cybern</i> 99:427–441, ported from ModelDB 123623
-          and checked spike-for-spike against NEURON. Measurements are taken on the true membrane potential, not on the recorded trace.
+          Model: {model.label} — {model.citation}, <a href={`https://doi.org/${model.doi}`}>doi:{model.doi}</a>. {model.validation}{" "}
+          Measurements are taken on the true membrane potential, not on the recorded trace, so electrode settings and recording noise
+          never move them.
         </p>
         <p>
           By <a href="https://tonydefazio.com/">Tony DeFazio</a> · MIT licensed · <a href="https://github.com/syncytium2/gaba_excites">github.com/syncytium2/gaba_excites</a> ·
@@ -365,21 +404,58 @@ function SynPanel({ title, color, syn, erevEditable, onChange }: {
   );
 }
 
+// ------------------------------------------------------------------ noise
+
+function NoisePanel({ noise, memRange, onChange }: {
+  noise: NoiseParams; memRange: { min: number; max: number; step: number }; onChange: (n: NoiseParams) => void;
+}) {
+  return (
+    <section className="panel">
+      <h2>Noise</h2>
+      <div className="subhead">Recording — on the trace only</div>
+      <div className="row2">
+        <NumField label="RMS" unit="mV" value={noise.recSigma} min={0} max={3} step={0.05} onChange={(recSigma) => onChange({ ...noise, recSigma })} />
+        <NumField label="Bandwidth" unit="kHz" value={noise.recBandwidth} min={0.2} max={20} step={0.5} onChange={(recBandwidth) => onChange({ ...noise, recBandwidth })} />
+        <NumField label="Line hum" unit="mV" value={noise.humAmp} min={0} max={3} step={0.05} onChange={(humAmp) => onChange({ ...noise, humAmp })} />
+        <div className="numfield">
+          <span className="nf-label small">Mains</span>
+          <div className="seg small" role="radiogroup" aria-label="Mains frequency">
+            {[50, 60].map((hz) => (
+              <button key={hz} role="radio" aria-checked={noise.humHz === hz} className={noise.humHz === hz ? "on" : ""}
+                onClick={() => onChange({ ...noise, humHz: hz })}>{hz} Hz</button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="subhead">Membrane — the cell feels it</div>
+      <NumField label="σ" unit="pA" value={noise.memSigma} min={memRange.min} max={memRange.max} step={memRange.step} slider
+        onChange={(memSigma) => onChange({ ...noise, memSigma })} />
+      <NumField label="τ" unit="ms" value={noise.memTau} min={0.5} max={100} step={0.5}
+        onChange={(memTau) => onChange({ ...noise, memTau })} />
+      <div className="nf-hint">A fluctuating current (Ornstein–Uhlenbeck) injected at the membrane: no added conductance, so Rin is unchanged. Near rheobase, whether a step fires becomes a matter of chance.</div>
+    </section>
+  );
+}
+
 // ------------------------------------------------------------------ stats
 
-function Stats({ summary, rinSet, refined, onRefine }: {
-  summary?: FamilySummary; rinSet: number; refined: { value: number; tol: number } | null; onRefine: () => void;
+function Stats({ summary, rinSet, rinHold, refined, onRefine, tol }: {
+  summary?: FamilySummary; rinSet: number; rinHold: number; refined: { value: number; tol: number } | null; onRefine: () => void; tol: number;
 }) {
   const s = summary;
+  const d = tol < 1 ? 1 : 0; // decimals that the refinement actually resolves
+  const amp = (v: number) => fmt(v, Number.isInteger(v) ? 0 : 1);
   return (
     <div className="stats">
-      <Tile label="Rheobase" value={s ? fmt(s.rheobase, 0) : "—"} unit="pA"
-        sub={refined ? (Number.isFinite(refined.value) ? `refined: ${fmt(refined.value, 0)} ± ${fmt(refined.tol, 0)} pA` : "refining…")
-          : s && Number.isFinite(s.rheobase) ? <button className="linkish" onClick={onRefine}>refine to 1 pA</button> : "no step fired"} />
+      <Tile label="Rheobase" value={s ? amp(s.rheobase) : "—"} unit="pA"
+        sub={refined ? (Number.isFinite(refined.value) ? `refined: ${fmt(refined.value, d)} ± ${fmt(refined.tol, d)} pA` : "refining…")
+          : s && Number.isFinite(s.rheobase) ? <button className="linkish" onClick={onRefine}>refine to {tol} pA</button> : "no step fired"} />
       <Tile label="Threshold" value={s ? fmt(s.threshold, 1) : "—"} unit="mV" sub="first spike, dV/dt ≥ 20 V/s" />
       <Tile label="AP peak · half-width" value={s ? `${fmt(s.apPeak, 0)} · ${fmt(s.apHalfWidth, 2)}` : "—"} unit="mV · ms" />
       <Tile label="Rin, measured" value={s ? fmt(s.rinMeasured, 1) : "—"} unit="MΩ"
-        sub={s && Number.isFinite(s.rinMeasured) ? `set ${fmt(rinSet, 1)}; from steps ≤ 0 pA` : "needs two steps ≤ 0 pA"} />
+        sub={s && Number.isFinite(s.rinMeasured)
+          ? `from steps ≤ 0 pA at the holding Vm. Set: ${fmt(rinSet, 0)} at rest${Math.abs(rinHold - rinSet) > 0.02 * rinSet ? `, ${fmt(rinHold, 0)} at Ihold` : ""}`
+          : "needs two steps ≤ 0 pA"} />
       <Tile label="Holding Vm" value={s ? fmt(s.vHold, 1) : "—"} unit="mV" sub="before the step" />
       <Tile label="F–I gain" value={s ? fmt(s.fiGain, 0) : "—"} unit="Hz/nA" sub="slope over sweeps that fired" />
     </div>

@@ -20,15 +20,22 @@ await page.goto(url);
 await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
 await page.screenshot({ path: `${out}/app.png`, fullPage: true });
 
+const presetSelect = "#preset-select";
 for (const preset of ["shunt", "barrage"]) {
-  await page.selectOption("select", preset);
+  await page.selectOption(presetSelect, preset);
   await page.waitForTimeout(300);
   await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
   await page.screenshot({ path: `${out}/${preset}.png`, fullPage: true });
 }
 
+// the GnRH model, with membrane noise
+await page.selectOption("#model-select", "gnrh");
+await page.waitForTimeout(300);
+await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
+await page.screenshot({ path: `${out}/gnrh.png`, fullPage: true });
+
 await page.setViewportSize({ width: 390, height: 900 });
-await page.selectOption("select", "fi");
+await page.selectOption("#model-select", "rs");
 await page.waitForTimeout(600);
 await page.screenshot({ path: `${out}/phone.png`, fullPage: true });
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);

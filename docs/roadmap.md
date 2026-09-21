@@ -16,6 +16,14 @@ The owner's words are quoted where the item came from them.
   three (Ih, T-type Ca, persistent Na, A-type K, SK/BK with a calcium pool);
   (3) the editor itself, with live plots of m∞/τ(V); (4) a guard that every
   shipped channel still reproduces its source (the NEURON oracle, generalized).
+- **Repeated trials and firing probability.** With membrane noise on, a step
+  near rheobase fires on some trials and not others. Run each step N times,
+  and plot spike probability and mean ± SD rate against current. Held back
+  for now at the owner's request ("hold on the measurement"), along with a
+  switch to measure on the recorded trace instead of Vm.
+- **More GnRH parameter sets.** Adams et al. 2018 also fit positive feedback
+  (OVX+E PM) and OVX; its Figs. 7–8 give the distributions. Each would be a
+  model entry plus a test against the paper.
 - **Voltage clamp**, with the same electrode model (Rs, prediction/correction).
   The brief said "current clamp only, to begin with".
 

@@ -23,8 +23,9 @@
  * stable, which matters because Rs·Cp can be far shorter than dt.
  */
 
-import type { BuiltCell } from "./cell.ts";
+import { cellCaSteady, type BuiltCell } from "./cell.ts";
 import { eventTimes, kinetics, type SynInput } from "./synapses.ts";
+import { addRecordingNoise, DEFAULT_NOISE, OU, type NoiseParams } from "./noise.ts";
 
 export interface Electrode {
   /** series (access) resistance, MΩ */
@@ -52,21 +53,23 @@ export interface SimOptions {
   dt: number;
   /** sample interval of the stored trace, ms (a multiple of dt) */
   sampleMs: number;
-  /** settling time at Ihold before each sweep, ms (no synaptic input) */
-  settleMs: number;
+  /** settling time at Ihold before each run, ms (no synaptic input, no noise); default: the model's */
+  settleMs?: number;
   seed: number;
 }
 
 // 40 kHz storage: a 0.7 ms spike gets ~28 samples, enough for the phase plot and
 // for the 20 V/s threshold walk-back. dt = 0.01 ms because the NEURON comparison
 // (oracle.test.ts) shows 0.025 ms drifting by several ms over a second of firing.
-export const DEFAULT_SIM: SimOptions = { dt: 0.01, sampleMs: 0.025, settleMs: 3000, seed: 1 };
+export const DEFAULT_SIM: SimOptions = { dt: 0.01, sampleMs: 0.025, seed: 1 };
 
 export interface Inputs {
   ihold: number;
   electrode: Electrode;
   glu: SynInput;
   gaba: SynInput;
+  /** optional so that callers written before noise existed still mean "no noise" */
+  noise?: NoiseParams;
 }
 
 export interface Sweep {
@@ -86,19 +89,20 @@ export interface Sweep {
   gabaTimes: number[];
 }
 
-/** Settle the cell at a constant injected current and return the state (gates, V, P). */
+/** Settle the cell at a constant injected current and return the state (gates, Ca, V, P). */
 export function settle(cell: BuiltCell, e: Electrode, ihold: number, ms: number, dt: number): Float64Array {
-  const s = new Float64Array(cell.nGates + 2);
+  const s = new Float64Array(cell.nGates + 3);
   // Start from the steady state if there is one; the run below then only has
   // to finish the job (and to find the limit cycle, if Ihold makes it fire).
   let v0 = cell.vRest;
-  if (!Number.isFinite(v0)) v0 = cell.params.eLeak;
+  if (!Number.isFinite(v0)) v0 = cell.eLeak;
   for (let k = 0; k < cell.channels.length; k++) cell.channels[k].init(v0, s, cell.offsets[k]);
-  s[cell.nGates] = v0;
-  s[cell.nGates + 1] = v0 + ihold * e.rs * 1e-3;
+  s[cell.iCa] = cellCaSteady(cell, v0);
+  s[cell.iv] = v0;
+  s[cell.ip] = v0 + ihold * e.rs * 1e-3;
   const n = Math.round(ms / dt);
   const noSyn = { gGlu: 0, gGaba: 0, eGlu: 0, eGaba: 0 };
-  for (let i = 0; i < n; i++) step(cell, e, s, ihold, dt, noSyn);
+  for (let i = 0; i < n; i++) step(cell, e, s, ihold, 0, dt, noSyn);
   return s;
 }
 
@@ -109,16 +113,21 @@ interface SynNow {
   eGaba: number;
 }
 
-/** One integration step, in place. Returns nothing; V is s[nGates], P is s[nGates+1]. */
-function step(cell: BuiltCell, e: Electrode, s: Float64Array, iCmd: number, dt: number, syn: SynNow): void {
-  const iv = cell.nGates;
+/**
+ * One integration step, in place. `iCmd` enters through the pipette; `iMem`
+ * (membrane noise) is injected at the membrane itself, so it never produces
+ * a bridge error.
+ */
+function step(cell: BuiltCell, e: Electrode, s: Float64Array, iCmd: number, iMem: number, dt: number, syn: SynNow): void {
+  const iv = cell.iv;
   const v0 = s[iv];
   const p0 = s[iv + 1];
+  const ca = s[cell.iCa];
 
   let G = cell.gLeak + syn.gGlu + syn.gGaba;
-  let GE = cell.gLeak * cell.params.eLeak + syn.gGlu * syn.eGlu + syn.gGaba * syn.eGaba;
+  let GE = cell.gLeak * cell.eLeak + syn.gGlu * syn.eGlu + syn.gGaba * syn.eGaba + iMem;
   for (let k = 0; k < cell.channels.length; k++) {
-    const g = cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k]);
+    const g = cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca);
     G += g;
     GE += g * cell.erev[k];
   }
@@ -147,9 +156,22 @@ function step(cell: BuiltCell, e: Electrode, s: Float64Array, iCmd: number, dt: 
   advanceGates(cell, s, s[iv], dt);
 }
 
-/** Gates move after V, at the new V — NEURON's order (fadvance: solve V, then nrn_state). */
+/**
+ * Gates move after V, at the new V — NEURON's order (fadvance: solve V, then
+ * nrn_state). Then calcium, from the calcium current at the new V and gates:
+ * forward Euler, which is ample — with f = 0.0025 the pool moves by well under
+ * 0.1% of itself per 0.01 ms step.
+ */
 function advanceGates(cell: BuiltCell, s: Float64Array, v: number, dt: number): void {
   for (let k = 0; k < cell.channels.length; k++) cell.channels[k].advance(v, dt, s, cell.offsets[k]);
+  const pool = cell.pool;
+  if (!pool) return;
+  const ca = s[cell.iCa];
+  let iCa = 0;
+  for (let k = 0; k < cell.channels.length; k++)
+    if (cell.carriesCa[k]) iCa += cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca) * (v - cell.erev[k]);
+  const pump = (pool.kp * ca * ca) / (pool.Kp * pool.Kp + ca * ca);
+  s[cell.iCa] = Math.max(0, ca + dt * pool.f * (-pool.alpha * iCa - pump));
 }
 
 /** Run one sweep from a settled state. */
@@ -165,7 +187,10 @@ export function runSweep(
   const { dt } = opt;
   const e = inp.electrode;
   const s = Float64Array.from(settled);
-  const iv = cell.nGates;
+  const iv = cell.iv;
+  const noise = inp.noise ?? DEFAULT_NOISE;
+  // membrane noise: its own seed stream, per sweep, independent of the PSCs'
+  const ou = noise.memSigma > 0 ? new OU(noise.memSigma, noise.memTau, dt, opt.seed * 104729 + sweepIndex * 3 + 7) : null;
   const nSteps = Math.round(proto.sweepMs / dt);
   const every = Math.max(1, Math.round(opt.sampleMs / dt));
   const nOut = Math.floor(nSteps / every) + 1;
@@ -220,15 +245,17 @@ export function runSweep(
     syn.gGaba = aGaba - bGaba;
 
     const iCmd = inp.ihold + (t >= tOn && t < tOff ? amp : 0);
-    step(cell, e, s, iCmd, dt, syn);
+    step(cell, e, s, iCmd, ou ? ou.next() : 0, dt, syn);
     if (i % every === 0) record(i / every, iCmd);
   }
+
+  addRecordingNoise(vRec, dt * every, noise, opt.seed * 15485863 + sweepIndex * 5 + 11);
 
   return { amp, sampleMs: dt * every, vRec, vm, iCmd: iOut, gGlu: gGluOut, gGaba: gGabaOut, gluTimes, gabaTimes };
 }
 
 /** Settle once, then run every sweep of the protocol from the same settled state. */
 export function runFamily(cell: BuiltCell, inp: Inputs, proto: StepProtocol, opt: SimOptions = DEFAULT_SIM): Sweep[] {
-  const settled = settle(cell, inp.electrode, inp.ihold, opt.settleMs, opt.dt);
+  const settled = settle(cell, inp.electrode, inp.ihold, opt.settleMs ?? cell.model.settleMs, opt.dt);
   return proto.amps.map((amp, k) => runSweep(cell, inp, proto, amp, settled, opt, k));
 }

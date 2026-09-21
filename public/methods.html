@@ -4,8 +4,8 @@
 <meta charset="UTF-8" />
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>gaba_excites — methods and model</title>
-<meta name="description" content="The model behind gaba_excites: the Pospischil et al. (2008) regular-spiking pyramidal cell, how Rin, Cm, Rs and Ihold map onto it, the electrode and synapse models, the measurements, the check against NEURON, and what the simulator leaves out." />
+<title>gaba_excites — methods and models</title>
+<meta name="description" content="The models behind gaba_excites — the Pospischil et al. (2008) regular-spiking pyramidal cell and the Adams et al. (2018) GnRH neuron — how Rin, Cm, Rs and Ihold map onto them, the electrode, synapse and noise models, the measurements, how each model was checked, and what the simulator leaves out." />
 <link rel="canonical" href="https://gaba.tonydefazio.com/methods" />
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <style>
@@ -31,16 +31,18 @@
 </head>
 <body>
 <main>
-<h1>gaba_excites: methods and model</h1>
+<h1>gaba_excites: methods and models</h1>
 <p class="sub">What the simulator computes, with every equation and parameter, and how far to trust it.
 <a href="/">Back to the simulator</a>.</p>
 
 <nav aria-label="Contents">
 <ol>
-  <li><a href="#model">The cell</a></li>
+  <li><a href="#model">The pyramidal cell</a></li>
+  <li><a href="#gnrh">The GnRH neuron</a></li>
   <li><a href="#passive">Rin, Cm and Ihold</a></li>
   <li><a href="#electrode">The electrode: Rs, bridge balance, pipette capacitance</a></li>
   <li><a href="#synapses">PSCs</a></li>
+  <li><a href="#noise">Noise</a></li>
   <li><a href="#integration">Integration</a></li>
   <li><a href="#measurements">Measurements</a></li>
   <li><a href="#validation">Checked against NEURON</a></li>
@@ -51,7 +53,7 @@
 </ol>
 </nav>
 
-<h2 id="model">1. The cell</h2>
+<h2 id="model">1. The pyramidal cell</h2>
 <p>The cell is the <strong>regular-spiking (RS) pyramidal neuron</strong> of Pospischil et al. (2008), the most common
 electrophysiological class of excitatory neuron in neocortex. It has a single isopotential compartment with three
 voltage-dependent currents: a transient sodium current and a delayed-rectifier potassium current, both in the
@@ -92,6 +94,67 @@ recorded in a slice, where 100–300 MΩ is common, and it is
 low on purpose: the RS model was fit partly to recordings in vivo, where background synaptic activity holds the
 membrane in a high-conductance state. The simulator opens on these published values; the Rin and Cm controls
 move away from them.</p>
+
+
+<h2 id="gnrh">1b. The GnRH neuron</h2>
+<p>The second model, chosen from the <strong>Model</strong> menu, is a mouse <strong>gonadotropin-releasing
+hormone (GnRH) neuron</strong>. Specifically, it is the negative-feedback (OVX+E, morning) parameter set of Adams et al. (2018), which
+adapted the GnRH model of Moran et al. (2016), itself built on LeBeau et al. (2000). It is a single compartment with
+Cm = 20 pF, a 1 nS leak reversing at −65 mV, and ten currents:</p>
+<span class="eq">Cm dV/dt = −(I_NaF + I_NaP + I_A + I_K + I_HVA + I_LVA + I_S + I_h + I_KCa + I_L) + I_app
+
+I_NaF  = g O³ (V − 54)                    three-state Markov scheme per subunit (below)
+I_NaP  = g m h (V − 54)
+I_A    = g m (0.8 h₁ + 0.2 h₂) (V + 101)
+I_K    = g m⁴ (V + 101)
+I_LVA  = g m² h (V − 82.5)                T-type
+I_HVA  = g m (0.2 h₁ + 0.8 h₂) (V − 82.5)
+I_S    = g m (V − 82.5)                   slow inward
+I_h    = g (0.384 h₁ + 0.616 h₂) (V + 40)
+I_KCa  = g Ca² / (1 + Ca²) (V + 101)      Ca in µM
+
+x∞(V) = 1 / (1 + exp((V − V½)/k));   dx/dt = (x∞ − x)/τ
+τ(V)  = e / (exp((a + V)/b) + exp((c + V)/d)) + f          (voltage-dependent τ)
+τ(V)  = c · exp(−((V − a)/b)²) + d                          (I_h)
+
+Markov I_NaF:  C ⇄ O ⇄ I ⇄ C
+  dC/dt = r₃(V) I + β(V) O − (α(V) + r₄) C
+  dO/dt = r₂ I + α(V) C − (β(V) + r₁) O,        I = 1 − C − O
+  α = 55/(1 + exp((V + 6.4)/−15.9))   β = 60/(1 + exp((V + 32)/10))   r₃ = 30/(1 + exp((V + 77.5)/12))
+  r₁ = 1.0, r₂ = 0.2, r₄ = 0.05 ms⁻¹
+
+Calcium:  dCa/dt = f (−α I_Ca − k_p Ca²/(K_p² + Ca²)),   I_Ca = I_LVA + I_HVA + I_S
+          f = 0.0025, α = 0.00185 µM/(pA·ms), k_p = 0.265 µM/ms, K_p = 1.2 µM</span>
+<div class="tablewrap"><table>
+<thead><tr><th>Current</th><th class="n">g (nS)</th><th>Gates: V½ (mV), k (mV), τ (ms)</th></tr></thead>
+<tbody>
+<tr><td>I_NaF</td><td class="n">758</td><td>Markov, above</td></tr>
+<tr><td>I_NaP</td><td class="n">0.39</td><td>m: −41.5, −3.0, 0.4 · h: −47.4, 8.2, τ(a 67.3, b −27.5, c 67.3, d 27.5, e 574.5, f 62.6)</td></tr>
+<tr><td>I_A</td><td class="n">313</td><td>m: −29.4, −6.64, τ(−2.91, 25.6, 65.3, −10.6, 1, 0.0527) · h₁, h₂: −69.8, 4.26, 7.67 and 100</td></tr>
+<tr><td>I_K</td><td class="n">57</td><td>m: −19.7, −12.3, τ(23.8, 18, 23.8, −18, 10.6, 0)</td></tr>
+<tr><td>I_LVA</td><td class="n">0.0679</td><td>m: −51.4, −4.07, τ(31.3, 10.1, 31.3, −10.1, 109, 0.0391) · h: −80.1, 5.5, 250</td></tr>
+<tr><td>I_HVA</td><td class="n">5.16</td><td>m: −11, −7, 0.816 · h₁, h₂: −36.6, 14.6, 53.4 and 728</td></tr>
+<tr><td>I_S</td><td class="n">0.18</td><td>m: −45, −12, 1500</td></tr>
+<tr><td>I_h</td><td class="n">1</td><td>h₁: −77.4, 9.2, τ(a −89.8, b 11.6, c 35.8, d 7.6) · h₂: −77.4, 9.2, τ(−82.6, 25.7, 370.9, 54.1)</td></tr>
+<tr><td>I_KCa</td><td class="n">1.18</td><td>K = 1.0 µM</td></tr>
+</tbody>
+</table></div>
+<p><strong>How it was checked.</strong> Every value above is transcribed from the paper's Tables 1–3 and Equations 1–24.
+There is no public code for this model, so there is no oracle to run against, as NEURON was for the pyramidal cell.
+Instead the port is checked against numbers the paper reports. The paper says −6 pA of applied current holds the cell at
+−70 mV; the port holds it at −70.09 mV. The paper's Fig. 7F shows the model firing 0, 0, 0, 1, 4 and 6 spikes during
+500 ms steps of 0, 6, 12, 18, 24 and 30 pA; the port fires exactly those. Both matched on the first run, with nothing
+tuned. <code>src/core/gnrh.test.ts</code> holds them.</p>
+<p class="note">One ambiguity: Table 2 gives a fourth constant, d, for each I_h time constant (7.6 and 54.1 ms), which
+the printed Equation 15 does not use. It is read here as an additive floor on τ. Dropping it changes neither
+spike count above and moves the trough of a −30 pA step by 0.4 mV.</p>
+<p>As published, the cell rests at −67.5 mV with no applied current, and its input resistance there is
+<strong>506 MΩ</strong>. That is the Rin default, and −6 pA is the Ihold default. The Rin and Cm controls work as for the
+pyramidal cell. With so few channels open at rest and a Rin near 0.5 GΩ, a few picoamps move this cell as much as
+hundreds of picoamps move the pyramidal cell. The step presets are sized accordingly, and follow the paper's own
+protocol: 500 ms steps of 0–30 pA in 2 pA increments. Integration uses the same scheme and the same dt as the pyramidal
+cell. The Markov sodium states are advanced by the exact matrix exponential at fixed V, and at dt = 0.01 ms every spike
+is within 0.13 ms of a run at dt = 0.0025 ms.</p>
 
 <h2 id="passive">2. Rin, Cm and Ihold</h2>
 <p>A model file specifies densities per unit area. An experimenter reads whole-cell quantities off the amplifier. The
@@ -160,6 +223,26 @@ one event:  g(t) = A · (exp(−t/τdecay) − exp(−t/τrise)),   A chosen so 
 </ul>
 <p class="note">A mean rate of hundreds of hertz stands for many synapses converging on the cell: 1000 Hz is a thousand
 synapses each firing at 1 Hz, for example.</p>
+
+
+<h2 id="noise">4b. Noise</h2>
+<p>There are two kinds of noise, kept separate because they teach different things.</p>
+<ul>
+  <li><strong>Recording noise</strong> models the amplifier and digitizer. It is added to the recorded trace after the simulation,
+  so the cell never feels it and no measurement moves. White Gaussian noise passes through a Gaussian low-pass filter at the
+  chosen bandwidth (σ<sub>t</sub> = 0.1325 / f<sub>c</sub>, the filter pCLAMP applies) and is scaled so that the RMS you set
+  is the RMS you see. Optional mains hum at 50 or 60 Hz adds a random phase per sweep. The default is 0.2 mV RMS at 10 kHz,
+  typical of a whole-cell current-clamp recording.</li>
+  <li><strong>Membrane noise</strong> is a fluctuating current the cell does feel. It is injected at the membrane rather than
+  through the pipette, so it produces no bridge error. It follows an Ornstein–Uhlenbeck process: Gaussian, mean zero, SD σ,
+  correlation time τ, advanced with the exact update x ← x·e<sup>−dt/τ</sup> + σ·√(1 − e<sup>−2dt/τ</sup>)·N(0,1). It is
+  current-based on purpose, so it adds fluctuation without adding conductance and leaves Rin unchanged. The Poisson PSCs are
+  the conductance-based kind. The default is off.</li>
+</ul>
+<p>Both draw from seeded generators, like the PSCs. The seed depends only on the draw number and the sweep, so changing the
+cell replays the same noise. Measurements are still taken on Vm, so membrane noise, being real to the cell, changes them,
+and recording noise does not. Near rheobase, membrane noise turns “does this step fire?” into a matter of chance.
+Measuring that probability properly needs repeated trials of each step, which is on the roadmap.</p>
 
 <h2 id="integration">5. Integration</h2>
 <p>The integration follows NEURON's default fixed-step scheme. Each step of dt = 0.01 ms solves the linear system for V (and
@@ -274,6 +357,11 @@ node scripts/fi.ts --gaba 200,3,0.5,10,-60 --regular --rheobase</span>
   RS cell was taken from.)</li>
   <li>Traub RD, Miles R (1991). <i>Neuronal Networks of the Hippocampus.</i> Cambridge University Press. (The Na⁺ and
   K⁺ kinetics.)</li>
+  <li>Adams C, Stroberg W, DeFazio RA, Schnell S, Moenter SM (2018). Gonadotropin-releasing hormone (GnRH) neuron
+  excitability is regulated by estradiol feedback and kisspeptin. <i>J Neurosci</i> 38:1249–1263.
+  <a href="https://doi.org/10.1523/JNEUROSCI.2988-17.2017">doi:10.1523/JNEUROSCI.2988-17.2017</a>. (The GnRH model.)</li>
+  <li>Moran et al. (2016) and LeBeau et al. (2000): the GnRH models Adams et al. built on; full references are in
+  Adams et al. (2018).</li>
   <li>Hines ML, Carnevale NT (1997). The NEURON simulation environment. <i>Neural Comput</i> 9:1179–1209.
   <a href="https://doi.org/10.1162/neco.1997.9.6.1179">doi:10.1162/neco.1997.9.6.1179</a>.</li>
 </ol>

@@ -40,16 +40,19 @@
       <main class="page prerender">
         <h1>gaba_excites</h1>
         <p><strong>A current-clamp excitability simulator that runs in the browser.</strong>
-          A single-compartment cortical pyramidal cell — the regular-spiking model of Pospischil et al.
-          (2008), with Traub-type sodium and delayed-rectifier potassium currents and a slow M-type potassium
-          current for spike-frequency adaptation — recorded in current clamp.</p>
+          Two single-compartment models, recorded in current clamp: a cortical pyramidal cell — the
+          regular-spiking model of Pospischil et al. (2008), with Traub-type sodium and delayed-rectifier
+          potassium currents and a slow M-type potassium current for spike-frequency adaptation — and a mouse
+          GnRH neuron, the model of Adams et al. (2018), with ten currents including a calcium pool.</p>
         <ul>
           <li>Set the passive properties the way they are read off a rig: input resistance, capacitance, series resistance (with bridge balance and pipette capacitance) and holding current.</li>
           <li>Run a family of current steps, or any list of steps, and read off rheobase, spike threshold, action-potential shape, measured input resistance and the F–I curve. Pin a curve, change something, and compare.</li>
+          <li>Add recording noise (on the trace only) and membrane noise (a fluctuating current the cell feels).</li>
           <li>Add conductance-based glutamate and GABA PSCs — rate, peak conductance, rise and decay — and move the GABA reversal potential to see the same inhibitory conductance hyperpolarize, shunt, or excite.</li>
         </ul>
-        <p>The model is ported from its ModelDB source (123623) and checked spike-for-spike against NEURON
-          running the original mechanisms. The model and every equation are on the
+        <p>The pyramidal cell is ported from its ModelDB source (123623) and checked spike-for-spike against
+          NEURON running the original mechanisms; the GnRH neuron is transcribed from its paper and reproduces
+          the paper's reported firing. The model and every equation are on the
           <a href="/methods">Methods page</a>, which needs no JavaScript. Source:
           <a href="https://github.com/syncytium2/gaba_excites">github.com/syncytium2/gaba_excites</a> (MIT).</p>
         <p><em>Loading… the simulator needs JavaScript.</em></p>
