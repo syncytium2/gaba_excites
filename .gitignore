@@ -4,3 +4,4 @@ dist/
 *.local
 .wrangler/
 tsconfig.tsbuildinfo
+screenshots/

@@ -1,0 +1,10 @@
+# gaba_excites — https://gaba.tonydefazio.com
+# All crawlers welcome, AI crawlers included: a free teaching tool should be
+# findable and described accurately. The same policy as no_peak and Colonel
+# Kernel — and the same caveat: Cloudflare's "Managed robots.txt" and "Block AI
+# Scrapers" zone settings can silently override this file. See no_peak's
+# robots.txt for how to check both.
+User-agent: *
+Allow: /
+
+Sitemap: https://gaba.tonydefazio.com/sitemap.xml

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>gaba_excites — current-clamp excitability simulator</title>
+    <meta name="description" content="Simulate current clamp on a cortical pyramidal neuron in your browser: set Rin, Cm, Rs and holding current, run current-step families for threshold, rheobase and the F–I curve, and add glutamate and GABA PSCs with a movable GABA reversal potential." />
+    <link rel="canonical" href="https://gaba.tonydefazio.com/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="Plain-text summary" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://gaba.tonydefazio.com/" />
+    <meta property="og:title" content="gaba_excites — current-clamp excitability simulator" />
+    <meta property="og:description" content="A Hodgkin–Huxley-type cortical pyramidal cell in current clamp, in the browser. Passive properties, step families, F–I curves, and GABA that hyperpolarizes, shunts, or excites depending on where its reversal sits." />
+    <meta name="twitter:card" content="summary" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "gaba_excites",
+        "url": "https://gaba.tonydefazio.com/",
+        "description": "A browser simulator of current-clamp recording from a cortical regular-spiking pyramidal neuron (Pospischil et al. 2008, ModelDB 123623), for teaching excitability: passive properties, series resistance and bridge balance, current-step families, rheobase, spike threshold, F–I curves, and conductance-based glutamate and GABA PSCs with a variable GABA reversal potential. All computation runs in the browser.",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Any (runs entirely in the web browser)",
+        "isAccessibleForFree": true,
+        "license": "https://opensource.org/license/mit/",
+        "codeRepository": "https://github.com/syncytium2/gaba_excites",
+        "programmingLanguage": "TypeScript",
+        "author": { "@type": "Person", "name": "Richard Anthony DeFazio" },
+        "keywords": "current clamp, excitability, Hodgkin-Huxley, pyramidal neuron, F-I curve, rheobase, action potential threshold, GABA reversal potential, shunting inhibition, depolarizing GABA, series resistance, bridge balance, neuroscience teaching"
+      }
+    </script>
+  </head>
+  <body>
+    <!--
+      Static summary for readers that do not run JavaScript. React replaces it
+      on mount. Keep it in step with public/methods.html.
+    -->
+    <div id="root">
+      <main class="page prerender">
+        <h1>gaba_excites</h1>
+        <p><strong>A current-clamp excitability simulator that runs in the browser.</strong>
+          A single-compartment cortical pyramidal cell — the regular-spiking model of Pospischil et al.
+          (2008), with Traub-type sodium and delayed-rectifier potassium currents and a slow M-type potassium
+          current for spike-frequency adaptation — recorded in current clamp.</p>
+        <ul>
+          <li>Set the passive properties the way they are read off a rig: input resistance, capacitance, series resistance (with bridge balance and pipette capacitance) and holding current.</li>
+          <li>Run a family of current steps, or any list of steps, and read off rheobase, spike threshold, action-potential shape, measured input resistance and the F–I curve. Pin a curve, change something, and compare.</li>
+          <li>Add conductance-based glutamate and GABA PSCs — rate, peak conductance, rise and decay — and move the GABA reversal potential to see the same inhibitory conductance hyperpolarize, shunt, or excite.</li>
+        </ul>
+        <p>The model is ported from its ModelDB source (123623) and checked spike-for-spike against NEURON
+          running the original mechanisms. The model and every equation are on the
+          <a href="/methods">Methods page</a>, which needs no JavaScript. Source:
+          <a href="https://github.com/syncytium2/gaba_excites">github.com/syncytium2/gaba_excites</a> (MIT).</p>
+        <p><em>Loading… the simulator needs JavaScript.</em></p>
+      </main>
+    </div>
+    <style>
+      .prerender { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 3rem; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.55; color: #0b0b0b; }
+    </style>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

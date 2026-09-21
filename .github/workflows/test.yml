@@ -1,0 +1,32 @@
+name: tests
+
+# Green means: the unit tests pass, the port still matches the committed NEURON
+# reference (src/core/oracle/neuron_rs.json — committed, so this check runs
+# here, unlike no_peak's), the GABA crossover numbers hold, and
+# `tsc -b && vite build` is clean. It does not re-run NEURON; that is
+# tools/neuron_oracle.py, by hand, when the model changes.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the build bakes the Born stamp from the root commit and refuses a shallow clone
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: CLI runs under plain node
+        run: node scripts/fi.ts --steps 0,600 | tail -2

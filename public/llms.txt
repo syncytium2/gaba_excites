@@ -1,0 +1,50 @@
+# gaba_excites
+
+> A browser simulator of current-clamp recording from a cortical
+> regular-spiking pyramidal neuron, for teaching excitability. It runs
+> entirely on the reader's machine: no server, no upload, no analytics.
+
+This is a hand-maintained plain-text summary of https://gaba.tonydefazio.com/
+for readers that do not run JavaScript. The full account, with every equation,
+is at https://gaba.tonydefazio.com/methods (static HTML).
+
+## What it does
+
+- Simulates the regular-spiking (RS) pyramidal cell of Pospischil et al. 2008
+  (Biol Cybern 99:427, doi:10.1007/s00422-008-0263-8; ModelDB 123623): one
+  compartment, Traub INa and IKd, slow M-type IK for adaptation.
+- The user sets whole-cell passive properties — Rin (as measured at rest),
+  Cm (sets cell size; channel densities stay fixed) and holding current — and
+  electrode properties: series resistance, bridge balance, pipette capacitance.
+- Runs families of current steps (first/increment/count, or any list) and
+  reports rheobase (refinable to 1 pA), spike threshold (dV/dt >= 20 V/s),
+  AP peak and half-width, measured Rin, and the F–I curve (mean and initial
+  rate); F–I curves can be pinned for comparison and exported as CSV.
+- Adds conductance-based glutamate (E = 0 mV) and GABA-A PSCs (E_GABA
+  variable, default -80 mV), each with rate, peak conductance, rise and decay,
+  Poisson or regular timing, from a seeded generator.
+
+## Validation
+
+Spike counts match NEURON 9.0.2 running the original ModelDB mechanisms
+exactly for steps of 500–1500 pA, and every spike time agrees within 0.2 ms
+(dt = 0.01 ms).
+
+## The result it is named for
+
+On the published cell, with clock-like GABA (200 Hz, 3 nS, 0.5/10 ms),
+rheobase is 561 pA without GABA, 765 pA with E_GABA = -80 mV, 628 pA at
+-60 mV (GABA depolarizes the cell yet still inhibits, by shunting), 560 pA at
+-50 mV (neutral), and 457 pA at -35 mV (excitatory). The crossover is about
+11 mV below spike threshold.
+
+## Limits
+
+One compartment; no Ih, calcium currents, NMDA, GABA-B, plasticity or
+chloride dynamics; current clamp only; the published cell's Rin (32 MOhm) is
+a high-conductance, in-vivo-like value.
+
+## Source
+
+https://github.com/syncytium2/gaba_excites (MIT). A command line
+(`node scripts/fi.ts`) runs the same code without a browser.

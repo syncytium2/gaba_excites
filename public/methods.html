@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>gaba_excites — methods and model</title>
+<meta name="description" content="The model behind gaba_excites: the Pospischil et al. (2008) regular-spiking pyramidal cell, how Rin, Cm, Rs and Ihold map onto it, the electrode and synapse models, the measurements, the check against NEURON, and what the simulator leaves out." />
+<link rel="canonical" href="https://gaba.tonydefazio.com/methods" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<style>
+  :root { --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781; --grid: #e1e0d9; --page: #f9f9f7; --surface: #fcfcfb; }
+  body { margin: 0; background: var(--page); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.6; }
+  main { max-width: 46rem; margin: 0 auto; padding: 2rem 1.1rem 4rem; }
+  h1 { font-size: 1.7rem; margin: 0 0 0.3rem; }
+  h2 { font-size: 1.2rem; margin: 2.2rem 0 0.4rem; }
+  h3 { font-size: 1rem; margin: 1.4rem 0 0.3rem; }
+  .sub { color: var(--ink-2); margin: 0 0 1.5rem; }
+  a { color: #1f63b8; }
+  code, .eq { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9em; }
+  .eq { display: block; background: var(--surface); border: 1px solid var(--grid); border-radius: 6px; padding: 0.6rem 0.8rem; margin: 0.6rem 0; white-space: pre; overflow-x: auto; line-height: 1.5; }
+  table { border-collapse: collapse; margin: 0.6rem 0 1rem; font-size: 0.92rem; font-variant-numeric: tabular-nums; width: 100%; }
+  th, td { text-align: left; padding: 0.3rem 0.6rem; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  th { color: var(--ink-2); font-weight: 600; }
+  td.n, th.n { text-align: right; }
+  .tablewrap { overflow-x: auto; }
+  nav ol { padding-left: 1.2rem; }
+  .note { color: var(--ink-2); font-size: 0.92rem; }
+  footer { color: var(--muted); font-size: 0.85rem; margin-top: 3rem; }
+</style>
+</head>
+<body>
+<main>
+<h1>gaba_excites: methods and model</h1>
+<p class="sub">What the simulator computes, with every equation and parameter, and how far to trust it.
+<a href="/">Back to the simulator</a>.</p>
+
+<nav aria-label="Contents">
+<ol>
+  <li><a href="#model">The cell</a></li>
+  <li><a href="#passive">Rin, Cm and Ihold</a></li>
+  <li><a href="#electrode">The electrode: Rs, bridge balance, pipette capacitance</a></li>
+  <li><a href="#synapses">PSCs</a></li>
+  <li><a href="#integration">Integration</a></li>
+  <li><a href="#measurements">Measurements</a></li>
+  <li><a href="#validation">Checked against NEURON</a></li>
+  <li><a href="#gaba">When GABA excites</a></li>
+  <li><a href="#limits">What it leaves out</a></li>
+  <li><a href="#cli">Running it without a browser</a></li>
+  <li><a href="#references">References</a></li>
+</ol>
+</nav>
+
+<h2 id="model">1. The cell</h2>
+<p>The cell is the <strong>regular-spiking (RS) pyramidal neuron</strong> of Pospischil et al. (2008), the most common
+electrophysiological class of excitatory neuron in neocortex. It has a single isopotential compartment with three
+voltage-dependent currents: a transient sodium current and a delayed-rectifier potassium current, both in the
+Traub–Miles formulation, which make the action potential; and a slow, non-inactivating M-type potassium current, which
+produces spike-frequency adaptation. There is no calcium current and no calcium-activated potassium current.</p>
+<p>The kinetics and parameters are transcribed from the model's ModelDB entry (accession 123623): the
+mechanisms <code>HH_traub.mod</code> and <code>IM_cortex.mod</code>, and the cell template <code>sPY_template</code>.
+Temperature is 36 °C, where both temperature factors in those files equal 1.</p>
+<span class="eq">Cm dV/dt = −gL(V − EL) − gNa m³h (V − ENa) − gKd n⁴ (V − EK) − gM p (V − EK)
+          − I_syn + I_injected
+
+V₂ = V − V_T                                   (V_T = −55 mV)
+αm = 0.32 (13 − V₂) / (exp((13 − V₂)/4) − 1)     βm = 0.28 (V₂ − 40) / (exp((V₂ − 40)/5) − 1)
+αh = 0.128 exp((17 − V₂)/18)                   βh = 4 / (1 + exp((40 − V₂)/5))
+αn = 0.032 (15 − V₂) / (exp((15 − V₂)/5) − 1)    βn = 0.5 exp((10 − V₂)/40)
+p∞ = 1 / (1 + exp(−(V + 35)/10))
+τp = τmax / (3.3 exp((V + 35)/20) + exp(−(V + 35)/20))      (τmax = 1000 ms)
+
+rates in ms⁻¹, voltages in mV</span>
+
+<div class="tablewrap"><table>
+<thead><tr><th>Parameter</th><th class="n">Value</th><th>Source</th></tr></thead>
+<tbody>
+<tr><td>Geometry</td><td class="n">diameter = length = 96 µm</td><td><code>sPY_template</code></td></tr>
+<tr><td>Membrane area (π·d·L)</td><td class="n">28 953 µm²</td><td>derived</td></tr>
+<tr><td>Specific capacitance</td><td class="n">1 µF/cm²</td><td><code>sPY_template</code></td></tr>
+<tr><td>Leak g_pas, E_pas</td><td class="n">0.1 mS/cm², −70 mV</td><td><code>sPY_template</code></td></tr>
+<tr><td>gNa, ENa</td><td class="n">50 mS/cm², +50 mV</td><td><code>sPY_template</code></td></tr>
+<tr><td>gKd, EK</td><td class="n">5 mS/cm², −100 mV</td><td><code>sPY_template</code></td></tr>
+<tr><td>gM, τmax</td><td class="n">0.07 mS/cm², 1000 ms</td><td><code>sPY_template</code></td></tr>
+<tr><td>V_T (<code>vtraub</code>)</td><td class="n">−55 mV</td><td><code>sPY_template</code></td></tr>
+</tbody>
+</table></div>
+<p>As published, this cell has <strong>Cm = 289.5 pF</strong> and a resting potential of <strong>−70.57 mV</strong>.
+Its input resistance at rest is <strong>32.1 MΩ</strong>; the template's comment gives 34 MΩ, which is
+the leak alone, and the channels open at rest bring it down to 32.1. That is low for a pyramidal cell
+recorded in a slice, where 100–300 MΩ is common, and it is
+low on purpose: the RS model was fit partly to recordings in vivo, where background synaptic activity holds the
+membrane in a high-conductance state. The simulator opens on these published values; the Rin and Cm controls
+move away from them.</p>
+
+<h2 id="passive">2. Rin, Cm and Ihold</h2>
+<p>A model file specifies densities per unit area. An experimenter reads whole-cell quantities off the amplifier. The
+simulator takes the whole-cell quantities and maps them onto the model:</p>
+<ul>
+  <li><strong>Cm sets the size of the cell.</strong> Area = Cm / (1 µF/cm²). The active channel densities are held fixed,
+  so a larger cell has proportionally more of every channel. Because Rin is held where you set it, the leak density
+  falls as the cell grows. The result is that <strong>rheobase is set mostly by Rin, not by Cm</strong>: on the
+  published cell it is 590, 561 and 551 pA at Cm = 145, 290 and 579 pF, but 129 pA if Rin is raised to 150 MΩ. Cm
+  changes the speed: τm, the latency to the first spike, and how fast the voltage follows a synaptic input.</li>
+  <li><strong>Rin is the input resistance you would measure at rest</strong>: the inverse slope of the steady-state
+  current–voltage relation at the resting potential, active conductances included. The simulator finds the leak
+  conductance gL that makes this true, by bisection. It does not use gL = 1/Rin, because channels open at rest (mainly
+  the M current) conduct too, and a knob labeled Rin should give back Rin when you measure it. If the requested Rin is
+  so high that the channels open at rest alone conduct more than 1/Rin, no leak can produce it; the simulator uses the
+  smallest possible leak and says so.</li>
+  <li><strong>EL stays at −70 mV.</strong> Changing Rin therefore changes the resting potential only slightly, through the
+  shifting balance between the leak and the M current.</li>
+  <li><strong>Ihold</strong> is a constant current injected throughout. Before every run the cell is settled at Ihold
+  for 3 s, with no synaptic input, so the slow M current starts each sweep at its steady state. Every sweep starts
+  from that same settled state, as though each were recorded after a long interval.</li>
+  <li><strong>τm = Rin·Cm</strong> is shown as a derived value. With a single compartment it is also the time constant
+  of the voltage response to a small step.</li>
+</ul>
+<p class="note">Rin at the holding potential is also reported. Depolarizing holding current recruits the M current and
+lowers the effective input resistance. That is physiology, not a discrepancy.</p>
+
+<h2 id="electrode">3. The electrode: Rs, bridge balance, pipette capacitance</h2>
+<span class="eq">I_cmd ──► pipette node P ──[ Rs ]──► cell V ──► membrane
+                  │
+                 Cp to ground
+
+Cm dV/dt = (P − V)/Rs − I_membrane
+Cp dP/dt = I_cmd − (P − V)/Rs
+V_recorded = P − b · Rs · I_cmd          (b = bridge balance, 0–1)</span>
+<p>An ideal current source drives the pipette. In steady state all of the command current reaches the cell, so
+<strong>series resistance does not change the membrane potential</strong>. It changes what is recorded. The
+recorded voltage is taken at the pipette, so it carries an offset of I·Rs during a step (the bridge error), and the
+amplifier's bridge balance subtracts a set fraction of that offset. With pipette capacitance Cp &gt; 0, Rs and Cp
+form a low-pass filter on the recorded voltage, and some of the current injected during fast voltage changes charges
+the pipette instead of the cell. Spikes in the record then look smaller and slower than the real ones.
+Cp stands for the capacitance left over after capacitance neutralization. At 0 pF, the default, Rs affects only the
+record's offset.</p>
+<p>Every measurement below is taken on the true membrane potential, so electrode settings change what the traces
+show but not the F–I curve. To see how a bridge error would contaminate a threshold measurement, unbalance the bridge
+and compare the recorded trace with the true Vm (the “show true Vm” option).</p>
+
+<h2 id="synapses">4. PSCs</h2>
+<p>Both inputs are <strong>conductance-based</strong>: the current each event produces depends on the driving force
+(V − E). This is what makes the GABA reversal potential matter. A current-based input could not shunt, and could not
+change sign as the membrane crosses its reversal.</p>
+<span class="eq">I_syn = g_glu(t)(V − E_glu) + g_GABA(t)(V − E_GABA)
+
+one event:  g(t) = A · (exp(−t/τdecay) − exp(−t/τrise)),   A chosen so the peak equals g_peak</span>
+<ul>
+  <li><strong>Glutamate</strong>: AMPA-like, E_glu = 0 mV (fixed). Defaults 0.5 ms rise, 3 ms decay, 3 nS peak.</li>
+  <li><strong>GABA</strong>: GABA<sub>A</sub>-like, E_GABA variable from −100 to 0 mV, default −80 mV. Defaults 0.5 ms
+  rise, 10 ms decay, 3 nS peak.</li>
+  <li>Each input has a mean rate. <strong>Poisson</strong> timing draws exponentially distributed intervals.
+  <strong>Regular</strong> timing gives clock-like events. At high rates a regular train approximates a tonic
+  conductance.</li>
+  <li>Event times come from a seeded generator (mulberry32). The seed depends only on the barrage number, the input and
+  the sweep index. So changing Rin, Cm, E_GABA or anything else about the cell replays <em>exactly the same</em>
+  events, and any change in the response comes from the change you made. “New barrage” draws a new set.</li>
+  <li>A rise time of 0 gives an instantaneous rise and a single-exponential decay.</li>
+</ul>
+<p class="note">A mean rate of hundreds of hertz stands for many synapses converging on the cell: 1000 Hz is a thousand
+synapses each firing at 1 Hz, for example.</p>
+
+<h2 id="integration">5. Integration</h2>
+<p>The integration follows NEURON's default fixed-step scheme. Each step of dt = 0.01 ms solves the linear system for V (and
+the pipette node, when Cp &gt; 0) by backward Euler, with all conductances held at their values from the start of
+the step. The gates are then advanced at the new voltage by the exact exponential update for fixed V (Rush–Larsen),
+which is how the <code>hh2</code> mechanism itself advances them. Backward Euler is unconditionally stable, which
+matters because Rs·Cp can be much shorter than dt. Traces are stored at 40 kHz (every 0.025 ms), like a digitizer.</p>
+<p class="note">The step is 0.01 ms rather than NEURON's usual 0.025 ms because the comparison below showed that at
+0.025 ms spike times drift by several milliseconds over a second of repetitive firing. At 0.01 ms they stay
+within 0.2 ms.</p>
+<p>The simulation runs in a Web Worker, in the browser. A 13-sweep, 1-second family takes about 0.2 s.</p>
+
+<h2 id="measurements">6. Measurements</h2>
+<div class="tablewrap"><table>
+<thead><tr><th>Quantity</th><th>Definition</th></tr></thead>
+<tbody>
+<tr><td>Spike</td><td>An upward crossing of −20 mV. The detector re-arms once Vm falls back below −40 mV.</td></tr>
+<tr><td>Threshold</td><td>Vm at the first sample of the upstroke where dV/dt ≥ 20 V/s (20 mV/ms), found by walking back from the −20 mV crossing. Reported for the first spike of the rheobase sweep.</td></tr>
+<tr><td>AP peak, half-width</td><td>Peak Vm of that spike, and its width at half the threshold-to-peak amplitude.</td></tr>
+<tr><td>Rheobase</td><td>The smallest step in the family that produced at least one spike during the step. Its resolution is your step increment. “Refine to 1 pA” bisects between the largest silent step below it and the rheobase step, using the same synaptic barrage for every probe.</td></tr>
+<tr><td>Mean rate</td><td>Spikes during the step ÷ step duration.</td></tr>
+<tr><td>Initial / final rate</td><td>1 / the first and last interspike intervals during the step. The gap between them is adaptation, from the M current.</td></tr>
+<tr><td>Rin, measured</td><td>Slope of the steady-state ΔV (mean of the last 20% of the step minus the mean of the 50 ms before it) against step current, over the sweeps at or below 0 pA that did not spike. Depolarizing subthreshold steps are left out because they recruit the M current and bend the I–V.</td></tr>
+<tr><td>F–I gain</td><td>Least-squares slope of mean rate against step current over the sweeps that fired, in Hz/nA.</td></tr>
+</tbody>
+</table></div>
+
+<h2 id="validation">7. Checked against NEURON</h2>
+<p>The port was run against NEURON 9.0.2 executing the <em>original</em> ModelDB mechanisms (repository commit
+<code>8dfc13f</code>): the same cell, a 3 s settle, then an 800 ms step, with dt = 0.01 ms and implicit Euler in both.
+Spike counts agree exactly at every amplitude, and every spike time agrees to within 0.2 ms:</p>
+<div class="tablewrap"><table>
+<thead><tr><th class="n">Step (pA)</th><th class="n">Spikes, NEURON</th><th class="n">Spikes, this port</th><th class="n">First spike, NEURON (ms after step)</th></tr></thead>
+<tbody>
+<tr><td class="n">500</td><td class="n">0</td><td class="n">0</td><td class="n">—</td></tr>
+<tr><td class="n">550</td><td class="n">0</td><td class="n">0</td><td class="n">—</td></tr>
+<tr><td class="n">600</td><td class="n">1</td><td class="n">1</td><td class="n">42.15</td></tr>
+<tr><td class="n">700</td><td class="n">5</td><td class="n">5</td><td class="n">24.16</td></tr>
+<tr><td class="n">800</td><td class="n">11</td><td class="n">11</td><td class="n">17.93</td></tr>
+<tr><td class="n">1000</td><td class="n">24</td><td class="n">24</td><td class="n">12.26</td></tr>
+<tr><td class="n">1500</td><td class="n">57</td><td class="n">57</td><td class="n">7.17</td></tr>
+</tbody>
+</table></div>
+<p>The largest difference, 0.20 ms, is on the fifth spike of the 700 pA sweep, which comes 491 ms into a step that
+sits barely above threshold. Near threshold a long interspike interval amplifies any small numerical difference.
+Every other spike agrees to within 0.09 ms. This comparison is part of the test suite
+(<code>src/core/oracle.test.ts</code>), and <code>tools/neuron_oracle.py</code> regenerates the reference.</p>
+<p class="note">The electrode and synapse models are not part of the published cell, so NEURON cannot check them.
+The test suite checks them separately. With Cp = 0, changing Rs leaves Vm identical to the last bit. An unbalanced
+bridge offsets the record by exactly I·Rs. A single PSC peaks at exactly its set conductance. GABA reversing at the
+resting potential leaves Vm unmoved. Poisson trains have the requested rate.</p>
+
+<h2 id="gaba">8. When GABA excites</h2>
+<p>The simulator is named for this result. The table shows rheobase (bisected to 1 pA; 800 ms step) on the published cell, with
+clock-like GABA at 200 Hz, 3 nS peak, 0.5/10 ms, as E_GABA moves:</p>
+<div class="tablewrap"><table>
+<thead><tr><th>GABA</th><th class="n">Rheobase (pA)</th><th>Effect on excitability</th></tr></thead>
+<tbody>
+<tr><td>off</td><td class="n">561</td><td>—</td></tr>
+<tr><td>E = −80 mV</td><td class="n">765</td><td>inhibitory; hyperpolarizes</td></tr>
+<tr><td>E = −65 mV</td><td class="n">662</td><td>inhibitory, although it <em>depolarizes</em> (rest is −70.6 mV)</td></tr>
+<tr><td>E = −60 mV</td><td class="n">628</td><td>inhibitory, although it depolarizes</td></tr>
+<tr><td>E = −55 mV</td><td class="n">594</td><td>inhibitory, although it depolarizes</td></tr>
+<tr><td>E = −50 mV</td><td class="n">560</td><td>neutral</td></tr>
+<tr><td>E = −45 mV</td><td class="n">525</td><td>excitatory</td></tr>
+<tr><td>E = −35 mV</td><td class="n">457</td><td>excitatory</td></tr>
+</tbody>
+</table></div>
+<p>Two points come out of this table. First, <strong>depolarizing is not the same as excitatory</strong>. Between rest and
+about −50 mV, GABA depolarizes the cell and still makes it harder to fire, because the open conductance shunts the
+injected current. Second, the crossover sits at about −50 mV, some 11 mV <strong>below</strong> the −39 mV spike
+threshold. What matters is where Vm sits while the step charges the membrane toward threshold. Below the crossover,
+GABA pulls Vm down toward E_GABA; above it, GABA pushes Vm up. With Poisson rather than clock-like timing the numbers
+move by a few tens of pA from barrage to barrage, but the pattern holds. <code>src/core/gaba.test.ts</code> locks
+these values in.</p>
+
+<h2 id="limits">9. What it leaves out</h2>
+<ul>
+  <li><strong>One compartment.</strong> There are no dendrites, no axon initial segment and no space clamp problem.
+  Inputs arrive at the soma. Real distal inputs are filtered by the dendrites, and shunting depends on where
+  inhibition lands.</li>
+  <li><strong>Three active currents.</strong> There is no h-current (so no sag), no calcium or calcium-activated
+  potassium currents (so no bursting and no medium or slow afterhyperpolarization), and no persistent sodium current.
+  Threshold and firing pattern are the RS model's, not those of any particular recorded cell.</li>
+  <li><strong>Fixed reversal potentials.</strong> E_GABA is a parameter, not an outcome. Chloride and bicarbonate do not
+  move with activity. Sustained GABA<sub>A</sub> activity in a real cell can shift E_GABA, and this simulator does not.</li>
+  <li><strong>AMPA and GABA<sub>A</sub> only.</strong> There is no NMDA voltage dependence, no GABA<sub>B</sub>, no
+  short-term plasticity, and no correlations between inputs.</li>
+  <li><strong>Current clamp only</strong>, with an idealized current source and a single lumped pipette capacitance.
+  There is no amplifier bandwidth and no recording noise.</li>
+  <li><strong>The default cell is in a high-conductance state</strong>, with Rin = 32 MΩ, as published. Raising Rin
+  toward slice values makes it far more excitable.</li>
+</ul>
+
+<h2 id="cli">10. Running it without a browser</h2>
+<p>The same code runs from a command line, with Node 22.18 or later and no build step:</p>
+<span class="eq">git clone https://github.com/syncytium2/gaba_excites && cd gaba_excites && npm install
+node scripts/fi.ts                                            # published cell, −200…1000 pA
+node scripts/fi.ts --rin 150 --cm 120 --steps 0,50,100,150,200
+node scripts/fi.ts --gaba 200,3,0.5,10,-60 --regular --rheobase</span>
+<p>It writes CSV to stdout, with the settings as <code>#</code> lines above the table.</p>
+
+<h2 id="references">11. References</h2>
+<ol>
+  <li>Pospischil M, Toledo-Rodriguez M, Monier C, Piwkowska Z, Bal T, Frégnac Y, Markram H, Destexhe A (2008).
+  Minimal Hodgkin–Huxley type models for different classes of cortical and thalamic neurons. <i>Biol Cybern</i>
+  99:427–441. <a href="https://doi.org/10.1007/s00422-008-0263-8">doi:10.1007/s00422-008-0263-8</a>.
+  Model code: <a href="https://modeldb.science/123623">ModelDB 123623</a>.</li>
+  <li>Destexhe A, Contreras D, Steriade M (1998). Mechanisms underlying the synchronizing action of corticothalamic
+  feedback through inhibition of thalamic relay cells. <i>J Neurophysiol</i> 79:999–1016.
+  <a href="https://doi.org/10.1152/jn.1998.79.2.999">doi:10.1152/jn.1998.79.2.999</a>. (The thalamocortical model the
+  RS cell was taken from.)</li>
+  <li>Traub RD, Miles R (1991). <i>Neuronal Networks of the Hippocampus.</i> Cambridge University Press. (The Na⁺ and
+  K⁺ kinetics.)</li>
+  <li>Hines ML, Carnevale NT (1997). The NEURON simulation environment. <i>Neural Comput</i> 9:1179–1209.
+  <a href="https://doi.org/10.1162/neco.1997.9.6.1179">doi:10.1162/neco.1997.9.6.1179</a>.</li>
+</ol>
+
+<footer>
+  <p>gaba_excites is open source (MIT): <a href="https://github.com/syncytium2/gaba_excites">github.com/syncytium2/gaba_excites</a>.
+  It runs entirely in the browser and sends nothing anywhere. By <a href="https://tonydefazio.com/">Tony DeFazio</a>.</p>
+</footer>
+</main>
+</body>
+</html>

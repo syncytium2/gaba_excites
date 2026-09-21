@@ -1,0 +1,15 @@
+# Cloudflare static-asset response headers (copied to dist/ by Vite).
+#
+# `no-transform` on the HTML routes stops Cloudflare from injecting its Web
+# Analytics beacon at the edge — which it did, silently and only for browser
+# user-agents, to colonel_kernel for over a week. The CSP would block the
+# beacon anyway; this stops the request from being attempted at all.
+# HTML only: no-transform also forbids compression, and the bundle wants it.
+/
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+/methods
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+/methods.html
+  Cache-Control: public, max-age=0, must-revalidate, no-transform

@@ -57,7 +57,10 @@ export interface SimOptions {
   seed: number;
 }
 
-export const DEFAULT_SIM: SimOptions = { dt: 0.01, sampleMs: 0.05, settleMs: 3000, seed: 1 };
+// 40 kHz storage: a 0.7 ms spike gets ~28 samples, enough for the phase plot and
+// for the 20 V/s threshold walk-back. dt = 0.01 ms because the NEURON comparison
+// (oracle.test.ts) shows 0.025 ms drifting by several ms over a second of firing.
+export const DEFAULT_SIM: SimOptions = { dt: 0.01, sampleMs: 0.025, settleMs: 3000, seed: 1 };
 
 export interface Inputs {
   ihold: number;
