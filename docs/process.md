@@ -172,3 +172,16 @@ were measured before shipping. One of them was wrong: 0.5 pA is 0.2 mV at
 this cell's Rin at −70 mV, not a quarter of a millivolt, and the note was
 fixed. dt = 0.01 ms was checked against 0.0025 ms for this faster Na⁺ scheme
 and is within 0.13 ms on every spike.
+
+### E_GABA for the GnRH cell
+
+The owner asked for the GnRH cell's E_GABA to default to −36.5 mV "from the
+2000 paper", and to stay adjustable. Before it went into the code and the
+docs, the number was traced to its source. PubMed has no 2000 paper that fits;
+the full text of DeFazio, Heger, Ojeda & Moenter (2002, Mol Endocrinol
+16:2872) has it: "E_GABA measured 100 msec after GABA application was
+−36.5 ± 1.2 mV (n = 16 cells from 13 adult diestrous females)", by gramicidin
+perforated patch. The default now belongs to the model (`defaults.eGaba`,
+with its source string shown under the slider): −80 mV for the pyramidal
+cell as before, −36.5 mV for GnRH. The GnRH presets carry it, GABA stays off
+until ticked, and the CLI uses it when `--gaba` gives no E.

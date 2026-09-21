@@ -5,7 +5,7 @@
  * free list ("-100, 0, 250, 600"). Both end up as the same `amps` array.
  */
 
-import type { ModelId } from "./models.ts";
+import { GNRH, type ModelId } from "./models.ts";
 import type { StepProtocol } from "./simulate.ts";
 import { DEFAULT_GABA, DEFAULT_GLU, type SynInput } from "./synapses.ts";
 
@@ -72,6 +72,9 @@ const FI: ProtocolForm = {
   stepDur: 800,
 };
 
+/** GABA as it is in a GnRH neuron: depolarizing, E_GABA −36.5 mV (models.ts has the source). Off until ticked. */
+const GNRH_GABA: SynInput = { ...DEFAULT_GABA, erev: GNRH.defaults.eGaba };
+
 export const PRESETS: Preset[] = [
   {
     id: "fi",
@@ -134,7 +137,7 @@ export const PRESETS: Preset[] = [
     note: "The paper's protocol: 500 ms steps of 0–30 pA in 2 pA increments, on top of −6 pA holding current that sits the cell at −70 mV; three hyperpolarizing steps are added so Rin can be measured. This cell fires its first spike at 18 pA, and only after 400 ms.",
     protocol: { mode: "family", first: -6, delta: 2, count: 19, list: "", sweepMs: 800, stepStart: 100, stepDur: 500 },
     glu: DEFAULT_GLU,
-    gaba: DEFAULT_GABA,
+    gaba: GNRH_GABA,
   },
   {
     id: "gnrh-7f",
@@ -143,7 +146,7 @@ export const PRESETS: Preset[] = [
     note: "The steps behind the paper's Fig. 7F, where the model is fit to the negative-feedback data: 0, 6, 12, 18, 24, 30 pA give 0, 0, 0, 1, 4 and 6 spikes, here as in the paper.",
     protocol: { mode: "family", first: 0, delta: 6, count: 6, list: "", sweepMs: 800, stepStart: 100, stepDur: 500 },
     glu: DEFAULT_GLU,
-    gaba: DEFAULT_GABA,
+    gaba: GNRH_GABA,
   },
   {
     id: "gnrh-threshold",
@@ -152,7 +155,7 @@ export const PRESETS: Preset[] = [
     note: "0.5 pA steps around rheobase (about 17 pA). At −70 mV this cell's Rin is 386 MΩ, so half a picoamp is 0.2 mV at steady state — and still decides whether it fires. Watch the latency: near threshold the first spike comes hundreds of milliseconds into the step.",
     protocol: { mode: "family", first: 14, delta: 0.5, count: 11, list: "", sweepMs: 800, stepStart: 100, stepDur: 500 },
     glu: DEFAULT_GLU,
-    gaba: DEFAULT_GABA,
+    gaba: GNRH_GABA,
   },
 ];
 

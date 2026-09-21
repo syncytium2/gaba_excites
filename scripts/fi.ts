@@ -5,7 +5,8 @@
  *   node scripts/fi.ts --rin 150 --cm 120 --steps 0,50,100,150,200
  *   node scripts/fi.ts --gaba 200,3,0.5,10,-60 --rheobase
  *
- * --glu / --gaba take rate_Hz,gPeak_nS,tauRise_ms,tauDecay_ms[,E_mV]; add
+ * --glu / --gaba take rate_Hz,gPeak_nS,tauRise_ms,tauDecay_ms[,E_mV] (E_GABA
+ * defaults to the model's: −80 mV pyramidal, −36.5 mV GnRH); add
  * --regular for clock-like trains. Output is CSV on stdout, settings as # lines.
  */
 import { parseArgs } from "node:util";
@@ -44,7 +45,8 @@ const cellP = { ...publishedParams(model.id), ...(a.rin ? { rin: +a.rin } : {}),
 const cell = buildCell(cellP);
 const [memSigma, memTau] = (a["mem-noise"] ?? "0,5").split(",").map(Number);
 const noise = { ...DEFAULT_NOISE, recSigma: +a["rec-noise"]!, memSigma, memTau: memTau || 5 };
-const inputs = { ihold: a.ihold !== undefined ? +a.ihold : model.defaults.ihold, electrode: { rs: +a.rs!, cp: 0, bridge: 1 }, glu: syn(DEFAULT_GLU, a.glu), gaba: syn(DEFAULT_GABA, a.gaba), noise };
+// GABA without an explicit E takes the model's default (−80 mV pyramidal, −36.5 mV GnRH)
+const inputs = { ihold: a.ihold !== undefined ? +a.ihold : model.defaults.ihold, electrode: { rs: +a.rs!, cp: 0, bridge: 1 }, glu: syn(DEFAULT_GLU, a.glu), gaba: syn({ ...DEFAULT_GABA, erev: model.defaults.eGaba }, a.gaba), noise };
 const proto = { sweepMs: +a.sweep!, stepStart: +a["step-start"]!, stepDur: +a["step-dur"]!, amps: a.steps!.split(",").map(Number) };
 const opt = { ...DEFAULT_SIM, seed: +a.seed! };
 

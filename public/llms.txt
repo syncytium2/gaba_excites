@@ -28,7 +28,9 @@ is at https://gaba.tonydefazio.com/methods (static HTML).
   the recorded trace only) and membrane noise (an Ornstein–Uhlenbeck current
   the cell feels).
 - Adds conductance-based glutamate (E = 0 mV) and GABA-A PSCs (E_GABA
-  variable, default -80 mV), each with rate, peak conductance, rise and decay,
+  variable; default -80 mV for the pyramidal cell and -36.5 mV for the GnRH
+  neuron, as measured by gramicidin perforated patch in DeFazio et al. 2002,
+  Mol Endocrinol 16:2872), each with rate, peak conductance, rise and decay,
   Poisson or regular timing, from a seeded generator.
 
 ## Validation

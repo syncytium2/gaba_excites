@@ -284,6 +284,7 @@ export function App() {
           <SynPanel title="Glutamate" color={ORANGE} syn={glu} erevEditable={false}
             onChange={(g) => { setGlu(g); setPresetId("custom"); }} />
           <SynPanel title="GABA" color={AQUA} syn={gaba} erevEditable
+            erevHint={`Default for this cell: ${model.eGabaSource}.`}
             onChange={(g) => { setGaba(g); setPresetId("custom"); }} />
           <NoisePanel noise={noise} memRange={model.ranges.memNoise} onChange={setNoise} />
           {(synOn || noiseOn) && (
@@ -369,8 +370,8 @@ function defaultSelection(s?: FamilySummary): number {
 
 // ------------------------------------------------------------------ synapses
 
-function SynPanel({ title, color, syn, erevEditable, onChange }: {
-  title: string; color: string; syn: SynInput; erevEditable: boolean; onChange: (s: SynInput) => void;
+function SynPanel({ title, color, syn, erevEditable, erevHint, onChange }: {
+  title: string; color: string; syn: SynInput; erevEditable: boolean; erevHint?: string; onChange: (s: SynInput) => void;
 }) {
   return (
     <section className={"panel syn" + (syn.enabled ? "" : " off")}>
@@ -387,8 +388,8 @@ function SynPanel({ title, color, syn, erevEditable, onChange }: {
         <NumField label="τ decay" unit="ms" value={syn.tauDecay} min={0.1} max={500} step={0.5} disabled={!syn.enabled} onChange={(tauDecay) => onChange({ ...syn, tauDecay })} />
       </div>
       {erevEditable ? (
-        <NumField label="E_GABA" unit="mV" value={syn.erev} min={-100} max={0} step={1} slider disabled={!syn.enabled}
-          onChange={(erev) => onChange({ ...syn, erev })} />
+        <NumField label="E_GABA" unit="mV" value={syn.erev} min={-100} max={0} step={0.5} slider disabled={!syn.enabled}
+          hint={erevHint} onChange={(erev) => onChange({ ...syn, erev })} />
       ) : (
         <div className="small">E_glu = {syn.erev} mV (AMPA-like, fixed)</div>
       )}

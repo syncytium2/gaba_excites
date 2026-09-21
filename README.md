@@ -32,7 +32,7 @@ The methods page, with every equation, is `public/methods.html` (served at `/met
 | **Rs, bridge, pipette C** | Series resistance changes the *record*, not Vm: an I·Rs offset (removed by bridge balance) and, with pipette capacitance, a low-pass on spikes. |
 | **Step protocol** | A family (first, increment, count) or any list of steps; step onset, duration, sweep length. Presets for an F–I family, fine threshold steps, a synaptic barrage, and three GABA demonstrations. |
 | **Noise** | Recording noise (RMS, bandwidth, mains hum) on the trace only; membrane noise (an Ornstein–Uhlenbeck current, σ and τ) that the cell feels and that leaves Rin unchanged. |
-| **Glutamate / GABA PSCs** | Conductance-based. Rate, peak conductance, rise and decay τ, Poisson or regular timing. E_glu = 0 mV; E_GABA from −100 to 0 mV, default −80. Seeded, so changing the cell replays the same events. |
+| **Glutamate / GABA PSCs** | Conductance-based. Rate, peak conductance, rise and decay τ, Poisson or regular timing. E_glu = 0 mV; E_GABA from −100 to 0 mV, defaulting per cell: −80 mV pyramidal, −36.5 mV GnRH (measured by gramicidin perforated patch, DeFazio et al. 2002). Seeded, so changing the cell replays the same events. |
 
 Readouts: rheobase (refinable to 1 pA), threshold (dV/dt ≥ 20 V/s), AP peak
 and half-width, measured Rin, holding Vm, F–I gain; recorded voltage with the

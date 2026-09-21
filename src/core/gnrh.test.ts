@@ -37,3 +37,11 @@ describe("GnRH model (Adams et al. 2018, negative feedback)", () => {
     expect(summarize(sweeps, proto).stats.map((s) => s.nInStep)).toEqual([0, 0, 0, 1, 4, 6]);
   });
 });
+
+describe("E_GABA defaults follow the cell", () => {
+  it("GnRH presets open on −36.5 mV (DeFazio et al. 2002); pyramidal presets on −80 mV", async () => {
+    const { PRESETS } = await import("./protocol.ts");
+    for (const p of PRESETS) expect(p.gaba.erev === (p.model === "gnrh" ? -36.5 : p.gaba.erev)).toBe(true);
+    for (const p of PRESETS.filter((q) => q.model === "rs" && !["shunt", "crossover", "excites"].includes(q.id))) expect(p.gaba.erev).toBe(-80);
+  });
+});

@@ -211,7 +211,10 @@ change sign as the membrane crosses its reversal.</p>
 one event:  g(t) = A · (exp(−t/τdecay) − exp(−t/τrise)),   A chosen so the peak equals g_peak</span>
 <ul>
   <li><strong>Glutamate</strong>: AMPA-like, E_glu = 0 mV (fixed). Defaults 0.5 ms rise, 3 ms decay, 3 nS peak.</li>
-  <li><strong>GABA</strong>: GABA<sub>A</sub>-like, E_GABA variable from −100 to 0 mV, default −80 mV. Defaults 0.5 ms
+  <li><strong>GABA</strong>: GABA<sub>A</sub>-like, E_GABA variable from −100 to 0 mV. Its default depends on the cell:
+  −80 mV for the pyramidal cell, and <strong>−36.5 mV for the GnRH neuron</strong>, the value measured in adult mouse GnRH
+  neurons with gramicidin perforated patch, which leaves intracellular chloride undisturbed (−36.5 ± 1.2 mV, n = 16;
+  DeFazio et al. 2002). That is depolarized relative to rest, which is why GABA excites these cells. Defaults 0.5 ms
   rise, 10 ms decay, 3 nS peak.</li>
   <li>Each input has a mean rate. <strong>Poisson</strong> timing draws exponentially distributed intervals.
   <strong>Regular</strong> timing gives clock-like events. At high rates a regular train approximates a tonic
@@ -362,6 +365,9 @@ node scripts/fi.ts --gaba 200,3,0.5,10,-60 --regular --rheobase</span>
   <a href="https://doi.org/10.1523/JNEUROSCI.2988-17.2017">doi:10.1523/JNEUROSCI.2988-17.2017</a>. (The GnRH model.)</li>
   <li>Moran et al. (2016) and LeBeau et al. (2000): the GnRH models Adams et al. built on; full references are in
   Adams et al. (2018).</li>
+  <li>DeFazio RA, Heger S, Ojeda SR, Moenter SM (2002). Activation of A-type γ-aminobutyric acid receptors excites
+  gonadotropin-releasing hormone neurons. <i>Mol Endocrinol</i> 16:2872–2891.
+  <a href="https://doi.org/10.1210/me.2002-0163">doi:10.1210/me.2002-0163</a>. (E_GABA in GnRH neurons.)</li>
   <li>Hines ML, Carnevale NT (1997). The NEURON simulation environment. <i>Neural Comput</i> 9:1179–1209.
   <a href="https://doi.org/10.1162/neco.1997.9.6.1179">doi:10.1162/neco.1997.9.6.1179</a>.</li>
 </ol>

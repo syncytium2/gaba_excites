@@ -60,8 +60,14 @@ export interface ModelDef {
   eLeak: number;
   channels: () => ModelChannel[];
   pool?: CaPool;
-  /** published whole-cell values; `rin` is the published cell's Rin measured at rest (Ihold = 0) */
-  defaults: { cm: number; rin: number; ihold: number };
+  /**
+   * published whole-cell values; `rin` is the published cell's Rin measured at
+   * rest (Ihold = 0). `eGaba` is the GABA_A reversal the GABA controls open on
+   * for this cell — adjustable in the app like everything else.
+   */
+  defaults: { cm: number; rin: number; ihold: number; eGaba: number };
+  /** where the eGaba default comes from */
+  eGabaSource: string;
   ranges: { rin: Range; cm: Range; ihold: Range; memNoise: Range };
   /** rheobase bisection tolerance, pA — 1 pA is fine resolution for one cell and coarse for the other */
   rheobaseTol: number;
@@ -93,7 +99,8 @@ export const RS: ModelDef = {
     { channel: makeKd(-55), gbar: 5 * RS_CM, erev: -100 },
     { channel: makeM(1000), gbar: 0.07 * RS_CM, erev: -100 },
   ],
-  defaults: { cm: 289.53, rin: 32.13, ihold: 0 },
+  defaults: { cm: 289.53, rin: 32.13, ihold: 0, eGaba: -80 },
+  eGabaSource: "−80 mV: a conventional hyperpolarizing GABA_A reversal for an adult cortical neuron (the owner's default)",
   ranges: {
     rin: { min: 10, max: 600, step: 1 },
     cm: { min: 20, max: 600, step: 1 },
@@ -208,7 +215,15 @@ export const GNRH: ModelDef = {
   // Rin at rest of the published cell (g_L = 1 nS, 20 pF), active conductances
   // included: 505.9 MΩ. gnrh.test.ts recomputes it. Ihold −6 pA is the paper's
   // I_app, which holds the cell at −70 mV.
-  defaults: { cm: 20, rin: 505.9, ihold: -6 },
+  //
+  // E_GABA −36.5 mV: measured in adult mouse GnRH neurons with gramicidin
+  // perforated patch, which leaves intracellular chloride undisturbed —
+  // "E_GABA measured 100 msec after GABA application was −36.5 ± 1.2 mV (n = 16
+  // cells from 13 adult diestrous females)", DeFazio, Heger, Ojeda & Moenter
+  // (2002) Mol Endocrinol 16:2872, doi:10.1210/me.2002-0163. Depolarized
+  // relative to rest, which is why GABA excites these cells.
+  defaults: { cm: 20, rin: 505.9, ihold: -6, eGaba: -36.5 },
+  eGabaSource: "−36.5 ± 1.2 mV, gramicidin perforated patch in adult mouse GnRH neurons: DeFazio et al. (2002) Mol Endocrinol 16:2872",
   ranges: {
     rin: { min: 200, max: 5000, step: 10 },
     cm: { min: 5, max: 60, step: 0.5 },
