@@ -72,8 +72,12 @@ const FI: ProtocolForm = {
   stepDur: 800,
 };
 
-/** GABA as it is in a GnRH neuron: depolarizing, E_GABA −36.5 mV (models.ts has the source). Off until ticked. */
-const GNRH_GABA: SynInput = { ...DEFAULT_GABA, erev: GNRH.defaults.eGaba };
+/**
+ * GABA as it is in a GnRH neuron: depolarizing (E_GABA −36.5 mV), with the
+ * measured PSC kinetics and size. models.ts holds both values and their
+ * sources. Off until ticked.
+ */
+const GNRH_GABA: SynInput = { ...DEFAULT_GABA, erev: GNRH.defaults.eGaba, ...GNRH.gabaKinetics };
 
 export const PRESETS: Preset[] = [
   {

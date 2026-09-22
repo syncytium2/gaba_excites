@@ -81,6 +81,27 @@ DeFazio RA, Heger S, Ojeda SR, Moenter SM (2002). Activation of A-type γ-aminob
 
 **Notes:** [`notes/defazio2002.md`](notes/defazio2002.md)
 
+### `jaime2026`
+
+Jaime J, DeFazio RA, Moenter SM (2026). Response of gonadotropin-releasing hormone neurons from female mice to dynamic-clamp-simulated GABAergic conductances across development and after prenatal androgenization. J Neuroendocrinol 38(2):e70144.
+
+[doi:10.1111/jne.70144](https://doi.org/10.1111/jne.70144) · [PMID 41652850](https://pubmed.ncbi.nlm.nih.gov/41652850/) · [PMC12881841](https://pmc.ncbi.nlm.nih.gov/articles/PMC12881841/) · *open (PubMed Central)* · models: GnRH
+
+**Took:** The GnRH cell's default GABA PSC: decay τ 10 ms (9.9 ± 0.25 ms in adult females), peak ≈ 1 nS (≈ −30 pA at −70 mV, Fig. 2B read by eye), instantaneous rise as in their dynamic clamp. Best available rather than ground truth: decay τ depends on chloride, and intracellular chloride in GnRH neurons was never measured directly.
+
+> The decay time constant of GABAergic PSCs is strongly dependent on the concentration of chloride in the recording pipette.
+> — Methods 2.5, Properties of isolated GABAergic PSCs in GnRH neurons
+
+> an age‐dependent increase in decay time constant from 7.4 ± 0.1 ms to 9.9 ± 0.2 ms was detected
+> — Methods 2.6, Modelling of the GABAergic postsynaptic conductances
+
+> a range of conductances within and moderately above the physiological range of GABA PSCs was used (1, 2, 5, 10 nS)
+> — Methods 2.6
+
+**Used in:** [`src/core/models.ts`](../src/core/models.ts), [`src/core/protocol.ts`](../src/core/protocol.ts), [`src/core/gnrh.test.ts`](../src/core/gnrh.test.ts)
+
+**Notes:** [`notes/jaime2026.md`](notes/jaime2026.md)
+
 ## Methods
 
 How the numbers are computed.
@@ -172,14 +193,6 @@ Adams C, DeFazio RA, Christian CA, Milescu LS, Schnell S, Moenter SM (2019). Cha
 [doi:10.1523/JNEUROSCI.2880-18.2019](https://doi.org/10.1523/JNEUROSCI.2880-18.2019) · [PMID 30655354](https://pubmed.ncbi.nlm.nih.gov/30655354/) · [PMC6507087](https://pmc.ncbi.nlm.nih.gov/articles/PMC6507087/) · *open (PubMed Central)* · models: GnRH
 
 **Took:** Nothing yet. Drives model GnRH neurons with recorded GABAergic conductance trains — the natural next GnRH preset.
-
-### `jaime2026`
-
-Jaime J, DeFazio RA, Moenter SM (2026). Response of gonadotropin-releasing hormone neurons from female mice to dynamic-clamp-simulated GABAergic conductances across development and after prenatal androgenization. J Neuroendocrinol 38(2):e70144.
-
-[doi:10.1111/jne.70144](https://doi.org/10.1111/jne.70144) · [PMID 41652850](https://pubmed.ncbi.nlm.nih.gov/41652850/) · [PMC12881841](https://pmc.ncbi.nlm.nih.gov/articles/PMC12881841/) · *open (PubMed Central)* · models: GnRH
-
-**Took:** Nothing yet. Dynamic-clamp GABA conductances of 1–10 nS with 7 or 10 ms decay in GnRH neurons — a source for realistic GnRH GABA presets.
 
 ### `defazio2021`
 

@@ -39,6 +39,14 @@ describe("GnRH model (Adams et al. 2018, negative feedback)", () => {
 });
 
 describe("E_GABA defaults follow the cell", () => {
+  it("GnRH presets carry the measured GABA PSC: 10 ms decay, 1 nS, instantaneous rise (Jaime et al. 2026)", async () => {
+    const { PRESETS } = await import("./protocol.ts");
+    for (const p of PRESETS.filter((q) => q.model === "gnrh")) {
+      expect([p.gaba.tauDecay, p.gaba.gPeak, p.gaba.tauRise]).toEqual([10, 1, 0]);
+      expect(p.gaba.enabled).toBe(false);
+    }
+  });
+
   it("GnRH presets open on −36.5 mV (DeFazio et al. 2002); pyramidal presets on −80 mV", async () => {
     const { PRESETS } = await import("./protocol.ts");
     for (const p of PRESETS) expect(p.gaba.erev === (p.model === "gnrh" ? -36.5 : p.gaba.erev)).toBe(true);

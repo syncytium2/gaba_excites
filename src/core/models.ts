@@ -68,6 +68,13 @@ export interface ModelDef {
   defaults: { cm: number; rin: number; ihold: number; eGaba: number };
   /** where the eGaba default comes from */
   eGabaSource: string;
+  /**
+   * GABA PSC kinetics and size for this cell, where a measurement exists;
+   * otherwise the generic defaults in synapses.ts apply. Rise 0 = instantaneous.
+   */
+  gabaKinetics?: { tauRise: number; tauDecay: number; gPeak: number };
+  /** where the gabaKinetics come from, for the UI */
+  gabaKineticsSource?: string;
   ranges: { rin: Range; cm: Range; ihold: Range; memNoise: Range };
   /** rheobase bisection tolerance, pA — 1 pA is fine resolution for one cell and coarse for the other */
   rheobaseTol: number;
@@ -224,6 +231,17 @@ export const GNRH: ModelDef = {
   // relative to rest, which is why GABA excites these cells.
   defaults: { cm: 20, rin: 505.9, ihold: -6, eGaba: -36.5 },
   eGabaSource: "−36.5 ± 1.2 mV, gramicidin perforated patch in adult mouse GnRH neurons: DeFazio et al. (2002) Mol Endocrinol 16:2872",
+  // GABA PSCs in adult female GnRH neurons, Jaime, DeFazio & Moenter (2026)
+  // J Neuroendocrinol 38:e70144: isolated PSCs decay with τ = 9.9 ± 0.25 ms
+  // (7.4 ± 0.13 ms at 3 weeks), recorded with a pipette chloride chosen to
+  // match the gramicidin E_GABA, at 30–31 °C. Peak ≈ 1 nS: about −30 pA at
+  // −70 mV (their Fig. 2B, read by eye) over a ~33.5 mV driving force; they
+  // call 1–2 nS physiological. Instantaneous rise, as in their dynamic clamp.
+  // Caveat (the owner's): decay τ depends on chloride, and intracellular
+  // chloride in GnRH neurons was never measured directly — only E_GABA was —
+  // so these are the best available, not ground truth. lit/notes/jaime2026.md.
+  gabaKinetics: { tauRise: 0, tauDecay: 10, gPeak: 1 },
+  gabaKineticsSource: "decay 10 ms (9.9 ± 0.25 ms, adult females), peak ≈ 1 nS, instantaneous rise: Jaime et al. (2026) J Neuroendocrinol 38:e70144",
   ranges: {
     rin: { min: 200, max: 5000, step: 10 },
     cm: { min: 5, max: 60, step: 0.5 },

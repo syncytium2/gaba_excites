@@ -274,3 +274,19 @@ One finding outside this repository: every tonydefazio.com site now answers
 AI crawlers with 403, a zone-wide Cloudflare setting that no_peak's
 robots.txt records as having been off. It was reported to the owner, not
 changed.
+
+## 2026-09-22 — the GnRH GABA PSC
+
+The owner asked whether the GnRH GABA PSC decay "is really just 10 ms". It
+was, but only by coincidence: the GnRH presets had inherited the generic
+defaults (0.5 ms rise, 10 ms decay, 3 nS), and only E_GABA had been sourced.
+Jaime, DeFazio & Moenter (2026) measured it: 9.9 ± 0.25 ms in adult females
+and 7.4 ms at 3 weeks. Their isolated PSCs were about −30 pA at −70 mV, which
+is about 1 nS, so the 3 nS default was three times a physiological PSC. The
+owner's caveat is recorded with the numbers: the decay depends on chloride,
+and intracellular chloride in GnRH neurons was never measured, only E_GABA.
+"It is the best we have." The GnRH defaults are now 10 ms decay, 1 nS and an
+instantaneous rise, held in the model definition with their source (shown
+under the GABA panel) and pinned by a test. Worth saying in the lecture: the
+conductance lasts about 10 ms, but the PSP lasts 25–40 ms, because the
+membrane integrates it.

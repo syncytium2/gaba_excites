@@ -295,6 +295,7 @@ export function App() {
             onChange={(g) => { setGlu(g); setPresetId("custom"); }} />
           <SynPanel title="GABA" color={AQUA} syn={gaba} erevEditable
             erevHint={`Default for this cell: ${model.eGabaSource}.`}
+            kineticsHint={model.gabaKineticsSource ? `Kinetics for this cell: ${model.gabaKineticsSource}.` : undefined}
             open={panels.open.gaba} onToggle={() => panels.toggle("gaba")} onEnable={() => panels.set("gaba", true)}
             onChange={(g) => { setGaba(g); setPresetId("custom"); }} />
           <NoisePanel noise={noise} memRange={model.ranges.memNoise} onChange={setNoise}
@@ -392,8 +393,8 @@ function defaultSelection(s?: FamilySummary): number {
 
 // ------------------------------------------------------------------ synapses
 
-function SynPanel({ title, color, syn, erevEditable, erevHint, onChange, open, onToggle, onEnable }: {
-  title: string; color: string; syn: SynInput; erevEditable: boolean; erevHint?: string; onChange: (s: SynInput) => void;
+function SynPanel({ title, color, syn, erevEditable, erevHint, kineticsHint, onChange, open, onToggle, onEnable }: {
+  title: string; color: string; syn: SynInput; erevEditable: boolean; erevHint?: string; kineticsHint?: string; onChange: (s: SynInput) => void;
   open: boolean; onToggle: () => void; onEnable: () => void;
 }) {
   const summary = syn.enabled
@@ -412,6 +413,7 @@ function SynPanel({ title, color, syn, erevEditable, erevHint, onChange, open, o
         <NumField label="τ rise" unit="ms" value={syn.tauRise} min={0} max={50} step={0.1} disabled={!syn.enabled} onChange={(tauRise) => onChange({ ...syn, tauRise })} />
         <NumField label="τ decay" unit="ms" value={syn.tauDecay} min={0.1} max={500} step={0.5} disabled={!syn.enabled} onChange={(tauDecay) => onChange({ ...syn, tauDecay })} />
       </div>
+      {kineticsHint && <div className="nf-hint">{kineticsHint}</div>}
       {erevEditable ? (
         <NumField label="E_GABA" unit="mV" value={syn.erev} min={-100} max={0} step={0.5} slider disabled={!syn.enabled}
           hint={erevHint} onChange={(erev) => onChange({ ...syn, erev })} />

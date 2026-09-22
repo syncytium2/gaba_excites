@@ -374,12 +374,31 @@
       "pmid": "41652850",
       "pmcid": "PMC12881841",
       "access": "open (PubMed Central)",
-      "role": "further",
+      "role": "parameter",
       "models": [
         "gnrh"
       ],
-      "took": "Nothing yet. Dynamic-clamp GABA conductances of 1–10 nS with 7 or 10 ms decay in GnRH neurons — a source for realistic GnRH GABA presets.",
-      "usedIn": []
+      "took": "The GnRH cell's default GABA PSC: decay τ 10 ms (9.9 ± 0.25 ms in adult females), peak ≈ 1 nS (≈ −30 pA at −70 mV, Fig. 2B read by eye), instantaneous rise as in their dynamic clamp. Best available rather than ground truth: decay τ depends on chloride, and intracellular chloride in GnRH neurons was never measured directly.",
+      "usedIn": [
+        "src/core/models.ts",
+        "src/core/protocol.ts",
+        "src/core/gnrh.test.ts"
+      ],
+      "quotes": [
+        {
+          "text": "The decay time constant of GABAergic PSCs is strongly dependent on the concentration of chloride in the recording pipette.",
+          "where": "Methods 2.5, Properties of isolated GABAergic PSCs in GnRH neurons"
+        },
+        {
+          "text": "an age‐dependent increase in decay time constant from 7.4 ± 0.1 ms to 9.9 ± 0.2 ms was detected",
+          "where": "Methods 2.6, Modelling of the GABAergic postsynaptic conductances"
+        },
+        {
+          "text": "a range of conductances within and moderately above the physiological range of GABA PSCs was used (1, 2, 5, 10 nS)",
+          "where": "Methods 2.6"
+        }
+      ],
+      "notes": "notes/jaime2026.md"
     },
     {
       "key": "defazio2021",

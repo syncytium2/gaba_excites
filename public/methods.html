@@ -214,8 +214,11 @@ one event:  g(t) = A · (exp(−t/τdecay) − exp(−t/τrise)),   A chosen so 
   <li><strong>GABA</strong>: GABA<sub>A</sub>-like, E_GABA variable from −100 to 0 mV. Its default depends on the cell:
   −80 mV for the pyramidal cell, and <strong>−36.5 mV for the GnRH neuron</strong>, the value measured in adult mouse GnRH
   neurons with gramicidin perforated patch, which leaves intracellular chloride undisturbed (−36.5 ± 1.2 mV, n = 16;
-  DeFazio et al. 2002). That is depolarized relative to rest, which is why GABA excites these cells. Defaults 0.5 ms
-  rise, 10 ms decay, 3 nS peak.</li>
+  DeFazio et al. 2002). That is depolarized relative to rest, which is why GABA excites these cells. Kinetics default
+  to 0.5 ms rise, 10 ms decay and 3 nS peak for the pyramidal cell. For the GnRH neuron they default to the measured PSC:
+  <strong>10 ms decay</strong> (9.9 ± 0.25 ms in adult females), <strong>1 nS peak</strong> and an instantaneous rise
+  (Jaime et al. 2026). These are the best available, not ground truth: the decay depends on chloride, and intracellular
+  chloride in GnRH neurons has been inferred from E_GABA rather than measured.</li>
   <li>Each input has a mean rate. <strong>Poisson</strong> timing draws exponentially distributed intervals.
   <strong>Regular</strong> timing gives clock-like events. At high rates a regular train approximates a tonic
   conductance.</li>
@@ -370,6 +373,10 @@ node scripts/fi.ts --gaba 200,3,0.5,10,-60 --regular --rheobase</span>
   <li>DeFazio RA, Heger S, Ojeda SR, Moenter SM (2002). Activation of A-type γ-aminobutyric acid receptors excites
   gonadotropin-releasing hormone neurons. <i>Mol Endocrinol</i> 16:2872–2891.
   <a href="https://doi.org/10.1210/me.2002-0163">doi:10.1210/me.2002-0163</a>. (E_GABA in GnRH neurons.)</li>
+  <li>Jaime J, DeFazio RA, Moenter SM (2026). Response of gonadotropin-releasing hormone neurons from female mice to
+  dynamic-clamp-simulated GABAergic conductances across development and after prenatal androgenization.
+  <i>J Neuroendocrinol</i> 38:e70144. <a href="https://doi.org/10.1111/jne.70144">doi:10.1111/jne.70144</a>.
+  (GABA PSC kinetics in GnRH neurons.)</li>
   <li>Hines ML, Carnevale NT (1997). The NEURON simulation environment. <i>Neural Comput</i> 9:1179–1209.
   <a href="https://doi.org/10.1162/neco.1997.9.6.1179">doi:10.1162/neco.1997.9.6.1179</a>.</li>
 </ol>

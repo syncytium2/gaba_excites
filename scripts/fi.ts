@@ -46,7 +46,7 @@ const cell = buildCell(cellP);
 const [memSigma, memTau] = (a["mem-noise"] ?? "0,5").split(",").map(Number);
 const noise = { ...DEFAULT_NOISE, recSigma: +a["rec-noise"]!, memSigma, memTau: memTau || 5 };
 // GABA without an explicit E takes the model's default (−80 mV pyramidal, −36.5 mV GnRH)
-const inputs = { ihold: a.ihold !== undefined ? +a.ihold : model.defaults.ihold, electrode: { rs: +a.rs!, cp: 0, bridge: 1 }, glu: syn(DEFAULT_GLU, a.glu), gaba: syn({ ...DEFAULT_GABA, erev: model.defaults.eGaba }, a.gaba), noise };
+const inputs = { ihold: a.ihold !== undefined ? +a.ihold : model.defaults.ihold, electrode: { rs: +a.rs!, cp: 0, bridge: 1 }, glu: syn(DEFAULT_GLU, a.glu), gaba: syn({ ...DEFAULT_GABA, erev: model.defaults.eGaba, ...model.gabaKinetics }, a.gaba), noise };
 const proto = { sweepMs: +a.sweep!, stepStart: +a["step-start"]!, stepDur: +a["step-dur"]!, amps: a.steps!.split(",").map(Number) };
 const opt = { ...DEFAULT_SIM, seed: +a.seed! };
 

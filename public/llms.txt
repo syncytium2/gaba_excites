@@ -31,7 +31,9 @@ with what was taken from it, is at https://gaba.tonydefazio.com/lit.
 - Adds conductance-based glutamate (E = 0 mV) and GABA-A PSCs (E_GABA
   variable; default -80 mV for the pyramidal cell and -36.5 mV for the GnRH
   neuron, as measured by gramicidin perforated patch in DeFazio et al. 2002,
-  Mol Endocrinol 16:2872), each with rate, peak conductance, rise and decay,
+  Mol Endocrinol 16:2872; the GnRH neuron's GABA PSC defaults to the measured
+  10 ms decay and ~1 nS peak of Jaime et al. 2026, J Neuroendocrinol
+  38:e70144), each with rate, peak conductance, rise and decay,
   Poisson or regular timing, from a seeded generator.
 
 ## Validation
