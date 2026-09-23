@@ -20,11 +20,12 @@ import { summarize } from "./analysis.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "./synapses.ts";
 
 describe("GnRH model (Adams et al. 2018, negative feedback)", () => {
-  const cell = buildCell({ model: "gnrh", cm: 20, rin: GNRH.defaults.rin });
+  const cell = buildCell({ model: "gnrh", cm: 20, gLeak: GNRH.defaults.gLeak });
 
-  it("the Rin default rebuilds the published 1 nS leak", () => {
-    expect(publishedRin("gnrh")).toBeCloseTo(GNRH.defaults.rin, 0);
-    expect(cell.gLeak / publishedLeak("gnrh")).toBeCloseTo(1, 3);
+  it("the published 1 nS leak measures 505.9 MΩ at rest", () => {
+    expect(publishedLeak("gnrh")).toBe(1);
+    expect(cell.rinRest).toBeCloseTo(505.9, 1);
+    expect(publishedRin("gnrh")).toBeCloseTo(cell.rinRest, 6);
   });
 
   it("−6 pA holds it at −70 mV", () => {

@@ -18,12 +18,13 @@ with what was taken from it, is at https://gaba.tonydefazio.com/lit.
   - the mouse GnRH neuron of Adams et al. 2018 (J Neurosci 38:1249,
     doi:10.1523/JNEUROSCI.2988-17.2017), negative-feedback parameter set:
     Markov INaF, INaP, IA, IK, T-type and HVA ICa, IS, Ih, IKCa, calcium pool.
-- The user sets whole-cell passive properties — Rin (as measured at rest),
+- The user sets whole-cell passive properties — the leak conductance gL in nS,
   Cm (sets cell size; channel densities stay fixed) and holding current — and
   electrode properties: series resistance, bridge balance, pipette capacitance.
 - Runs families of current steps (first/increment/count, or any list) and
   reports rheobase (refinable to 1 pA), spike threshold (dV/dt >= 20 V/s),
-  AP peak and half-width, measured Rin, and the F–I curve (mean and initial
+  AP peak and half-width, input resistance (measured, never set: from the
+  steady-state I–V at rest and from the hyperpolarizing steps), and the F–I curve (mean and initial
   rate); F–I curves can be pinned for comparison and exported as CSV.
 - Two kinds of noise: recording noise (filtered Gaussian plus mains hum, on
   the recorded trace only) and membrane noise (an Ornstein–Uhlenbeck current
@@ -51,7 +52,7 @@ against). It reproduces what the paper reports: -6 pA holds it at -70 mV, and
 On the published pyramidal cell, with clock-like GABA (200 Hz, 3 nS, 0.5/10 ms),
 rheobase is 561 pA without GABA, 765 pA with E_GABA = -80 mV, 628 pA at
 -60 mV (GABA depolarizes the cell yet still inhibits, by shunting), 560 pA at
--50 mV (neutral), and 457 pA at -35 mV (excitatory). The crossover is about
+-50 mV (neutral), and 458 pA at -35 mV (excitatory). The crossover is about
 11 mV below spike threshold.
 
 ## Limits

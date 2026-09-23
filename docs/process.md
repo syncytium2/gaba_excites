@@ -290,3 +290,33 @@ instantaneous rise, held in the model definition with their source (shown
 under the GABA panel) and pinned by a test. Worth saying in the lecture: the
 conductance lasts about 10 ms, but the PSP lasts 25–40 ms, because the
 membrane integrates it.
+
+## 2026-09-23 — the leak is the control, and Rin is measured
+
+Asked, ahead of a channel editor: "make Rin a measured property. make the
+slider a linear leak model (gleak)", and "do not adjust the slider when ion
+channel properties are changed". Until now the Cell panel set Rin, and
+`buildCell` bisected for the leak that gave it back. That was the right knob
+for matching a recording, but the wrong one for a channel editor: block a
+channel open at rest and the leak would quietly re-solve to hide the change
+in Rin that the lesson is about.
+
+Now the control is gL, a whole-cell linear leak in nS. It opens on each
+model's published leak (28.95 nS, the template's g_pas over its area, for the
+pyramidal cell; 1 nS, Adams 2018 Table 1, for GnRH), and nothing but that
+control moves it. Not Cm: channel counts still scale with Cm, but the leak does
+not, so a larger cell is relatively less leaky. And not any channel. Rin at
+rest is measured from the cell as built, leak plus the channels open at rest,
+and shown under the slider. τm uses the measured Rin. If a cell has no stable
+rest, the page says so and does not report a number. The old "this Rin is out of
+reach" state is gone, because a leak cannot be out of reach.
+
+The published cells are unchanged: 32.13 MΩ and 505.9 MΩ at rest, and 386.3 MΩ
+at −6 pA. The leak used to be solved from a rounded Rin to about 0.1%; it is now
+exact. That moved one quoted number by the bisection's own resolution: rheobase
+with E_GABA −35 mV is 458 pA, not 457. It is updated everywhere it is quoted.
+The methods page's Cm claim had been measured with Rin held. Re-measured with
+the leak held at 28.95 nS, it reads 569, 561 and 584 pA at Cm = 145, 290 and
+579 pF, against 129 pA with the leak cut to 5 nS (Rin 149 MΩ). The conclusion
+still holds: the leak sets rheobase and Cm does not. The CLI's `--rin` is now
+`--gleak`.

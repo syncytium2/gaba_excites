@@ -149,13 +149,15 @@ export function App() {
   const model = MODELS[cell.model];
   const noiseOn = noise.recSigma > 0 || noise.humAmp > 0 || noise.memSigma > 0;
   const presets = presetsFor(cell.model);
-  const tauM = (cell.rin * cell.cm) / 1000;
+  // Rin is measured from the cell the leak and channels make, so τm is too
+  const rinRest = result?.cell.rinRest ?? NaN;
+  const tauM = (rinRest * cell.cm) / 1000;
   const preset = presets.find((p) => p.id === presetId);
   const refinedValid = refined && refined.key === runKey ? refined : null;
 
   const pinCurrent = () => {
     if (!summary) return;
-    const label = `Pin ${pins.length + 1}: ${cell.model === "rs" ? "pyramidal" : "GnRH"}, Rin ${fmt(cell.rin, 0)} MΩ, Cm ${fmt(cell.cm, 0)} pF` +
+    const label = `Pin ${pins.length + 1}: ${cell.model === "rs" ? "pyramidal" : "GnRH"}, gL ${fmt(cell.gLeak, 2)} nS (Rin ${fmt(rinRest, 0)} MΩ), Cm ${fmt(cell.cm, 0)} pF` +
       (gaba.enabled ? `, GABA ${gaba.erev} mV` : "") + (glu.enabled ? ", glu on" : "") + (ihold ? `, Ihold ${ihold} pA` : "") + (noise.memSigma ? `, noise ${noise.memSigma} pA` : "");
     setPins([...pins, { label, points: summary.stats.map((s) => ({ amp: s.amp, rate: s.meanRate })).sort((a, b) => a.amp - b.amp) }].slice(-4));
   };
@@ -164,7 +166,7 @@ export function App() {
     if (!summary || !result) return;
     const head = [
       `# gaba_excites ${VERSION}; model: ${model.label} (${model.citation})`,
-      `# Rin ${cell.rin} MOhm, Cm ${cell.cm} pF, Ihold ${ihold} pA, Rs ${electrode.rs} MOhm, Cp ${electrode.cp} pF, bridge ${electrode.bridge * 100}%`,
+      `# leak ${cell.gLeak} nS, Rin at rest ${fmt(rinRest, 2)} MOhm (measured), Cm ${cell.cm} pF, Ihold ${ihold} pA, Rs ${electrode.rs} MOhm, Cp ${electrode.cp} pF, bridge ${electrode.bridge * 100}%`,
       `# step ${protocol.stepStart}-${protocol.stepStart + protocol.stepDur} ms of ${protocol.sweepMs} ms`,
       `# glutamate ${glu.enabled ? `${glu.rate} Hz ${glu.gPeak} nS rise ${glu.tauRise} decay ${glu.tauDecay} ms E ${glu.erev} mV ${glu.pattern}` : "off"}`,
       `# GABA ${gaba.enabled ? `${gaba.rate} Hz ${gaba.gPeak} nS rise ${gaba.tauRise} decay ${gaba.tauDecay} ms E ${gaba.erev} mV ${gaba.pattern}` : "off"}`,
@@ -217,23 +219,24 @@ export function App() {
           </Panel>
 
           <Panel title="Cell" open={panels.open.cell} onToggle={() => panels.toggle("cell")}
-            summary={`Rin ${fmt(cell.rin, 0)} MΩ · Cm ${fmt(cell.cm, 1)} pF · Ihold ${ihold} pA`}>
-            <NumField label="Rin" unit="MΩ" value={cell.rin} min={model.ranges.rin.min} max={model.ranges.rin.max} step={model.ranges.rin.step} slider digits={1}
-              onChange={(rin) => setCell({ ...cell, rin })} />
+            summary={`gL ${fmt(cell.gLeak, 2)} nS · Rin ${fmt(rinRest, 0)} MΩ · Cm ${fmt(cell.cm, 1)} pF · Ihold ${ihold} pA`}>
+            <NumField label="gL (leak)" unit="nS" value={cell.gLeak} min={model.ranges.gLeak.min} max={model.ranges.gLeak.max} step={model.ranges.gLeak.step} slider digits={2}
+              onChange={(gLeak) => setCell({ ...cell, gLeak })} />
             <NumField label="Cm" unit="pF" value={cell.cm} min={model.ranges.cm.min} max={model.ranges.cm.max} step={model.ranges.cm.step} slider digits={1}
               onChange={(cm) => setCell({ ...cell, cm })} />
             <NumField label="Ihold" unit="pA" value={ihold} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={model.ranges.ihold.step} slider
               onChange={setIhold} />
             <div className="derived">
+              <div>Rin at rest = <b>{fmt(rinRest, 1)} MΩ</b>, measured: leak plus the channels open at rest</div>
               <div>τm = Rin·Cm = <b>{fmt(tauM, 1)} ms</b></div>
               {result && (
                 <>
-                  <div>leak gL = {fmt(result.cell.gLeak, 2)} nS · rest {fmt(result.cell.vRest, 1)} mV</div>
-                  <div>area {Math.round(result.cell.areaUm2).toLocaleString()} µm² · Rin at Ihold {fmt(result.cell.rinAtHold, 1)} MΩ</div>
+                  <div>rest {fmt(result.cell.vRest, 1)} mV · Rin at Ihold {fmt(result.cell.rinAtHold, 1)} MΩ</div>
+                  <div>area {Math.round(result.cell.areaUm2).toLocaleString()} µm²</div>
                 </>
               )}
-              {result?.cell.rinClamped && (
-                <div className="warn">This Rin is out of reach: the channels open at rest alone conduct more than 1/Rin. Using the smallest possible leak.</div>
+              {result && !Number.isFinite(result.cell.vRest) && (
+                <div className="warn">No stable rest: with this leak the channels keep the cell depolarized, so rest and Rin are undefined.</div>
               )}
             </div>
             <button className="linkish" onClick={() => { setCell(publishedParams(cell.model)); setIhold(model.defaults.ihold); }}>
@@ -315,7 +318,7 @@ export function App() {
             {error ? <span className="warn">Simulation failed: {error}</span> : busy ? "simulating…" : result ? `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms` : ""}
           </div>
 
-          <Stats summary={summary} rinSet={cell.rin} rinHold={result?.cell.rinAtHold ?? NaN} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} />
+          <Stats summary={summary} rinRest={rinRest} rinHold={result?.cell.rinAtHold ?? NaN} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} />
 
           {result && sweeps.length > 0 && (
             <>
@@ -471,8 +474,8 @@ function NoisePanel({ noise, memRange, onChange, open, onToggle }: {
 
 // ------------------------------------------------------------------ stats
 
-function Stats({ summary, rinSet, rinHold, refined, onRefine, tol }: {
-  summary?: FamilySummary; rinSet: number; rinHold: number; refined: { value: number; tol: number } | null; onRefine: () => void; tol: number;
+function Stats({ summary, rinRest, rinHold, refined, onRefine, tol }: {
+  summary?: FamilySummary; rinRest: number; rinHold: number; refined: { value: number; tol: number } | null; onRefine: () => void; tol: number;
 }) {
   const s = summary;
   const d = tol < 1 ? 1 : 0; // decimals that the refinement actually resolves
@@ -486,7 +489,7 @@ function Stats({ summary, rinSet, rinHold, refined, onRefine, tol }: {
       <Tile label="AP peak · half-width" value={s ? `${fmt(s.apPeak, 0)} · ${fmt(s.apHalfWidth, 2)}` : "—"} unit="mV · ms" />
       <Tile label="Rin, measured" value={s ? fmt(s.rinMeasured, 1) : "—"} unit="MΩ"
         sub={s && Number.isFinite(s.rinMeasured)
-          ? `from steps ≤ 0 pA at the holding Vm. Set: ${fmt(rinSet, 0)} at rest${Math.abs(rinHold - rinSet) > 0.02 * rinSet ? `, ${fmt(rinHold, 0)} at Ihold` : ""}`
+          ? `from steps ≤ 0 pA at the holding Vm. Steady-state slope: ${fmt(rinRest, 0)} at rest${Math.abs(rinHold - rinRest) > 0.02 * rinRest ? `, ${fmt(rinHold, 0)} at Ihold` : ""}`
           : "needs two steps ≤ 0 pA"} />
       <Tile label="Holding Vm" value={s ? fmt(s.vHold, 1) : "—"} unit="mV" sub="before the step" />
       <Tile label="F–I gain" value={s ? fmt(s.fiGain, 0) : "—"} unit="Hz/nA" sub="slope over sweeps that fired" />

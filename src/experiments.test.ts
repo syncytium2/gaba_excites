@@ -23,7 +23,7 @@ describe("experiment: DeFazio & Moenter 2021 slow I_K inactivation on the Adams 
   });
 
   it("always restores the published model", () => {
-    const k = () => buildCell({ model: "gnrh", cm: 20, rin: 505.9 }).channels.find((c) => c.id === "k")!;
+    const k = () => buildCell({ model: "gnrh", cm: 20, gLeak: 1 }).channels.find((c) => c.id === "k")!;
     withSlowIk(-30, () => expect(k().nGates).toBe(2));
     expect(k().nGates).toBe(1);
     expect(() => withSlowIk(-30, () => { throw new Error("boom"); })).toThrow("boom");

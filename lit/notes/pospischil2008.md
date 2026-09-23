@@ -20,7 +20,7 @@ celsius = 36 (demo_PY_RS.hoc)
 
 The template's "Rin = 34 Meg" is the leak alone. With the channels open at
 rest included, the input resistance at rest (−70.57 mV) is **32.13 MΩ**, which
-is the app's Rin default.
+is what the app measures at its default leak (g_pas × area = 28.95 nS).
 
 ## `HH_traub.mod` (hh2), with v2 = v − vtraub
 

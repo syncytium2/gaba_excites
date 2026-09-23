@@ -3,7 +3,7 @@
 [![tests](https://github.com/syncytium2/gaba_excites/actions/workflows/test.yml/badge.svg)](https://github.com/syncytium2/gaba_excites/actions/workflows/test.yml)
 
 **A current-clamp excitability simulator that runs in the browser.** Set the
-passive properties the way you would read them off a rig (Rin, Cm, Rs,
+passive properties of the cell (leak, Cm) and the rig (Rs,
 Ihold), run a family of current steps, and read off rheobase, spike threshold
 and the F–I curve. Add glutamate and GABA PSCs, move E_GABA, and watch the
 same inhibitory conductance hyperpolarize, shunt, or excite.
@@ -26,8 +26,8 @@ The methods page, with every equation, is `public/methods.html` (served at `/met
 
 | Control | What it does |
 |---|---|
-| **Rin** | Input resistance *as measured at rest*. The leak is solved so that the measured Rin equals the value you set, active conductances included. |
-| **Cm** | Sets the size of the cell. Channel densities are fixed, so a bigger cell has more channels. With Rin held, rheobase barely moves; the kinetics do. |
+| **gL (leak)** | A linear leak conductance in nS, opening on the published values (28.95 nS pyramidal, 1 nS GnRH). Nothing else moves it: not Cm, not a change to a channel. Input resistance is *measured* from the resulting cell, leak plus the channels open at rest, and shown next to it. |
+| **Cm** | Sets the size of the cell. Channel densities are fixed, so a bigger cell has more channels; the leak stays as set. On the pyramidal cell rheobase moves little with Cm; the kinetics do. |
 | **Ihold** | Constant current throughout. The cell is settled at Ihold for 3 s before each run. |
 | **Rs, bridge, pipette C** | Series resistance changes the *record*, not Vm: an I·Rs offset (removed by bridge balance) and, with pipette capacitance, a low-pass on spikes. |
 | **Step protocol** | A family (first, increment, count) or any list of steps; step onset, duration, sweep length. Presets for an F–I family, fine threshold steps, a synaptic barrage, and three GABA demonstrations. |
@@ -51,7 +51,7 @@ rheobase bisected to 1 pA:
 | E = −80 mV | 765 pA | inhibitory |
 | E = −60 mV | 628 pA | depolarizes the cell (rest is −70.6 mV) — and still inhibits |
 | E = −50 mV | 560 pA | neutral |
-| E = −35 mV | 457 pA | excites |
+| E = −35 mV | 458 pA | excites |
 
 Depolarizing is not the same as excitatory, and the crossover is about 11 mV
 *below* spike threshold. `src/core/gaba.test.ts` holds these numbers.

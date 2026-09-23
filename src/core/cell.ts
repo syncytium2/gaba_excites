@@ -1,16 +1,20 @@
 /**
  * The cell: one isopotential compartment, a model's channels, and a leak.
  *
- * The user sets whole-cell quantities — Cm in pF, Rin in MΩ — the way they are
- * read off a rig, not the per-area densities a model file carries. The mapping:
+ * The user sets whole-cell quantities, the way they are read off a rig or
+ * dialed into a model — Cm in pF and a linear leak gL in nS — not the per-area
+ * densities a model file carries:
  *
  *   gbar_i = gbar_i(published) × Cm / Cm(published)   Cm fixes the size of the
  *                                                     cell; channel densities
  *                                                     stay what the model says
- *   gL     = chosen so the input resistance           Rin is what you would
- *            measured at rest equals Rin              measure: the slope of the
- *                                                     steady-state I–V at rest,
- *                                                     active currents included
+ *   gL     = what the user set, in nS                 an input, and nothing
+ *                                                     else ever moves it: not
+ *                                                     Cm, not a channel edit
+ *
+ * Input resistance is not an input. It is MEASURED from the cell those make —
+ * the slope of the steady-state I–V at rest, active currents included — so
+ * that changing a channel shows up in Rin the way it would on a rig.
  *
  * Units throughout: mV, ms, nS, pA, pF, MΩ, µM.  (pA/pF = mV/ms; nS·mV = pA.)
  */
@@ -22,16 +26,16 @@ export interface CellParams {
   model: ModelId;
   /** whole-cell capacitance, pF */
   cm: number;
-  /** input resistance at rest (Ihold = 0), MΩ */
-  rin: number;
+  /** linear leak conductance, nS (whole cell, not scaled by Cm) */
+  gLeak: number;
 }
 
 /** The published regular-spiking cell (the app's opening model). */
-export const PUBLISHED_RS: CellParams = { model: "rs", cm: RS.defaults.cm, rin: RS.defaults.rin };
+export const PUBLISHED_RS: CellParams = { model: "rs", cm: RS.defaults.cm, gLeak: RS.defaults.gLeak };
 
 export function publishedParams(id: ModelId): CellParams {
   const m = MODELS[id];
-  return { model: id, cm: m.defaults.cm, rin: m.defaults.rin };
+  return { model: id, cm: m.defaults.cm, gLeak: m.defaults.gLeak };
 }
 
 export interface BuiltCell {
@@ -51,14 +55,14 @@ export interface BuiltCell {
   iCa: number;
   iv: number;
   ip: number;
-  /** leak conductance, nS, solved from Rin */
+  /** leak conductance, nS, as set */
   gLeak: number;
   /** membrane area at 1 µF/cm², µm² */
   areaUm2: number;
-  /** resting potential with no injected current, mV */
+  /** resting potential with no injected current, mV (NaN when there is no stable rest) */
   vRest: number;
-  /** true when no leak can give the requested Rin (the active channels alone are too leaky) */
-  rinClamped: boolean;
+  /** input resistance measured at rest, MΩ (NaN when there is no stable rest) */
+  rinRest: number;
 }
 
 interface ActiveSet {
@@ -144,41 +148,21 @@ export function rinAt(a: ActiveSet, gLeak: number, iInj = 0): number {
   return 1000 / slope;
 }
 
-/** The leak each model publishes, at its published Cm. */
+/** The leak each model publishes, at its published Cm, nS. */
 export function publishedLeak(id: ModelId): number {
-  // RS: g_pas = 1e-4 S/cm² over π·96² µm².  GnRH: g_L = 1 nS (Adams 2018 Table 1).
-  return id === "rs" ? 1e-4 * Math.PI * 96 * 96 * 1e-8 * 1e9 : 1;
+  return MODELS[id].defaults.gLeak;
 }
 
 /** Rin at rest of a model exactly as published (its own leak, its own Cm). */
 export function publishedRin(id: ModelId): number {
   const m = MODELS[id];
-  return rinAt(activeSet({ model: id, cm: m.cmRef, rin: 0 }), publishedLeak(id));
+  return rinAt(activeSet({ model: id, cm: m.cmRef, gLeak: 0 }), publishedLeak(id));
 }
 
-/** Instantiate the cell, solving for the leak that yields the requested Rin. */
+/** Instantiate the cell. The leak is taken as given; rest and Rin follow from it. */
 export function buildCell(p: CellParams): BuiltCell {
   const a = activeSet(p);
-  const target = p.rin;
-
-  // Rin falls monotonically as the leak grows. Bisect on log(gL).
-  const rinOf = (gL: number) => rinAt(a, gL);
-  let lo = 1e-4;
-  let hi = 1e5;
-  let rinClamped = false;
-  let gLeak: number;
-  if (!(rinOf(lo) > target)) {
-    // Even with (almost) no leak, the channels open at rest set a lower Rin.
-    gLeak = lo;
-    rinClamped = true;
-  } else {
-    for (let it = 0; it < 90; it++) {
-      const mid = Math.sqrt(lo * hi);
-      if (rinOf(mid) > target) lo = mid;
-      else hi = mid;
-    }
-    gLeak = Math.sqrt(lo * hi);
-  }
+  const gLeak = p.gLeak;
 
   const offsets: number[] = [];
   let n = 0;
@@ -203,7 +187,7 @@ export function buildCell(p: CellParams): BuiltCell {
     gLeak,
     areaUm2: p.cm * 100, // 1 pF per 100 µm² at 1 µF/cm²
     vRest: steadyV(a, gLeak),
-    rinClamped,
+    rinRest: rinAt(a, gLeak),
   };
 }
 
@@ -211,7 +195,7 @@ function asActive(c: BuiltCell): ActiveSet {
   return { channels: c.channels, gbar: c.gbar, erev: c.erev, carriesCa: c.carriesCa, pool: c.pool, eLeak: c.eLeak };
 }
 
-/** Rin actually achieved by a built cell at a given holding current. */
+/** Rin of a built cell at a given holding current, MΩ. */
 export function cellRinAt(c: BuiltCell, iInj = 0): number {
   return rinAt(asActive(c), c.gLeak, iInj);
 }

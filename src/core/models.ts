@@ -2,7 +2,7 @@
  * The cell models the app can run. A model is data: its channels with their
  * maximal conductances at a reference capacitance, reversal potentials, a
  * leak, an optional calcium pool, and the defaults and ranges the UI offers.
- * cell.ts turns a model plus the user's Cm and Rin into a runnable cell.
+ * cell.ts turns a model plus the user's Cm and leak into a runnable cell.
  */
 
 import {
@@ -61,11 +61,13 @@ export interface ModelDef {
   channels: () => ModelChannel[];
   pool?: CaPool;
   /**
-   * published whole-cell values; `rin` is the published cell's Rin measured at
-   * rest (Ihold = 0). `eGaba` is the GABA_A reversal the GABA controls open on
-   * for this cell — adjustable in the app like everything else.
+   * published whole-cell values. `gLeak` is the model's own leak conductance in
+   * nS at its published Cm; Rin is not a default because it is not an input —
+   * it is measured from whatever cell the leak and channels make. `eGaba` is
+   * the GABA_A reversal the GABA controls open on for this cell — adjustable in
+   * the app like everything else.
    */
-  defaults: { cm: number; rin: number; ihold: number; eGaba: number };
+  defaults: { cm: number; gLeak: number; ihold: number; eGaba: number };
   /** where the eGaba default comes from */
   eGabaSource: string;
   /**
@@ -75,7 +77,7 @@ export interface ModelDef {
   gabaKinetics?: { tauRise: number; tauDecay: number; gPeak: number };
   /** where the gabaKinetics come from, for the UI */
   gabaKineticsSource?: string;
-  ranges: { rin: Range; cm: Range; ihold: Range; memNoise: Range };
+  ranges: { gLeak: Range; cm: Range; ihold: Range; memNoise: Range };
   /** rheobase bisection tolerance, pA — 1 pA is fine resolution for one cell and coarse for the other */
   rheobaseTol: number;
   /** settle before each run, ms — long enough for the slowest gate */
@@ -89,7 +91,8 @@ export interface ModelDef {
 /**
  * Regular-spiking pyramidal cell, ModelDB 123623 `sPY_template` (Pospischil et
  * al. 2008). diam = L = 96 µm → π·96² µm² = 28 953 µm² → 289.53 pF at 1 µF/cm².
- * Densities (mS/cm²) × 289.53 pF = nS.
+ * Densities (mS/cm²) × 289.53 pF = nS. The leak is g_pas = 0.1 mS/cm², 28.95 nS,
+ * which gives Rin = 32.1 MΩ at rest (cell.test.ts).
  */
 const RS_CM = (Math.PI * 96 * 96) / 100;
 
@@ -106,10 +109,10 @@ export const RS: ModelDef = {
     { channel: makeKd(-55), gbar: 5 * RS_CM, erev: -100 },
     { channel: makeM(1000), gbar: 0.07 * RS_CM, erev: -100 },
   ],
-  defaults: { cm: 289.53, rin: 32.13, ihold: 0, eGaba: -80 },
+  defaults: { cm: 289.53, gLeak: 0.1 * RS_CM, ihold: 0, eGaba: -80 },
   eGabaSource: "−80 mV: a conventional hyperpolarizing GABA_A reversal for an adult cortical neuron (the owner's default)",
   ranges: {
-    rin: { min: 10, max: 600, step: 1 },
+    gLeak: { min: 0, max: 150, step: 0.5 },
     cm: { min: 20, max: 600, step: 1 },
     ihold: { min: -500, max: 1000, step: 5 },
     memNoise: { min: 0, max: 300, step: 5 },
@@ -219,9 +222,9 @@ export const GNRH: ModelDef = {
     { channel: makeKCa("kca", "IKCa", 1.0), gbar: 1.18, erev: EK_G },
   ],
   pool: { f: 0.0025, alpha: 0.00185, kp: 0.265, Kp: 1.2 },
-  // Rin at rest of the published cell (g_L = 1 nS, 20 pF), active conductances
-  // included: 505.9 MΩ. gnrh.test.ts recomputes it. Ihold −6 pA is the paper's
-  // I_app, which holds the cell at −70 mV.
+  // g_L = 1 nS (Table 1). Rin at rest of the published cell, active
+  // conductances included, is then 505.9 MΩ; gnrh.test.ts recomputes it.
+  // Ihold −6 pA is the paper's I_app, which holds the cell at −70 mV.
   //
   // E_GABA −36.5 mV: measured in adult mouse GnRH neurons with gramicidin
   // perforated patch, which leaves intracellular chloride undisturbed —
@@ -229,7 +232,7 @@ export const GNRH: ModelDef = {
   // cells from 13 adult diestrous females)", DeFazio, Heger, Ojeda & Moenter
   // (2002) Mol Endocrinol 16:2872, doi:10.1210/me.2002-0163. Depolarized
   // relative to rest, which is why GABA excites these cells.
-  defaults: { cm: 20, rin: 505.9, ihold: -6, eGaba: -36.5 },
+  defaults: { cm: 20, gLeak: 1, ihold: -6, eGaba: -36.5 },
   eGabaSource: "−36.5 ± 1.2 mV, gramicidin perforated patch in adult mouse GnRH neurons: DeFazio et al. (2002) Mol Endocrinol 16:2872",
   // GABA PSCs in adult female GnRH neurons, Jaime, DeFazio & Moenter (2026)
   // J Neuroendocrinol 38:e70144: isolated PSCs decay with τ = 9.9 ± 0.25 ms
@@ -243,7 +246,7 @@ export const GNRH: ModelDef = {
   gabaKinetics: { tauRise: 0, tauDecay: 10, gPeak: 1 },
   gabaKineticsSource: "decay 10 ms (9.9 ± 0.25 ms, adult females), peak ≈ 1 nS, instantaneous rise: Jaime et al. (2026) J Neuroendocrinol 38:e70144",
   ranges: {
-    rin: { min: 200, max: 5000, step: 10 },
+    gLeak: { min: 0, max: 5, step: 0.05 },
     cm: { min: 5, max: 60, step: 0.5 },
     ihold: { min: -50, max: 50, step: 1 },
     memNoise: { min: 0, max: 30, step: 0.5 },

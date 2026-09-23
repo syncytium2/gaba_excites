@@ -39,7 +39,7 @@
 <ol>
   <li><a href="#model">The pyramidal cell</a></li>
   <li><a href="#gnrh">The GnRH neuron</a></li>
-  <li><a href="#passive">Rin, Cm and Ihold</a></li>
+  <li><a href="#passive">Leak, Cm, Ihold, and the measured Rin</a></li>
   <li><a href="#electrode">The electrode: Rs, bridge balance, pipette capacitance</a></li>
   <li><a href="#synapses">PSCs</a></li>
   <li><a href="#noise">Noise</a></li>
@@ -92,8 +92,8 @@ Its input resistance at rest is <strong>32.1 MΩ</strong>; the template's commen
 the leak alone, and the channels open at rest bring it down to 32.1. That is low for a pyramidal cell
 recorded in a slice, where 100–300 MΩ is common, and it is
 low on purpose: the RS model was fit partly to recordings in vivo, where background synaptic activity holds the
-membrane in a high-conductance state. The simulator opens on these published values; the Rin and Cm controls
-move away from them.</p>
+membrane in a high-conductance state. The simulator opens on these published values, with the leak at the template's 28.95 nS
+(0.1 mS/cm²); the leak and Cm controls move away from them.</p>
 
 
 <h2 id="gnrh">1b. The GnRH neuron</h2>
@@ -149,34 +149,36 @@ tuned. <code>src/core/gnrh.test.ts</code> holds them.</p>
 the printed Equation 15 does not use. It is read here as an additive floor on τ. Dropping it changes neither
 spike count above and moves the trough of a −30 pA step by 0.4 mV.</p>
 <p>As published, the cell rests at −67.5 mV with no applied current, and its input resistance there is
-<strong>506 MΩ</strong>. That is the Rin default, and −6 pA is the Ihold default. The Rin and Cm controls work as for the
-pyramidal cell. With so few channels open at rest and a Rin near 0.5 GΩ, a few picoamps move this cell as much as
+<strong>506 MΩ</strong>, from the paper's 1 nS leak, which is the leak default; −6 pA is the Ihold default. The leak and
+Cm controls work as for the pyramidal cell. With so few channels open at rest and a Rin near 0.5 GΩ, a few picoamps move this cell as much as
 hundreds of picoamps move the pyramidal cell. The step presets are sized accordingly, and follow the paper's own
 protocol: 500 ms steps of 0–30 pA in 2 pA increments. Integration uses the same scheme and the same dt as the pyramidal
 cell. The Markov sodium states are advanced by the exact matrix exponential at fixed V, and at dt = 0.01 ms every spike
 is within 0.13 ms of a run at dt = 0.0025 ms.</p>
 
-<h2 id="passive">2. Rin, Cm and Ihold</h2>
+<h2 id="passive">2. Leak, Cm, Ihold, and the measured Rin</h2>
 <p>A model file specifies densities per unit area. An experimenter reads whole-cell quantities off the amplifier. The
 simulator takes the whole-cell quantities and maps them onto the model:</p>
 <ul>
   <li><strong>Cm sets the size of the cell.</strong> Area = Cm / (1 µF/cm²). The active channel densities are held fixed,
-  so a larger cell has proportionally more of every channel. Because Rin is held where you set it, the leak density
-  falls as the cell grows. The result is that <strong>rheobase is set mostly by Rin, not by Cm</strong>: on the
-  published cell it is 590, 561 and 551 pA at Cm = 145, 290 and 579 pF, but 129 pA if Rin is raised to 150 MΩ. Cm
-  changes the speed: τm, the latency to the first spike, and how fast the voltage follows a synaptic input.</li>
-  <li><strong>Rin is the input resistance you would measure at rest</strong>: the inverse slope of the steady-state
-  current–voltage relation at the resting potential, active conductances included. The simulator finds the leak
-  conductance gL that makes this true, by bisection. It does not use gL = 1/Rin, because channels open at rest (mainly
-  the M current) conduct too, and a knob labeled Rin should give back Rin when you measure it. If the requested Rin is
-  so high that the channels open at rest alone conduct more than 1/Rin, no leak can produce it; the simulator uses the
-  smallest possible leak and says so.</li>
-  <li><strong>EL stays at −70 mV.</strong> Changing Rin therefore changes the resting potential only slightly, through the
-  shifting balance between the leak and the M current.</li>
+  so a larger cell has proportionally more of every channel. The leak is not scaled with it. On the pyramidal cell,
+  with the leak held at 28.95 nS, rheobase is 569, 561 and 584 pA at Cm = 145, 290 and 579 pF, but 129 pA with the
+  leak cut to 5 nS (Rin 149 MΩ): <strong>rheobase is set mostly by the leak, not by Cm</strong>. Cm changes the speed:
+  τm, the latency to the first spike, and how fast the voltage follows a synaptic input.</li>
+  <li><strong>gL is a linear leak conductance, in nS, and it is an input.</strong> It opens on each model's published
+  leak and nothing but the leak control moves it: not Cm, and not a change to any channel. That is what a drug does on
+  a rig. Block a channel that is open at rest and the input resistance rises, because nothing quietly compensates.</li>
+  <li><strong>Rin is measured, never set</strong>: the inverse slope of the steady-state current–voltage relation at
+  the resting potential, active conductances included. It is below 1/gL because channels open at rest (mainly the M
+  current) conduct too. It is shown next to the leak control, and measured again from the hyperpolarizing steps (see
+  <a href="#measurements">Measurements</a>). If the channels hold the cell depolarized so that there is no stable rest, the simulator says so and Rin is
+  undefined.</li>
+  <li><strong>EL stays at −70 mV.</strong> Changing the leak therefore changes the resting potential only slightly, through
+  the shifting balance between the leak and the M current.</li>
   <li><strong>Ihold</strong> is a constant current injected throughout. Before every run the cell is settled at Ihold
   for 3 s, with no synaptic input, so the slow M current starts each sweep at its steady state. Every sweep starts
   from that same settled state, as though each were recorded after a long interval.</li>
-  <li><strong>τm = Rin·Cm</strong> is shown as a derived value. With a single compartment it is also the time constant
+  <li><strong>τm = Rin·Cm</strong>, with the measured Rin, is shown as a derived value. With a single compartment it is also the time constant
   of the voltage response to a small step.</li>
 </ul>
 <p class="note">Rin at the holding potential is also reported. Depolarizing holding current recruits the M current and
@@ -223,7 +225,7 @@ one event:  g(t) = A · (exp(−t/τdecay) − exp(−t/τrise)),   A chosen so 
   <strong>Regular</strong> timing gives clock-like events. At high rates a regular train approximates a tonic
   conductance.</li>
   <li>Event times come from a seeded generator (mulberry32). The seed depends only on the barrage number, the input and
-  the sweep index. So changing Rin, Cm, E_GABA or anything else about the cell replays <em>exactly the same</em>
+  the sweep index. So changing the leak, Cm, E_GABA or anything else about the cell replays <em>exactly the same</em>
   events, and any change in the response comes from the change you made. “New barrage” draws a new set.</li>
   <li>A rise time of 0 gives an instantaneous rise and a single-exponential decay.</li>
 </ul>
@@ -314,7 +316,7 @@ clock-like GABA at 200 Hz, 3 nS peak, 0.5/10 ms, as E_GABA moves:</p>
 <tr><td>E = −55 mV</td><td class="n">594</td><td>inhibitory, although it depolarizes</td></tr>
 <tr><td>E = −50 mV</td><td class="n">560</td><td>neutral</td></tr>
 <tr><td>E = −45 mV</td><td class="n">525</td><td>excitatory</td></tr>
-<tr><td>E = −35 mV</td><td class="n">457</td><td>excitatory</td></tr>
+<tr><td>E = −35 mV</td><td class="n">458</td><td>excitatory</td></tr>
 </tbody>
 </table></div>
 <p>Two points come out of this table. First, <strong>depolarizing is not the same as excitatory</strong>. Between rest and
@@ -339,15 +341,15 @@ these values in.</p>
   short-term plasticity, and no correlations between inputs.</li>
   <li><strong>Current clamp only</strong>, with an idealized current source and a single lumped pipette capacitance.
   There is no amplifier bandwidth and no recording noise.</li>
-  <li><strong>The default cell is in a high-conductance state</strong>, with Rin = 32 MΩ, as published. Raising Rin
-  toward slice values makes it far more excitable.</li>
+  <li><strong>The default cell is in a high-conductance state</strong>, with Rin = 32 MΩ, as published. Cutting the leak
+  so that Rin reaches slice values (5 nS gives 149 MΩ) makes it far more excitable.</li>
 </ul>
 
 <h2 id="cli">10. Running it without a browser</h2>
 <p>The same code runs from a command line, with Node 22.18 or later and no build step:</p>
 <span class="eq">git clone https://github.com/syncytium2/gaba_excites && cd gaba_excites && npm install
 node scripts/fi.ts                                            # published cell, −200…1000 pA
-node scripts/fi.ts --rin 150 --cm 120 --steps 0,50,100,150,200
+node scripts/fi.ts --gleak 5 --cm 120 --steps 0,50,100,150,200
 node scripts/fi.ts --gaba 200,3,0.5,10,-60 --regular --rheobase</span>
 <p>It writes CSV to stdout, with the settings as <code>#</code> lines above the table.</p>
 

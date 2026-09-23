@@ -2,13 +2,14 @@
  * The result the app is named for, pinned so a change to the model or the
  * integrator cannot quietly move it. Regular (clock-like) GABA at 200 Hz,
  * 3 nS, 0.5/10 ms, on the published cell; rheobase bisected to 1 pA for an
- * 800 ms step. Measured 2026-09-21:
+ * 800 ms step. Measured 2026-09-21; E −35 re-measured 2026-09-23 as 458 when
+ * the published leak became exact rather than solved from a rounded Rin:
  *
  *   GABA off   561 pA
  *   E −80      765       hyperpolarizing and inhibitory
  *   E −60      628       depolarizing (rest is −70.6) and STILL inhibitory
  *   E −50      560       the crossover: no effect on rheobase
- *   E −35      457       excitatory
+ *   E −35      458       excitatory
  *
  * The presets' notes quote these numbers; update both together.
  */

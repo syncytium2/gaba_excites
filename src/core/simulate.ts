@@ -202,7 +202,7 @@ export function runSweep(
   const gGabaOut = new Float32Array(nOut);
 
   // Seeds differ by input and by sweep, and do not depend on any other
-  // parameter, so changing Rin re-runs the SAME synaptic barrage.
+  // parameter, so changing the leak re-runs the SAME synaptic barrage.
   const gluTimes = eventTimes(inp.glu, proto.sweepMs, opt.seed * 7919 + sweepIndex * 2 + 1);
   const gabaTimes = eventTimes(inp.gaba, proto.sweepMs, opt.seed * 7919 + sweepIndex * 2 + 2);
   const kGlu = kinetics(inp.glu, dt);

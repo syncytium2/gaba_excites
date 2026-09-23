@@ -58,7 +58,7 @@ const INPUTS = { ihold: -6, electrode: E, glu: DEFAULT_GLU, gaba: DEFAULT_GABA }
 
 /** Spike counts for the paper's Fig. 7F protocol (0–30 pA, 500 ms, on −6 pA). */
 export function fig7fCounts(): number[] {
-  const cell = buildCell({ model: "gnrh", cm: 20, rin: 505.9 });
+  const cell = buildCell({ model: "gnrh", cm: 20, gLeak: 1 });
   const st = settle(cell, E, -6, 8000, 0.01);
   const p = { sweepMs: 700, stepStart: 100, stepDur: 500, amps: [0, 6, 12, 18, 24, 30] };
   return p.amps.map((a, k) => sweepStats(runSweep(cell, INPUTS, p, a, st, DEFAULT_SIM, k), p).nInStep);
@@ -66,7 +66,7 @@ export function fig7fCounts(): number[] {
 
 /** A long step: spike count, first- and last-second counts, mean Vm, and time spent above −45 mV. */
 export function longStep(amp: number, durMs: number) {
-  const cell = buildCell({ model: "gnrh", cm: 20, rin: 505.9 });
+  const cell = buildCell({ model: "gnrh", cm: 20, gLeak: 1 });
   const st = settle(cell, E, -6, 8000, 0.01);
   const p = { sweepMs: durMs + 200, stepStart: 100, stepDur: durMs, amps: [amp] };
   const sw = runSweep(cell, INPUTS, p, amp, st, { ...DEFAULT_SIM, sampleMs: 0.05 }, 0);
@@ -108,7 +108,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   for (const vh of [-30, -40, -50, -55, -60, -65]) {
     withSlowIk(vh, () => {
       const r = longStep(24, 30000);
-      const rest = buildCell({ model: "gnrh", cm: 20, rin: 505.9 }).vRest;
+      const rest = buildCell({ model: "gnrh", cm: 20, gLeak: 1 }).vRest;
       console.log(
         `V½ ${vh}: rest ${rest.toFixed(1)} mV, h∞(−70) ${boltzmann(vh, 4.7)(-70).toFixed(2)}, ` +
           `<h∞> during step ${meanHInf(r.vm, vh).toFixed(2)} → ${r.spikes} spikes; first s ${r.firstSecond}, last s ${r.lastSecond}` +

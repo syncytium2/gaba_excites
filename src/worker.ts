@@ -16,7 +16,8 @@ export interface CellInfo {
   gLeak: number;
   vRest: number;
   areaUm2: number;
-  rinClamped: boolean;
+  /** Rin at rest (Ihold = 0), measured from the cell as built, MΩ */
+  rinRest: number;
   /** Rin at the holding current — differs from Rin at rest once Ihold recruits channels */
   rinAtHold: number;
 }
@@ -41,7 +42,7 @@ ctx.onmessage = (ev: MessageEvent<Request>) => {
         gLeak: cell.gLeak,
         vRest: cell.vRest,
         areaUm2: cell.areaUm2,
-        rinClamped: cell.rinClamped,
+        rinRest: cell.rinRest,
         rinAtHold: cellRinAt(cell, r.inputs.ihold),
       };
       const transfer: ArrayBuffer[] = [];
