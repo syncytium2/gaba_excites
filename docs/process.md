@@ -350,3 +350,12 @@ experiment predicts the 40 mM patch point in Fig. 2A at about −24 mV, a check
 not yet made. The paper's conclusions stand, because they compare patches with
 whole cells and a shared offset cancels. The owner suggested this become the
 teaching tool: "an activity correction tool could be very educational".
+
+Later the same day, the owner read the 40 mM patch point off Fig. 2A: "actually
+under the theory line". It reads −26.8 mV, not the −24.0 the two-point fit
+predicted. With three points, a constant offset alone fails (χ² 28). A voltage
+error plus a permeant pipette anion fits: 6.1 mV plus P_glu/P_Cl 0.005, or,
+slightly better, 46% of each pipette's own junction potential plus 0.004. The
+error shrinks as pipette Cl⁻ rises, so the paper's single activity factor
+over-corrects at 40 mM and under-corrects at 1 mM. The experiment and notes
+now use all three points, and the failed prediction is recorded in the notes.

@@ -242,7 +242,7 @@ DeFazio RA, Keros S, Quick MW, Hablitz JJ (2000). Potassium-coupled chloride cot
 
 [doi:10.1523/JNEUROSCI.20-21-08069.2000](https://doi.org/10.1523/JNEUROSCI.20-21-08069.2000) · [PMID 11050128](https://pubmed.ncbi.nlm.nih.gov/11050128/) · [PMC6772739](https://pmc.ncbi.nlm.nih.gov/articles/PMC6772739/) · *open (PubMed Central)* · models: pyramidal
 
-**Took:** Not used in the app. Its outside-out patch calibrations (pipette Cl⁻ known) and solution recipes, refitted in an experiment to ask what the paper's one-sided activity factor was absorbing: about a 7.5 mV offset, the size of an under-corrected liquid junction potential, plus a small permeant pipette anion.
+**Took:** Not used in the app. Its outside-out patch calibrations (pipette Cl⁻ known; 40 mM read off Fig. 2A) and solution recipes, refitted in an experiment to ask what the paper's one-sided activity factor was absorbing: a voltage error of about 6 mV (about half the Henderson junction potential) plus a small permeant pipette anion.
 
 > [Cl−]o was set to the extracellular Cl− concentration, corrected for activity (Robinson and Stokes, 1959) (e.g., in 3.5 mM [K+]o, 139.6 mM × 76% = 106.1 mM).
 > — Materials and Methods, Intracellular chloride calculation

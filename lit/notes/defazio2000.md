@@ -59,24 +59,48 @@ reversal potential. With γ = 0.76 at 30 °C the shift is 26.1 mV × ln(1/0.76)
 ## Refit
 
 Everything below is at 30 °C, with the recipe's bath (136.1 mM), every source
-of Cl⁻ counted, and activities equal on both sides:
+of Cl⁻ counted, and activities equal on both sides. The 40 mM patches are only
+in Fig. 2A. Reading off the figure's axes gives −26.8 mV; the same reading
+gives −102.6 and −41.1 for the published values (−102.8 and −41.5).
 
-| added Cl⁻ | V_rev (from the reported value) | Nernst expected | gap |
+| added Cl⁻ | V_rev | Nernst expected | gap | against the paper's theory line |
+|---|---|---|---|---|
+| 1 mM (1.4) | −103.0 mV | −119.6 mV | +16.6 mV | 18.2 mV above |
+| 20 mM (20.4) | −41.5 mV | −49.6 mV | +8.1 mV | 1.4 mV above |
+| 40 mM (40.4) | −26.8 mV (Fig. 2A) | −31.7 mV | +4.9 mV | 2.0 mV **below** |
+
+The owner pointed out that the 40 mM patches sit under the theory line. So the
+paper's own correction over-corrects at 40 mM and under-corrects at 1 mM. The
+error shrinks as pipette Cl⁻ rises, so no single scaling of [Cl⁻]o could have
+fitted all three points.
+
+The table below uses weighted least squares with the SEMs, and ±1 mV as the
+reading error for 40 mM:
+
+| explanation | parameters | χ² (1 d.f.) | residuals, 1 / 20 / 40 mM |
 |---|---|---|---|
-| 1 mM (1.4) | −103.0 mV | −119.6 mV | +16.6 mV |
-| 20 mM (20.4) | −41.5 mV | −49.6 mV | +8.1 mV |
+| one-sided activity (the paper's) | γ = 0.76 | — | +18.2 / +1.4 / −2.0 mV |
+| constant offset alone | 7.7 mV | 27.7 | +8.9 / +0.4 / −2.7 mV |
+| constant offset + gluconate | 6.1 mV, P_glu/P_Cl 0.0054 | 4.1 | −0.4 / +1.3 / −1.5 mV |
+| fraction of each pipette's LJP + gluconate | 0.46 × LJP, P_glu/P_Cl 0.0044 | 2.1 | −0.2 / +0.8 / −1.1 mV |
 
-- **One-sided activity** is a constant 7.2 mV and cannot fit gaps of 16.6 and
-  8.1.
-- **Gluconate permeability alone** needs P_glu/P_Cl = 0.0093 at 1 mM but
-  0.065 at 20 mM. It is inconsistent.
-- **A constant offset plus a permeant pipette anion** fits both points: the
-  offset is **7.5 mV** (reversals read too depolarized) and P_glu/P_Cl is
-  **0.0044**. The anion term could equally be about 0.5% Cl⁻ contamination of
-  the gluconate. The data cannot tell the two apart.
-- **Why the fudge seemed to work:** a 7.5 mV offset scales inferred [Cl⁻]i by
-  0.75, and the one-sided γ scales it by 0.76. The activity factor absorbed an
-  error that belongs in millivolts.
+- **A voltage error alone fails.** The 1 mM gap is too large for anything
+  that also fits 20 and 40 mM.
+- **A voltage error plus a small permeant pipette anion fits.** The anion is
+  worth about 0.6–0.7 mM of Cl⁻, from gluconate (P_glu/P_Cl ≈ 0.005) or from
+  Cl⁻ contaminating the gluconate. The data cannot tell the two apart.
+- **The best fit is a voltage error proportional to each pipette's own
+  junction potential**: the reversals read as if only about 54% of the LJP had
+  been subtracted. That is what a measurement that loses a fixed fraction
+  would give, such as a bath reference whose own junction changes when the
+  bath is switched. The two forms of the error differ by less than 2 mV across
+  these solutions, though, so the figure cannot really choose between them.
+- **The two-point fit made before the figure was read (7.5 mV + 0.0044)
+  predicted −24.0 mV at 40 mM.** The figure reads −26.8, so that prediction
+  missed by 2.8 mV and the three-point offset is smaller.
+- **Why the fudge seemed to work:** a 6–8 mV error scales inferred [Cl⁻]i by
+  0.74–0.79, and the one-sided γ scales it by 0.76. It absorbed an error that
+  belongs in millivolts, and was right at about 20 mM only.
 
 ## The junction potential the solutions should have had
 
@@ -91,9 +115,9 @@ bath relative to pipette, so that true Vm = V_read − LJP:
 
 As checks, the same code gives +4.4 mV for 150 KCl against 150 NaCl and
 +16.4 mV for 140 K-gluconate against the saline, the familiar values. The
-fitted 7.5 mV offset is about half the expected correction. So the measured
-junction potentials were probably about 8 mV low, or only part of the
-correction was applied.
+fitted error, about 6 mV or 46% of each LJP, is roughly half the expected
+correction. So the measured junction potentials were probably low by about
+that much, or only part of the correction was applied.
 
 This is not proven. One common way a by-hand measurement (Neher's method)
 comes out low is the bath reference: unless it is a 3 M KCl bridge, its own
@@ -101,13 +125,6 @@ junction changes when the bath is switched from pipette solution to saline,
 and that change subtracts from the reading. Rough Henderson estimates put it
 at about 2 mV with 3 M KCl and about 5 mV with 1 M. How the bridge was made is
 not recorded.
-
-## A test that is still open
-
-The fit predicts that the 40 mM patches in Fig. 2A read about **−24.0 mV**,
-which is 42.4 mM by the paper's formula. With no offset they would read
-−31.7 mV. Reading that point off the figure tests the fit with a point it was
-not fitted to.
 
 ## What it does and does not change
 

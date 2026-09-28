@@ -12,9 +12,11 @@
  *   - the liquid junction potentials the solutions should have had (Henderson
  *     equation, mobilities from Barry 1994 / Barry & Lynch 1991); the paper says
  *     they were measured and corrected but prints no value;
- *   - the two patch calibrations, refitted with the recipe's bath chloride and
- *     every source of pipette chloride counted, against: a constant offset, a
- *     permeant pipette anion (gluconate, or Cl⁻ contaminating it), and both.
+ *   - the three patch calibrations (1 and 20 mM from the text, 40 mM read off
+ *     Fig. 2A), refitted with the recipe's bath chloride and every source of
+ *     pipette chloride counted, against a voltage error (constant, or a
+ *     fraction of each pipette's junction potential) with and without a
+ *     permeant pipette anion (gluconate, or Cl⁻ contaminating it).
  *
  * An experiment, not part of the app. Run it: node tools/experiments/chloride_calibration.ts
  * Results and their reading: lit/notes/defazio2000.md. src/experiments.test.ts keeps it working.
@@ -86,17 +88,20 @@ export function pipette(addedCl: number): Solution {
   return { K: 150, Na: 0.2, Cl: addedCl + 0.4, Glu: 135 - addedCl, HEPES: 3.9, EGTA: 5, ATP: 2 };
 }
 
-// ---------------------------------------------------------------- the patch calibrations (Results)
+// ---------------------------------------------------------------- the patch calibrations (Results, Fig. 2A)
 
 /**
- * Outside-out patches, [Cl⁻]i as the paper reports it (computed with 106.1 mM).
- * 1 mM: 2.06 ± 0.16 (n = 4) in the Discussion and at 1 mM in the text; the
- * Results paragraph gives 2.10 ± 0.16 (n = 4) for the same patches.
- * 20 mM: 21.69 ± 0.72 (n = 7). The 40 mM patches are only in Fig. 2A.
+ * Outside-out patches. 1 and 20 mM: [Cl⁻]i as the paper reports it (computed
+ * with 106.1 mM), turned back into V_rev. 1 mM: 2.06 ± 0.16 mM, n = 4 (the
+ * Results paragraph gives 2.10 for the same patches; the text's V_rev is
+ * −102.8 ± 2.0). 20 mM: 21.69 ± 0.72 mM, n = 7. 40 mM is only in Fig. 2A: read
+ * off the axes at −26.8 mV, the same reading that gives −102.6 and −41.1 for
+ * the other two. `sd` is the SEM in mV, or the reading error for 40 mM.
  */
 export const PATCHES = [
-  { addedCl: 1, reportedCl: 2.06 },
-  { addedCl: 20, reportedCl: 21.69 },
+  { addedCl: 1, reportedCl: 2.06 as number | undefined, fig2a: -102.6, sd: 2.0 },
+  { addedCl: 20, reportedCl: 21.69 as number | undefined, fig2a: -41.1, sd: 0.9 },
+  { addedCl: 40, reportedCl: undefined, fig2a: -26.8, sd: 1.0 },
 ];
 
 /** the reversal potential behind a reported [Cl⁻]i: undo the paper's formula */
@@ -104,47 +109,56 @@ export function reversalFromReported(reportedCl: number): number {
   return rtf(T_REC) * Math.log(reportedCl / (PAPER_CL_O * PAPER_GAMMA));
 }
 
+export const patchVrev = () => PATCHES.map((p) => (p.reportedCl ? reversalFromReported(p.reportedCl) : p.fig2a));
+
 /** the constant shift a one-sided activity coefficient amounts to, mV */
 export const oneSidedShift = (gamma = PAPER_GAMMA) => rtf(T_REC) * Math.log(1 / gamma);
 
-export interface Refit {
-  vrev: number[];
-  /** Nernst with every Cl⁻ counted, the recipe's bath, activities equal on both sides */
-  expected: number[];
-  /** measured − expected, mV */
-  gap: number[];
-  /** P_glu/P_Cl that alone would explain each point: should agree, and does not */
-  gluconateOnly: number[];
-  /** the two-parameter fit: a constant offset (mV, positive = reversals read too depolarized) and P_glu/P_Cl */
-  offset: number;
-  pGlu: number;
-  /** what the fit predicts for the 40 mM patches, which are only in Fig. 2A */
-  predict40: { vrev: number; reportedCl: number; vrevNoOffset: number };
+/**
+ * Explanations of the patch reversals, each as V_rev(i; a, b): Nernst with
+ * every Cl⁻ counted and the recipe's bath, plus a voltage error, plus a
+ * permeant pipette anion (gluconate, or Cl⁻ contaminating it).
+ */
+export const MODELS_CL = {
+  /** a constant voltage offset `a`, nothing else */
+  offset: (a: number, _b: number, i: number) => a + nernst(i, 0),
+  /** a constant offset `a` and gluconate with P_glu/P_Cl = `b` */
+  offsetGluconate: (a: number, b: number, i: number) => a + nernst(i, b),
+  /** a fraction `a` of each pipette's own junction potential, and gluconate `b` */
+  ljpFractionGluconate: (a: number, b: number, i: number) => a * henderson(pipette(PATCHES[i].addedCl), BATH) + nernst(i, b),
+};
+function nernst(i: number, pGlu: number): number {
+  const s = pipette(PATCHES[i].addedCl);
+  return rtf(T_REC) * Math.log((s.Cl! + pGlu * s.Glu!) / BATH_CL);
 }
 
-export function refit(bathCl = BATH_CL): Refit {
-  const phi = rtf(T_REC);
-  const vrev = PATCHES.map((p) => reversalFromReported(p.reportedCl));
-  const ci = PATCHES.map((p) => pipette(p.addedCl).Cl!);
-  const glu = PATCHES.map((p) => pipette(p.addedCl).Glu!);
-  const expected = ci.map((c) => phi * Math.log(c / bathCl));
-  const apparent = vrev.map((v) => bathCl * Math.exp(v / phi));
-  // k·apparent = ci + p·glu, with k = exp(−offset/RT·F): two equations, two unknowns
-  const det = -apparent[0] * glu[1] + glu[0] * apparent[1];
-  const k = (-ci[0] * glu[1] + glu[0] * ci[1]) / det;
-  const pGlu = (apparent[0] * ci[1] - ci[0] * apparent[1]) / det;
-  const offset = -phi * Math.log(k);
-  const p40 = pipette(40);
-  const vrevNoOffset = phi * Math.log((p40.Cl! + pGlu * p40.Glu!) / bathCl);
-  const v40 = vrevNoOffset + offset;
+export interface Fit { a: number; b: number; chi2: number; resid: number[] }
+
+/** weighted least squares on a grid (two parameters, three points: a grid is plenty) */
+export function fitPatches(model: keyof typeof MODELS_CL, aRange: [number, number], bRange: [number, number]): Fit {
+  const m = MODELS_CL[model], v = patchVrev();
+  let best: Fit = { a: 0, b: 0, chi2: Infinity, resid: [] };
+  for (let j = 0; j <= 300; j++)
+    for (let k = 0; k <= (bRange[0] === bRange[1] ? 0 : 300); k++) {
+      const a = aRange[0] + ((aRange[1] - aRange[0]) * j) / 300, b = bRange[0] + ((bRange[1] - bRange[0]) * k) / 300;
+      const chi2 = v.reduce((s, x, i) => s + ((x - m(a, b, i)) / PATCHES[i].sd) ** 2, 0);
+      if (chi2 < best.chi2) best = { a, b, chi2, resid: v.map((x, i) => x - m(a, b, i)) };
+    }
+  return best;
+}
+
+export function refit() {
+  const v = patchVrev();
+  const expected = PATCHES.map((_, i) => nernst(i, 0));
   return {
-    vrev,
+    vrev: v,
     expected,
-    gap: vrev.map((v, i) => v - expected[i]),
-    gluconateOnly: apparent.map((a, i) => (a - ci[i]) / glu[i]),
-    offset,
-    pGlu,
-    predict40: { vrev: v40, reportedCl: PAPER_CL_O * PAPER_GAMMA * Math.exp(v40 / phi), vrevNoOffset: phi * Math.log(p40.Cl! / bathCl) },
+    gap: v.map((x, i) => x - expected[i]),
+    /** the paper's own frame: patch minus its theory line (103.4 mM, added Cl⁻ only); positive = above the line */
+    vsPaperTheory: PATCHES.map((p, i) => v[i] - rtf(T_REC) * Math.log(p.addedCl / 103.4)),
+    offset: fitPatches("offset", [-5, 20], [0, 0]),
+    offsetGluconate: fitPatches("offsetGluconate", [-5, 15], [0, 0.03]),
+    ljpFractionGluconate: fitPatches("ljpFractionGluconate", [0, 1.2], [0, 0.03]),
   };
 }
 
@@ -158,10 +172,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log(`\nOne-sided activity (γ ${PAPER_GAMMA}) = a constant ${f(oneSidedShift(), 2)} mV shift`);
   console.log(`Bath Cl⁻: paper ${PAPER_CL_O}, recipe ${BATH_CL} (${f(rtf(T_REC) * Math.log(PAPER_CL_O / BATH_CL), 2)} mV); puffer ${PUFFER_CL} (${f(rtf(T_REC) * Math.log(BATH_CL / PUFFER_CL), 2)} mV)`);
   const r = refit();
-  console.log(`\nPatch calibrations (pipette Cl⁻ counted with CaCl2: 1.4 and 20.4 mM; bath ${BATH_CL})`);
+  console.log(`\nPatch reversals (Cl⁻ counted with CaCl2: 1.4, 20.4, 40.4 mM; bath ${BATH_CL})`);
   PATCHES.forEach((p, i) =>
-    console.log(`  ${p.addedCl} mM: V_rev ${f(r.vrev[i])}, expected ${f(r.expected[i])}, gap ${f(r.gap[i])} mV; gluconate alone needs P ${f(r.gluconateOnly[i], 4)}`),
+    console.log(`  ${p.addedCl} mM: V_rev ${f(r.vrev[i])}, expected ${f(r.expected[i])}, gap ${f(r.gap[i])} mV; ${f(r.vsPaperTheory[i])} mV from the paper's theory line`),
   );
-  console.log(`  fit: offset ${f(r.offset)} mV + P_glu/P_Cl ${f(r.pGlu, 4)}`);
-  console.log(`  40 mM patches (Fig. 2A) should read ${f(r.predict40.vrev)} mV (${f(r.predict40.reportedCl)} mM by the paper's formula); with no offset ${f(r.predict40.vrevNoOffset)} mV`);
+  const show = (name: string, x: Fit, unit: string) =>
+    console.log(`  ${name.padEnd(34)} ${f(x.a, 2)}${unit}  P_glu ${f(x.b, 4)}  χ² ${f(x.chi2, 1)}  residuals ${x.resid.map((e) => f(e)).join(", ")} mV`);
+  show("constant offset", r.offset, " mV");
+  show("offset + gluconate", r.offsetGluconate, " mV");
+  show("fraction of the LJP + gluconate", r.ljpFractionGluconate, " ×LJP");
 }

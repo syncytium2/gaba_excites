@@ -460,7 +460,7 @@
       "models": [
         "rs"
       ],
-      "took": "Not used in the app. Its outside-out patch calibrations (pipette Cl⁻ known) and solution recipes, refitted in an experiment to ask what the paper's one-sided activity factor was absorbing: about a 7.5 mV offset, the size of an under-corrected liquid junction potential, plus a small permeant pipette anion.",
+      "took": "Not used in the app. Its outside-out patch calibrations (pipette Cl⁻ known; 40 mM read off Fig. 2A) and solution recipes, refitted in an experiment to ask what the paper's one-sided activity factor was absorbing: a voltage error of about 6 mV (about half the Henderson junction potential) plus a small permeant pipette anion.",
       "quotes": [
         {
           "text": "[Cl−]o was set to the extracellular Cl− concentration, corrected for activity (Robinson and Stokes, 1959) (e.g., in 3.5 mM [K+]o, 139.6 mM × 76% = 106.1 mM).",

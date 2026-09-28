@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { MODELS } from "./core/models.ts";
 import { buildCell } from "./core/cell.ts";
-import { BATH, henderson, oneSidedShift, pipette, refit } from "../tools/experiments/chloride_calibration.ts";
+import { BATH, henderson, oneSidedShift, PATCHES, patchVrev, pipette, refit } from "../tools/experiments/chloride_calibration.ts";
 import { fig7fCounts, longStep, meanHInf, withSlowIk } from "../tools/experiments/slow_ik_inactivation.ts";
 
 describe("experiment: DeFazio & Moenter 2021 slow I_K inactivation on the Adams 2018 GnRH model", () => {
@@ -44,14 +44,19 @@ describe("experiment: DeFazio et al. 2000's outside-out chloride calibration", (
     expect(Math.log((0.76 * 10) / (0.76 * 130))).toBeCloseTo(Math.log(10 / 130), 12);
   });
 
-  it("the patch gaps are not constant, gluconate alone does not fit, and offset + gluconate does", () => {
+  it("the Fig. 2A reading agrees with the published patch values", () => {
+    const v = patchVrev();
+    PATCHES.forEach((p, i) => expect(Math.abs(p.fig2a - v[i])).toBeLessThan(0.5));
+  });
+
+  it("the gaps shrink with pipette Cl⁻: no constant offset fits, an offset plus a permeant anion does", () => {
     const r = refit();
-    expect(r.vrev[0]).toBeCloseTo(-102.8, 0); // the paper's reported patch V_rev at 1 mM
-    expect(r.gap[0]).toBeCloseTo(16.6, 0);
-    expect(r.gap[1]).toBeCloseTo(8.1, 0);
-    expect(r.gluconateOnly[1] / r.gluconateOnly[0]).toBeGreaterThan(5);
-    expect(r.offset).toBeCloseTo(7.5, 0);
-    expect(r.pGlu).toBeCloseTo(0.0044, 3);
-    expect(r.predict40.vrev).toBeCloseTo(-24.0, 0);
+    expect(r.gap.map((g) => Math.round(g))).toEqual([17, 8, 5]);
+    expect(r.vsPaperTheory[2]).toBeLessThan(0); // the 40 mM patches sit under the paper's own theory line
+    expect(r.offset.chi2).toBeGreaterThan(20);
+    expect(r.offsetGluconate.chi2).toBeLessThan(5);
+    expect(r.offsetGluconate.a).toBeCloseTo(6.1, 0);
+    expect(r.ljpFractionGluconate.chi2).toBeLessThan(3);
+    expect(r.ljpFractionGluconate.a).toBeCloseTo(0.46, 1);
   });
 });
