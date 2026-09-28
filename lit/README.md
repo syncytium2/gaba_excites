@@ -146,6 +146,30 @@ Colquhoun D, Sigworth FJ (1995). Fitting and statistical analysis of single-chan
 
 **Used in:** [`src/core/noise.ts`](../src/core/noise.ts)
 
+### `barry1991`
+
+Barry PH, Lynch JW (1991). Liquid junction potentials and small cell effects in patch-clamp analysis. J Membr Biol 121(2):101–117.
+
+[doi:10.1007/BF01870526](https://doi.org/10.1007/BF01870526) · *subscription* · models: pyramidal
+
+**Took:** The generalized Henderson equation for a liquid junction potential, and its sign convention (true Vm = V_read − LJP). Used only in an experiment.
+
+**Used in:** [`tools/experiments/chloride_calibration.ts`](../tools/experiments/chloride_calibration.ts)
+
+**Notes:** [`notes/defazio2000.md`](notes/defazio2000.md)
+
+### `barry1994`
+
+Barry PH (1994). JPCalc, a software package for calculating liquid junction potential corrections in patch-clamp, intracellular, epithelial and bilayer measurements and for correcting junction potential measurements. J Neurosci Methods 51(1):107–116.
+
+[doi:10.1016/0165-0270(94)90031-0](https://doi.org/10.1016/0165-0270(94)90031-0) · *subscription* · models: pyramidal
+
+**Took:** Relative ion mobilities (K⁺ = 1; Na⁺ 0.682, Cl⁻ 1.0388, gluconate 0.33, HCO3⁻ 0.605, Ca²⁺ 0.4048, Mg²⁺ 0.361), for the Henderson equation. Used only in an experiment.
+
+**Used in:** [`tools/experiments/chloride_calibration.ts`](../tools/experiments/chloride_calibration.ts)
+
+**Notes:** [`notes/defazio2000.md`](notes/defazio2000.md)
+
 ## Background
 
 What the models were built on, credited but not read for any number here.
@@ -211,3 +235,24 @@ DeFazio RA, Moenter SM (2021). Gonadotropin-releasing hormone (GnRH) neuron pota
 **Used in:** [`tools/experiments/slow_ik_inactivation.ts`](../tools/experiments/slow_ik_inactivation.ts)
 
 **Notes:** [`notes/defazio2021.md`](notes/defazio2021.md)
+
+### `defazio2000`
+
+DeFazio RA, Keros S, Quick MW, Hablitz JJ (2000). Potassium-coupled chloride cotransport controls intracellular chloride in rat neocortical pyramidal neurons. J Neurosci 20(21):8069–8076.
+
+[doi:10.1523/JNEUROSCI.20-21-08069.2000](https://doi.org/10.1523/JNEUROSCI.20-21-08069.2000) · [PMID 11050128](https://pubmed.ncbi.nlm.nih.gov/11050128/) · [PMC6772739](https://pmc.ncbi.nlm.nih.gov/articles/PMC6772739/) · *open (PubMed Central)* · models: pyramidal
+
+**Took:** Not used in the app. Its outside-out patch calibrations (pipette Cl⁻ known) and solution recipes, refitted in an experiment to ask what the paper's one-sided activity factor was absorbing: about a 7.5 mV offset, the size of an under-corrected liquid junction potential, plus a small permeant pipette anion.
+
+> [Cl−]o was set to the extracellular Cl− concentration, corrected for activity (Robinson and Stokes, 1959) (e.g., in 3.5 mM [K+]o, 139.6 mM × 76% = 106.1 mM).
+> — Materials and Methods, Intracellular chloride calculation
+
+> Liquid junction potentials for all solutions were measured, and all voltages reported are corrected values (Neher, 1992).
+> — Materials and Methods
+
+> Our results with excised patches demonstrated an effective concentration of pipette Cl− of 2.06 ± 0.16 mM when only 1 mM KCl was added.
+> — Materials and Methods, The role of bicarbonate and other anions
+
+**Used in:** [`tools/experiments/chloride_calibration.ts`](../tools/experiments/chloride_calibration.ts), [`src/experiments.test.ts`](../src/experiments.test.ts)
+
+**Notes:** [`notes/defazio2000.md`](notes/defazio2000.md)

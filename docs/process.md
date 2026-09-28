@@ -320,3 +320,33 @@ the leak held at 28.95 nS, it reads 569, 561 and 584 pA at Cm = 145, 290 and
 579 pF, against 129 pA with the leak cut to 5 nS (Rin 149 MΩ). The conclusion
 still holds: the leak sets rheobase and Cm does not. The CLI's `--rin` is now
 `--gleak`.
+
+## 2026-09-28 — a GHK calculator, and what "activity" hid in 2000
+
+Asked to evaluate an interactive tool for the GHK voltage equation with
+divalents. The zero-current condition for any mix of valences ±1 and ±2 is a
+quadratic in exp(−FV/RT) with exactly one positive root, so the answer is
+exact, with no search and no root to choose. That was checked against brute
+force. The shortcut of adding "4·P_Ca·[Ca]" to the monovalent formula was off
+by 7 mV in a test case. The tool is not built yet. It is planned as a teaching
+page separate from the simulator (`docs/roadmap.md`).
+
+The owner then raised an old observation: outside-out calibrations of pipette
+chloride never matched unless the extracellular chloride was scaled down, and
+"at the time we mistakenly thought we were correcting for activity. but that's
+wrong I think". The paper is DeFazio, Keros, Quick & Hablitz (2000). The owner
+supplied the PDF. Its patch data are refitted in
+`tools/experiments/chloride_calibration.ts`, with the reading in
+`lit/notes/defazio2000.md`.
+
+The owner is right. The paper's 0.76 is applied to one side only, which makes
+it a constant 7.2 mV shift, not an activity correction. The patch gaps are 16.6
+and 8.1 mV, not constant. They fit a 7.5 mV offset plus a small permeant
+pipette anion (P_glu/P_Cl ≈ 0.004). The offset is about half the junction
+potential the solutions should have had (+16.3 mV at 1 mM, Henderson). The
+paper says its junction potentials were measured and corrected, but prints no
+value; the owner recalls they were measured by hand over about a week. The
+experiment predicts the 40 mM patch point in Fig. 2A at about −24 mV, a check
+not yet made. The paper's conclusions stand, because they compare patches with
+whole cells and a shared offset cancels. The owner suggested this become the
+teaching tool: "an activity correction tool could be very educational".

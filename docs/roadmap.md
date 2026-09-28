@@ -27,6 +27,17 @@ The owner's words are quoted where the item came from them.
 - **Voltage clamp**, with the same electrode model (Rs, prediction/correction).
   The brief said "current clamp only, to begin with".
 
+- **A GHK teaching page: divalents, activity, junction potentials.** Separate
+  from the simulator. The GHK voltage equation with any mix of ±1 and ±2
+  valences, solved exactly (a quadratic in exp(−FV/RT) with one positive root),
+  beside the monovalent shortcut's wrong answer; activity applied to both sides
+  (it cancels) or to one (a constant shift); the Henderson junction potential;
+  permeant anions (HCO3⁻, gluconate); and an inverse mode, from a measured
+  reversal to [Cl⁻]i or P_Ca/P_Na. The worked example is DeFazio et al. 2000's
+  calibration: "an activity correction tool could be very educational". The
+  computation starts in `tools/experiments/chloride_calibration.ts`; reasoning
+  in `lit/notes/defazio2000.md`.
+
 ## Later
 
 - Shareable state: encode every setting in the URL hash so a configuration can
