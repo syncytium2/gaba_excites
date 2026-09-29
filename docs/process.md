@@ -359,3 +359,14 @@ slightly better, 46% of each pipette's own junction potential plus 0.004. The
 error shrinks as pipette Cl⁻ rises, so the paper's single activity factor
 over-corrects at 40 mM and under-corrects at 1 mM. The experiment and notes
 now use all three points, and the failed prediction is recorded in the notes.
+
+The owner: the junction potentials were measured against a 3 M KCl bridge, "we
+thought we were being careful". That rules out a dilute-bridge loss. The
+experiment now has an error budget. Take out the 3 M bridge's residual in a
+Neher measurement (about 2 mV), the puffer's lower Cl⁻ (1.5 mV) and, if the
+junction potentials were measured at room temperature, 0.4 mV. What is left is
+about 2.2 mV plus about 0.7 mM of permeant anion. The 2.2 mV is within the
+uncertainty of the junction potential calculation itself (the published
+gluconate mobilities alone move it by 2 mV). There is no gross error, only a
+sum of small ones. The anion, which the paper had diagnosed, dominates at
+1 mM.

@@ -119,12 +119,39 @@ fitted error, about 6 mV or 46% of each LJP, is roughly half the expected
 correction. So the measured junction potentials were probably low by about
 that much, or only part of the correction was applied.
 
-This is not proven. One common way a by-hand measurement (Neher's method)
-comes out low is the bath reference: unless it is a 3 M KCl bridge, its own
-junction changes when the bath is switched from pipette solution to saline,
-and that change subtracts from the reading. Rough Henderson estimates put it
-at about 2 mV with 3 M KCl and about 5 mV with 1 M. How the bridge was made is
-not recorded.
+## The error budget, with a 3 M KCl bridge
+
+The owner: the bath reference was a 3 M KCl bridge — "we thought we were being
+careful". It was careful. That rules out the large-loss explanation: a dilute
+bridge would lose several mV in a Neher measurement, but by Henderson a 3 M KCl
+bridge loses only about 2 mV (14%, the same fraction for all three pipettes).
+Taking out what can be named:
+
+| source | effect on the patch reversals |
+|---|---|
+| 3 M KCl bridge in the Neher measurement | +2.3 / +2.0 / +1.8 mV (1 / 20 / 40 mM) |
+| junction potentials measured at 22 °C, applied at 30 °C (if so) | +0.4 mV |
+| patch bathed in the puffer (128.5 mM Cl⁻), not the bath (136.1) | +1.5 mV |
+| **left unexplained** | **about 2.2 mV** |
+| permeant pipette anion | about 0.7 mM of Cl⁻ equivalent |
+
+(χ² 3.3 with 1 d.f.; residuals −0.3, +1.1, −1.3 mV.)
+
+The unexplained 2.2 mV is within the uncertainty of the calculation itself:
+published gluconate mobilities run from about 0.24 to 0.33, which moves the
+1 mM junction potential between 18.2 and 16.3 mV, and the Henderson equation
+uses concentrations for activities. So there is no gross error left to find.
+The 2000 correction was a sum of small things, each reasonable on its own.
+
+The largest single term is the anion, and it matters only at low Cl⁻: 0.7 mM
+against 1.4 mM is 10.6 mV at the 1 mM pipette. The paper's own diagnosis —
+gluconate permeation, estimated from the 1 mM patches as P_glu/P_Cl ≈ 0.008 —
+was on the right track. It needed a voltage term beside it, not an activity
+coefficient instead of it.
+
+Assumed here, not recorded: that the junction potentials were measured by
+Neher's method (the paper cites Neher 1992), and that the patch sat in the
+puffer stream 100–200 ms after the pulse, when responses were measured.
 
 ## What it does and does not change
 

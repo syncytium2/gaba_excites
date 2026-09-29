@@ -162,6 +162,43 @@ export function refit() {
   };
 }
 
+// ---------------------------------------------------------------- the error budget, with a 3 M KCl bridge
+
+/**
+ * The owner: the junction potentials were measured by hand, against a 3 M KCl
+ * bridge. In Neher's method the bath goes from pipette solution to saline, and
+ * the bridge's own junction changes with it. By Henderson that makes the
+ * reading about 2 mV (14%) low, so reversals read about 2 mV too depolarized.
+ * The Henderson equation is rough at 3 M; this is the usual estimate.
+ */
+export const KCL_3M: Solution = { K: 3000, Cl: 3000 };
+export function bridgeError(addedCl: number, bridge: Solution = KCL_3M): number {
+  return -(henderson(BATH, bridge) - henderson(pipette(addedCl), bridge));
+}
+
+/**
+ * Take out what can be named: the bridge error, the puffer's lower Cl⁻ (the
+ * patch sits in the puffer stream), and, if `measuredAt` is given, junction
+ * potentials measured at that temperature and applied at 30 °C. Then fit what
+ * is left as a constant offset plus a permeant anion worth `anion` mM of Cl⁻.
+ */
+export function budget(measuredAt?: number) {
+  const phi = rtf(T_REC), v = patchVrev();
+  const named = PATCHES.map((p) => {
+    const t = measuredAt === undefined ? 0 : henderson(pipette(p.addedCl), BATH) * (1 - (measuredAt + 273.15) / (T_REC + 273.15));
+    return bridgeError(p.addedCl) + t;
+  });
+  let best = { offset: 0, anion: 0, chi2: Infinity, resid: [] as number[] };
+  for (let j = 0; j <= 750; j++)
+    for (let k = 0; k <= 400; k++) {
+      const offset = -5 + j * 0.02, anion = k * 0.005;
+      const pred = PATCHES.map((p, i) => named[i] + offset + phi * Math.log((pipette(p.addedCl).Cl! + anion) / PUFFER_CL));
+      const chi2 = v.reduce((s, x, i) => s + ((x - pred[i]) / PATCHES[i].sd) ** 2, 0);
+      if (chi2 < best.chi2) best = { offset, anion, chi2, resid: v.map((x, i) => x - pred[i]) };
+    }
+  return { named, ...best };
+}
+
 // ---------------------------------------------------------------- report
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -181,4 +218,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   show("constant offset", r.offset, " mV");
   show("offset + gluconate", r.offsetGluconate, " mV");
   show("fraction of the LJP + gluconate", r.ljpFractionGluconate, " ×LJP");
+  console.log(`\nError budget (3 M KCl bridge; patch in the puffer, ${PUFFER_CL} mM Cl⁻)`);
+  for (const t of [undefined, 22]) {
+    const b = budget(t);
+    console.log(`  ${t === undefined ? "LJP measured at 30 °C: bridge" : `LJP measured at ${t} °C: bridge + temperature`} ${b.named.map((x) => f(x)).join("/")} mV; unexplained offset ${f(b.offset, 2)} mV, anion ${f(b.anion, 2)} mM, χ² ${f(b.chi2, 1)}`);
+  }
+  const u = MOBILITY.Glu;
+  for (const m of [0.24, 0.33]) { MOBILITY.Glu = m; console.log(`  gluconate mobility ${m}: LJP at 1 mM ${f(henderson(pipette(1), BATH))} mV`); }
+  MOBILITY.Glu = u;
 }

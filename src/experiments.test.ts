@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { MODELS } from "./core/models.ts";
 import { buildCell } from "./core/cell.ts";
-import { BATH, henderson, oneSidedShift, PATCHES, patchVrev, pipette, refit } from "../tools/experiments/chloride_calibration.ts";
+import { BATH, bridgeError, budget, henderson, oneSidedShift, PATCHES, patchVrev, pipette, refit } from "../tools/experiments/chloride_calibration.ts";
 import { fig7fCounts, longStep, meanHInf, withSlowIk } from "../tools/experiments/slow_ik_inactivation.ts";
 
 describe("experiment: DeFazio & Moenter 2021 slow I_K inactivation on the Adams 2018 GnRH model", () => {
@@ -58,5 +58,13 @@ describe("experiment: DeFazio et al. 2000's outside-out chloride calibration", (
     expect(r.offsetGluconate.a).toBeCloseTo(6.1, 0);
     expect(r.ljpFractionGluconate.chi2).toBeLessThan(3);
     expect(r.ljpFractionGluconate.a).toBeCloseTo(0.46, 1);
+  });
+
+  it("with a 3 M KCl bridge and the puffer's chloride named, about 2 mV and 0.7 mM are left", () => {
+    expect(bridgeError(1)).toBeCloseTo(2.3, 0);
+    const b = budget(22);
+    expect(b.offset).toBeCloseTo(2.2, 0);
+    expect(b.anion).toBeCloseTo(0.7, 1);
+    expect(b.chi2).toBeLessThan(4);
   });
 });
