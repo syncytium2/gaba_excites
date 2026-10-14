@@ -2,43 +2,86 @@
 
 [![tests](https://github.com/syncytium2/gaba_excites/actions/workflows/test.yml/badge.svg)](https://github.com/syncytium2/gaba_excites/actions/workflows/test.yml)
 
-**A current-clamp excitability simulator that runs in the browser.** Set the
-passive properties of the cell (leak, Cm) and the rig (Rs,
-Ihold), run a family of current steps, and read off rheobase, spike threshold
-and the F–I curve. Add glutamate and GABA PSCs, move E_GABA, and watch the
-same inhibitory conductance hyperpolarize, shunt, or excite.
+**A current-clamp simulator, built as a teaching tool for UM Physiol 578.**
+It runs entirely in the browser. The course goal was excitability: what decides
+whether, and how often, a neuron fires. The simulator shows the three things
+that decide it, each with its own controls:
+
+- **passive properties:** the leak, membrane capacitance, and the input
+  resistance and time constant that follow from them;
+- **voltage-gated conductances:** the channels that set threshold, the shape
+  of the action potential, and how firing adapts during a step;
+- **synaptic inputs:** glutamate and GABA conductances. Moving E_GABA lets the
+  same inhibitory conductance hyperpolarize, shunt or excite the cell.
+
+You run a family of current steps, the way you would on a rig, and read off
+rheobase, spike threshold and the F–I curve. Pin a curve, change one thing, and
+compare.
+
+Live at **https://gaba.tonydefazio.com**. The methods page, with every equation,
+is at [`/methods`](https://gaba.tonydefazio.com/methods) (source:
+`public/methods.html`).
+
+## Two cells
 
 Two cell models, chosen from a menu:
 
-- **Cortical pyramidal (regular spiking)** — Pospischil et al. (2008), ported
+- **Cortical pyramidal (regular spiking):** Pospischil et al. (2008), ported
   from its ModelDB source (123623) and **checked spike-for-spike against
-  NEURON** running the original mechanisms.
-- **GnRH neuron (mouse, negative feedback)** — Adams et al. (2018, J Neurosci
-  38:1249): ten currents including a Markov fast Na⁺ scheme and a calcium
-  pool. Transcribed from the paper; there is no public code to compare against,
+  NEURON** running the original mechanisms. Three voltage-gated currents:
+  transient Na⁺, delayed-rectifier K⁺, and a slow M-type K⁺ current that makes
+  firing adapt.
+- **GnRH neuron (mouse, negative feedback):** Adams et al. (2018, J Neurosci
+  38:1249). Ten currents, including a Markov fast Na⁺ scheme, and a calcium
+  pool. Transcribed from the paper. There is no public code to compare against,
   so it is checked against what the paper reports: −6 pA holds it at −70 mV,
   and it fires 0, 0, 0, 1, 4 and 6 spikes at 0–30 pA, as in the paper's Fig. 7F.
 
-Live site: *not yet deployed*; `https://gaba.tonydefazio.com` is the intended address.
-The methods page, with every equation, is `public/methods.html` (served at `/methods`).
+Side by side, they make the course's point. A large, leaky cell needs hundreds
+of picoamps to fire (561 pA). A small cell with an input resistance near
+0.5 GΩ fires on about 18 pA.
 
-## What you can do with it
+## What you can change, and what it teaches
+
+**Passive properties**
 
 | Control | What it does |
 |---|---|
-| **gL (leak)** | A linear leak conductance in nS, opening on the published values (28.95 nS pyramidal, 1 nS GnRH). Nothing else moves it: not Cm, not a change to a channel. Input resistance is *measured* from the resulting cell, leak plus the channels open at rest, and shown next to it. |
-| **Cm** | Sets the size of the cell. Channel densities are fixed, so a bigger cell has more channels; the leak stays as set. On the pyramidal cell rheobase moves little with Cm; the kinetics do. |
+| **gL (leak)** | A linear leak conductance in nS, opening on the published values (28.95 nS pyramidal, 1 nS GnRH). Nothing else moves it: not Cm, not a change to a channel. Input resistance is *measured* from the resulting cell, leak plus the channels open at rest, and shown next to it with τm = Rin·Cm. |
+| **Cm** | Scales the cell's channels with its area. Channel densities are fixed, so a bigger cell has more channels; the leak stays as set. On the pyramidal cell rheobase moves little with Cm; the kinetics do. |
 | **Ihold** | Constant current throughout. The cell is settled at Ihold for 3 s before each run. |
-| **Rs, bridge, pipette C** | Series resistance changes the *record*, not Vm: an I·Rs offset (removed by bridge balance) and, with pipette capacitance, a low-pass on spikes. |
-| **Step protocol** | A family (first, increment, count) or any list of steps; step onset, duration, sweep length. Presets for an F–I family, fine threshold steps, a synaptic barrage, and three GABA demonstrations. |
-| **Noise** | Recording noise (RMS, bandwidth, mains hum) on the trace only; membrane noise (an Ornstein–Uhlenbeck current, σ and τ) that the cell feels and that leaves Rin unchanged. |
+
+**Voltage-gated conductances**
+
+Each model's channels are fixed at their published values for now. You see
+them at work in threshold (dV/dt ≥ 20 V/s), action-potential peak and
+half-width, the phase plot, the F–I curve, and adaptation (initial against
+mean rate). An editor that lets you change each channel is next on the
+[roadmap](docs/roadmap.md).
+
+**Synaptic inputs**
+
+| Control | What it does |
+|---|---|
 | **Glutamate / GABA PSCs** | Conductance-based. Rate, peak conductance, rise and decay τ, Poisson or regular timing. E_glu = 0 mV; E_GABA from −100 to 0 mV, defaulting per cell: −80 mV pyramidal, −36.5 mV GnRH (measured by gramicidin perforated patch, DeFazio et al. 2002). The GnRH cell's GABA PSC defaults to the measured 10 ms decay and ~1 nS peak (Jaime et al. 2026). Seeded, so changing the cell replays the same events. |
 
-Readouts: rheobase (refinable to 1 pA), threshold (dV/dt ≥ 20 V/s), AP peak
-and half-width, measured Rin, holding Vm, F–I gain; recorded voltage with the
-true Vm on demand, command current, synaptic conductances, the F–I curve
-(mean and initial rate, with up to four pinned curves for comparison, and CSV
-export), a phase plot, and a per-sweep table.
+**The experiment itself**
+
+| Control | What it does |
+|---|---|
+| **Step protocol** | A family (first, increment, count) or any list of steps; step onset, duration, sweep length. Presets for an F–I family, fine threshold steps, a synaptic barrage, and three GABA demonstrations. |
+| **Rs, bridge, pipette C** | Series resistance changes the *record*, not Vm: an I·Rs offset (removed by bridge balance) and, with pipette capacitance, a low-pass on spikes. |
+| **Noise** | Recording noise (RMS, bandwidth, mains hum) on the trace only; membrane noise (an Ornstein–Uhlenbeck current, σ and τ) that the cell feels and that leaves Rin unchanged. |
+
+Every measurement is taken on the true membrane potential, so electrode
+settings and recording noise change what the traces look like, never the
+numbers.
+
+Readouts: rheobase (refinable to 1 pA), threshold, AP peak and half-width,
+measured Rin, holding Vm, F–I gain; recorded voltage with the true Vm on
+demand, command current, synaptic conductances, the F–I curve (mean and
+initial rate, with up to four pinned curves for comparison, and CSV export), a
+phase plot, and a per-sweep table.
 
 ## The result it is named for
 
@@ -76,7 +119,7 @@ reason.
 - `src/core/` — the models, pure TypeScript, no DOM. `channels.ts` (every
   channel behind one `Channel` interface, with declarative gate builders and
   the Markov Na⁺ scheme), `models.ts` (the two models as data), `cell.ts`
-  (whole-cell ↔ density mapping, the Rin solve, the calcium steady state),
+  (whole-cell ↔ density mapping, the leak and the measured Rin, the calcium steady state),
   `synapses.ts`, `noise.ts`, `simulate.ts` (electrode circuit and
   integrator), `analysis.ts` (spikes, threshold, F–I, Rin), `protocol.ts`
   (step lists and per-model presets).

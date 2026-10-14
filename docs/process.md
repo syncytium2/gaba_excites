@@ -320,3 +320,14 @@ the leak held at 28.95 nS, it reads 569, 561 and 584 pA at Cm = 145, 290 and
 579 pF, against 129 pA with the leak cut to 5 nS (Rin 149 MΩ). The conclusion
 still holds: the leak sets rheobase and Cm does not. The CLI's `--rin` is now
 `--gleak`.
+
+## 2026-10-14 — what it is for, said up front
+
+The owner asked that the README say what the site was built for: a teaching
+tool for UM Physiol 578, whose goal was excitability and the roles of passive
+properties, voltage-gated conductances and synaptic inputs. The README now
+opens on that and groups the controls under those three headings, plus the
+experiment itself (protocol, electrode, noise). The voltage-gated heading
+says plainly that the channels are fixed at their published values until the
+channel editor arrives. Two stale lines went with it: "not yet deployed", and
+"the Rin solve", which ended when the leak became the control.
