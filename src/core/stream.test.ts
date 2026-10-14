@@ -96,6 +96,11 @@ describe("live changes", () => {
     expect(at(t0 + 500 + 1)).toBe(110);
     expect(at(t0 + 500 + 19)).toBe(110);
     expect(at(t0 + 500 + 21)).toBe(10);
+    // and it reports each onset, for the scope to trigger on
+    // the first one step after switching on, then every period, to t0 + 1000 inclusive
+    expect(c.onsets.length).toBe(11);
+    expect(c.onsets[0]).toBeCloseTo(t0 + OPT.dt, 9);
+    c.onsets.slice(1).forEach((o, k) => expect(o).toBeCloseTo(t0 + (k + 1) * 100, 6));
   });
 
   it("switching an input on starts a train at the rate asked for", () => {

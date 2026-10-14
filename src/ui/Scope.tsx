@@ -7,6 +7,11 @@ import { AXIS, BLUE, GRID, INK2, MUTED, ORANGE } from "./palette.ts";
  * write head; what is behind the bar is the previous pass, still on screen
  * until it is overwritten, as on a real scope.
  *
+ * With `triggered` set, a pass starts at a pulse onset instead: the screen
+ * runs one sweep from the onset, then holds until the next onset, ignoring
+ * onsets that arrive mid-sweep (hold-off). Every pass then lines up with the
+ * stimulus, which is what makes a stored trace comparable with the live one.
+ *
  * Each pixel column keeps the min and max of every sample that fell in it,
  * so a 0.7 ms spike still reaches its full height at 2 s/div, where one
  * column holds tens of milliseconds. Drawing is a canvas redrawn once per
@@ -19,12 +24,29 @@ export interface ScopeFrame {
   vRec: Float32Array;
   vm: Float32Array;
   iCmd: Float32Array;
+  /** pulse onsets in this frame, ms */
+  onsets: number[];
+}
+
+/** A stored screen: drawn faintly behind the live trace, for comparison. */
+export interface Snapshot {
+  label: string;
+  msPerDiv: number;
+  triggered: boolean;
+  vrMin: Float32Array; vrMax: Float32Array;
+  iMin: Float32Array; iMax: Float32Array;
+  filled: Uint8Array;
 }
 
 export interface ScopeHandle {
   push(f: ScopeFrame): void;
   clear(): void;
+  /** what is on screen now, without the erase bar */
+  snapshot(label: string): Snapshot;
 }
+
+/** dash patterns that tell stored traces apart; all are drawn in the muted ink */
+export const STORED_DASH: number[][] = [[], [6, 3], [2, 2]];
 
 interface Props {
   /** ms per division; the screen is 10 divisions wide */
@@ -34,6 +56,9 @@ interface Props {
   /** current axis, pA, 4 divisions */
   iRange: [number, number];
   showVm: boolean;
+  /** start each pass at a pulse onset */
+  triggered: boolean;
+  stored: Snapshot[];
 }
 
 const DIVS_X = 10;
@@ -56,6 +81,10 @@ interface Columns {
   filled: Uint8Array;
   head: number;
   pass: number;
+  /** triggered mode: start of the current pass, its count, and onsets not yet consumed */
+  passStart: number | null;
+  trigPass: number;
+  onsets: number[];
 }
 
 function columns(w: number): Columns {
@@ -66,17 +95,20 @@ function columns(w: number): Columns {
     filled: new Uint8Array(w),
     head: -1,
     pass: -1,
+    passStart: null,
+    trigPass: -1,
+    onsets: [],
   };
 }
 
-export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, vRange, iRange, showVm }, ref) {
+export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, vRange, iRange, showVm, triggered, stored }, ref) {
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const width = useRef(600);
   const cols = useRef<Columns>(columns(600));
   const dirty = useRef(true);
-  const props = useRef({ msPerDiv, vRange, iRange, showVm });
-  props.current = { msPerDiv, vRange, iRange, showVm };
+  const props = useRef({ msPerDiv, vRange, iRange, showVm, triggered, stored });
+  props.current = { msPerDiv, vRange, iRange, showVm, triggered, stored };
 
   const plotW = () => Math.max(10, width.current - LEFT - RIGHT);
   const reset = () => {
@@ -86,14 +118,46 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
 
   useImperativeHandle(ref, () => ({
     clear: reset,
+    snapshot(label) {
+      const c = cols.current;
+      const w = c.filled.length;
+      const filled = Uint8Array.from(c.filled);
+      const gap = eraseCols(w);
+      for (let q = 0; q < w; q++) if (inErase(q, c.head, w, gap)) filled[q] = 0;
+      return {
+        label, msPerDiv: props.current.msPerDiv, triggered: props.current.triggered,
+        vrMin: c.vrMin.slice(), vrMax: c.vrMax.slice(), iMin: c.iMin.slice(), iMax: c.iMax.slice(), filled,
+      };
+    },
     push(f) {
       const c = cols.current;
       const w = c.filled.length;
       const screen = props.current.msPerDiv * DIVS_X;
+      const trig = props.current.triggered;
+      if (trig) c.onsets.push(...f.onsets);
       for (let k = 0; k < f.vm.length; k++) {
         const t = f.t0 + k * f.sampleMs;
-        const pass = Math.floor(t / screen);
-        const x = Math.min(w - 1, Math.floor(((t - pass * screen) / screen) * w));
+        let pass: number;
+        let rel: number;
+        if (!trig) {
+          pass = Math.floor(t / screen);
+          rel = t - pass * screen;
+        } else {
+          if (c.passStart === null || t - c.passStart >= screen) {
+            // the sweep is over (or has not begun): take the first onset since it ended
+            while (c.onsets.length && c.onsets[0] <= t) {
+              const o = c.onsets.shift()!;
+              if (c.passStart === null || o >= c.passStart + screen) {
+                c.passStart = o;
+                c.trigPass++;
+              }
+            }
+            if (c.passStart === null || t - c.passStart >= screen) continue; // holding for a trigger
+          }
+          pass = c.trigPass;
+          rel = t - c.passStart;
+        }
+        const x = Math.min(w - 1, Math.floor((rel / screen) * w));
         if (x !== c.head || pass !== c.pass) {
           // Entering a new column. Columns the head jumped over, walking
           // forward from the old head (wrapping once into the next pass), are
@@ -122,11 +186,11 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
     },
   }));
 
-  // a new time base starts a clean screen
-  useEffect(reset, [msPerDiv]);
+  // a new time base, or a switch between free run and triggered, starts a clean screen
+  useEffect(reset, [msPerDiv, triggered]);
   useEffect(() => {
     dirty.current = true;
-  }, [vRange[0], vRange[1], iRange[0], iRange[1], showVm]);
+  }, [vRange[0], vRange[1], iRange[0], iRange[1], showVm, stored]);
 
   useEffect(() => {
     const el = box.current!;
@@ -158,7 +222,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
   function draw() {
     const cv = canvas.current;
     if (!cv) return;
-    const { msPerDiv, vRange, iRange, showVm } = props.current;
+    const { msPerDiv, vRange, iRange, showVm, triggered, stored } = props.current;
     const W = width.current;
     const H = TOP + V_H + GAP + I_H + BOTTOM;
     const dpr = window.devicePixelRatio || 1;
@@ -211,12 +275,12 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
     g.restore();
     g.textAlign = "right";
     g.fillStyle = MUTED;
-    g.fillText(`${fmtDiv(msPerDiv)}/div · ${(vRange[1] - vRange[0]) / DIVS_V} mV/div`, LEFT + pw, H - 8);
+    g.fillText(`${fmtDiv(msPerDiv)}/div · ${(vRange[1] - vRange[0]) / DIVS_V} mV/div · ${triggered ? "triggered on pulse onset" : "free run"}`, LEFT + pw, H - 8);
 
     // traces, with the erase bar ahead of the write head left blank
-    const gapCols = Math.max(2, Math.round(ERASE * w));
-    const blank = (q: number) => c.head >= 0 && ((q - c.head + w) % w) > 0 && ((q - c.head + w) % w) <= gapCols;
-    const trace = (lo: Float32Array, hi: Float32Array, y: (v: number) => number, top: number, h: number, color: string, lw: number, dash: number[] = []) => {
+    const gapCols = eraseCols(w);
+    const trace = (lo: Float32Array, hi: Float32Array, y: (v: number) => number, top: number, h: number, color: string, lw: number,
+      dash: number[] = [], filled = c.filled, head = c.head, erase = true) => {
       g.save();
       g.beginPath();
       g.rect(LEFT, top, pw, h);
@@ -227,7 +291,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
       g.beginPath();
       let pen = false;
       for (let q = 0; q < w; q++) {
-        if (!c.filled[q] || blank(q)) {
+        if (!filled[q] || (erase && inErase(q, head, w, gapCols))) {
           pen = false;
           continue;
         }
@@ -237,11 +301,18 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
         g.lineTo(x, y(lo[q]));
         pen = true;
         // the write head ends the line: what follows is the older pass
-        if (q === c.head) pen = false;
+        if (q === head) pen = false;
       }
       g.stroke();
       g.restore();
     };
+    // stored screens first, faint, behind the live trace; only at the time base they were stored at
+    stored.forEach((sn, n) => {
+      if (sn.msPerDiv !== msPerDiv) return;
+      const r = resample(sn, w);
+      trace(r.vrMin, r.vrMax, yV, vTop, V_H, MUTED, 1, STORED_DASH[n % STORED_DASH.length], r.filled, -1, false);
+      trace(r.iMin, r.iMax, yI, iTop, I_H, MUTED, 1, STORED_DASH[n % STORED_DASH.length], r.filled, -1, false);
+    });
     trace(c.vrMin, c.vrMax, yV, vTop, V_H, BLUE, 1.25);
     if (showVm) trace(c.vmMin, c.vmMax, yV, vTop, V_H, ORANGE, 1.25, [4, 3]);
     trace(c.iMin, c.iMax, yI, iTop, I_H, INK2, 1.25);
@@ -261,6 +332,39 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
     </div>
   );
 });
+
+function eraseCols(w: number): number {
+  return Math.max(2, Math.round(ERASE * w));
+}
+
+/** is column q inside the erase bar just ahead of the write head? */
+function inErase(q: number, head: number, w: number, gap: number): boolean {
+  if (head < 0) return false;
+  const d = (q - head + w) % w;
+  return d > 0 && d <= gap;
+}
+
+/** a stored screen redrawn at a new width: each new column takes the min and max of the old ones it covers */
+function resample(s: Snapshot, w: number) {
+  const sw = s.filled.length;
+  if (sw === w) return s;
+  const out = { vrMin: new Float32Array(w), vrMax: new Float32Array(w), iMin: new Float32Array(w), iMax: new Float32Array(w), filled: new Uint8Array(w) };
+  for (let q = 0; q < w; q++) {
+    const a = Math.floor((q * sw) / w);
+    const b = Math.max(a + 1, Math.floor(((q + 1) * sw) / w));
+    for (let j = a; j < b && j < sw; j++) {
+      if (!s.filled[j]) continue;
+      if (!out.filled[q]) {
+        out.filled[q] = 1;
+        out.vrMin[q] = s.vrMin[j]; out.vrMax[q] = s.vrMax[j]; out.iMin[q] = s.iMin[j]; out.iMax[q] = s.iMax[j];
+      } else {
+        out.vrMin[q] = Math.min(out.vrMin[q], s.vrMin[j]); out.vrMax[q] = Math.max(out.vrMax[q], s.vrMax[j]);
+        out.iMin[q] = Math.min(out.iMin[q], s.iMin[j]); out.iMax[q] = Math.max(out.iMax[q], s.iMax[j]);
+      }
+    }
+  }
+  return out;
+}
 
 export function fmtDiv(ms: number): string {
   return ms >= 1000 ? `${ms / 1000} s` : `${ms} ms`;

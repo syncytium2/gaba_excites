@@ -60,6 +60,8 @@ export interface Chunk {
   gGaba: Float32Array;
   /** spike times in this chunk, ms (upward crossings of SPIKE_LEVEL on Vm) */
   spikes: number[];
+  /** pulse onsets in this chunk, ms: what the scope triggers on */
+  onsets: number[];
 }
 
 /** One synaptic input's running state: the two exponentials, and when the next event lands. */
@@ -121,6 +123,7 @@ export class Stream {
   private noiseKey = "";
   private draws = 0;
   private pulseT0 = 0;
+  private pulseHigh = false;
   private armed: boolean;
   private lastV: number;
   private syn: SynNow;
@@ -180,11 +183,12 @@ export class Stream {
     this.inp = inp;
   }
 
-  private command(t: number): number {
+  /** is the pulse on at t? */
+  private pulseOn(t: number): boolean {
     const p = this.inp.pulse;
-    if (!p.enabled || p.period <= 0) return this.inp.ihold;
+    if (!p.enabled || p.period <= 0) return false;
     const phase = (((t - this.pulseT0) % p.period) + p.period) % p.period;
-    return this.inp.ihold + (phase < p.width ? p.amp : 0);
+    return phase < p.width;
   }
 
   /** Integrate `ms` of simulated time and return what was sampled along the way. */
@@ -199,6 +203,7 @@ export class Stream {
     const gGlu = new Float32Array(nOut);
     const gGaba = new Float32Array(nOut);
     const spikes: number[] = [];
+    const onsets: number[] = [];
     const e: Electrode = this.inp.electrode;
     const bridgeRs = e.bridge * e.rs * 1e-3;
     const iv = this.cell.iv;
@@ -209,7 +214,10 @@ export class Stream {
       const t = i * dt;
       this.syn.gGlu = this.glu.advance(t);
       this.syn.gGaba = this.gaba.advance(t);
-      const ic = this.command(t);
+      const on = this.pulseOn(t);
+      if (on && !this.pulseHigh) onsets.push(t);
+      this.pulseHigh = on;
+      const ic = this.inp.ihold + (on ? this.inp.pulse.amp : 0);
       step(this.cell, e, this.s, ic, this.ou ? this.ou.next() : 0, dt, this.syn);
       if (i % every === 0) {
         const v = this.s[iv];
@@ -230,6 +238,6 @@ export class Stream {
         this.lastV = v;
       }
     }
-    return { t0, sampleMs: dt * every, vRec, vm, iCmd, gGlu, gGaba, spikes };
+    return { t0, sampleMs: dt * every, vRec, vm, iCmd, gGlu, gGaba, spikes, onsets };
   }
 }

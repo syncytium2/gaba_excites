@@ -184,3 +184,4 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12.5px; max-width: 70
 .scope-screen { width: 100%; }
 .scope-screen canvas { display: block; }
 .panel .check { margin: 4px 0; color: var(--ink-2); }
+button.fixed-w { min-width: 4.6em; text-align: center; }

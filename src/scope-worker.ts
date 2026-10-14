@@ -61,6 +61,7 @@ function merge(chunks: Chunk[]): Chunk {
     gGlu: cat("gGlu"),
     gGaba: cat("gGaba"),
     spikes: chunks.flatMap((c) => c.spikes),
+    onsets: chunks.flatMap((c) => c.onsets),
   };
 }
 

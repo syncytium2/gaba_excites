@@ -298,6 +298,11 @@ to fire, or switch GABA on mid-burst.</p>
   base and wraps, with an erase bar ahead of the write head. Each pixel column keeps the minimum and maximum of every
   sample in it, so a spike reaches its full height at any time base. Recording noise uses the same Gaussian filter as in
   the step protocol, applied as the samples arrive.</li>
+  <li><strong>Trigger and Store.</strong> With pulses off, the screen free-runs. With pulses on, each sweep starts at a
+  pulse onset and runs one screen, then waits for the next onset. Onsets during a sweep are ignored, as a scope's
+  hold-off does. Every sweep therefore lines up with the stimulus. Store keeps the screen as a faint reference trace
+  behind the live one (up to three, each labeled with its settings), so a change can be compared with the cell before it.
+  A stored trace is shown only at the time base it was stored at.</li>
   <li><strong>Readouts</strong> are measured on true Vm, as everywhere else: firing rate over the last 2 s of simulated
   time (spikes counted with the same −20/−40 mV detector), mean Vm over the last 1 s, and Vm now.</li>
   <li><strong>Speed.</strong> The simulation keeps pace with the wall clock at 0.1×, 1× or 10×. On an Apple M4 Pro the

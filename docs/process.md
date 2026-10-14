@@ -363,3 +363,12 @@ one cell is wrong for the other: 700 pA for the pyramidal cell (rheobase
 
 Also recorded, from the owner, as a small fix for later: the "AP peak ·
 half-width" tile reads "47 · 0.70 mV · ms", which looks like an area.
+
+Added after a first hands-on test (Safari fine): the owner asked for a store
+and overlay button, and noticed that Pause changed width when clicked. Store
+keeps what is on screen as a faint reference behind the live trace (up to
+three, labeled with their settings). An overlay is only useful if passes line
+up, and a free-running sweep drifts against a 1.5 s pulse period. So with
+pulses on, the screen now triggers on pulse onset, with hold-off, as a real
+scope does. The stream reports onsets for this, and a test pins their
+timing. Pause has a fixed width.

@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import type { CellParams } from "../core/cell.ts";
 import type { StreamInputs } from "../core/stream.ts";
 import type { ScopeRequest, ScopeResponse } from "../scope-worker.ts";
-import { fmtDiv, Scope, type ScopeHandle } from "./Scope.tsx";
+import { fmtDiv, Scope, STORED_DASH, type ScopeHandle, type Snapshot } from "./Scope.tsx";
 import { Tip } from "./Tip.tsx";
-import { ORANGE } from "./palette.ts";
+import { MUTED, ORANGE } from "./palette.ts";
 
 const TIMEBASES = [10, 20, 50, 100, 200, 500, 1000, 2000];
 const SPEEDS = [0.1, 1, 10];
+/** stored screens kept at once; the oldest goes first */
+const MAX_STORED = 3;
 /** windows for the live readouts, in simulated time */
 const RATE_WINDOW = 2000;
 const VM_WINDOW = 1000;
@@ -39,6 +41,7 @@ export function ScopeMode({ cell, inputs, seed }: { cell: CellParams; inputs: St
   const [showVm, setShowVm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [readout, setReadout] = useState<Readout | null>(null);
+  const [stored, setStored] = useState<Snapshot[]>([]);
 
   // rolling measurements, kept off React state and published a few times a second
   const spikes = useRef<number[]>([]);
@@ -126,6 +129,21 @@ export function ScopeMode({ cell, inputs, seed }: { cell: CellParams; inputs: St
   const hi = Math.max(inputs.ihold, inputs.pulse.enabled ? inputs.ihold + inputs.pulse.amp : inputs.ihold);
   const iRange = niceRange(lo, hi, 4);
 
+  // what a stored trace was taken with, so the overlay says what it is
+  const label = () => {
+    const parts = [cell.model === "rs" ? "pyramidal" : "GnRH", `gL ${fmt(cell.gLeak, 2)} nS`, `Ihold ${inputs.ihold} pA`];
+    if (inputs.pulse.enabled) parts.push(`pulse ${inputs.pulse.amp} pA`);
+    if (inputs.glu.enabled) parts.push(`glu ${inputs.glu.rate} Hz`);
+    if (inputs.gaba.enabled) parts.push(`GABA ${inputs.gaba.rate} Hz, E ${inputs.gaba.erev} mV`);
+    if (inputs.noise && inputs.noise.memSigma > 0) parts.push(`noise ${inputs.noise.memSigma} pA`);
+    return parts.join(", ");
+  };
+  const store = () => {
+    const sn = scope.current?.snapshot(label());
+    if (sn) setStored([...stored, sn].slice(-MAX_STORED));
+  };
+  const triggered = inputs.pulse.enabled;
+
   const lagging = readout && readout.achieved < 0.85 * readout.speed;
   return (
     <>
@@ -154,7 +172,9 @@ export function ScopeMode({ cell, inputs, seed }: { cell: CellParams; inputs: St
                 </button>
               ))}
             </span>
-            <button id="scope-pause" onClick={togglePause}>{paused ? "Run" : "Pause"}</button>
+            <button id="scope-pause" className="fixed-w" onClick={togglePause}>{paused ? "Run" : "Pause"}</button>
+            <button id="scope-store" onClick={store} title="Keep what is on screen as a faint reference trace">Store</button>
+            {stored.length > 0 && <button className="linkish" onClick={() => setStored([])}>clear stored</button>}
             <span className="check">
               <input id="scope-show-vm" type="checkbox" checked={showVm} onChange={(e) => setShowVm(e.target.checked)} />
               <label htmlFor="scope-show-vm">show</label>
@@ -167,12 +187,22 @@ export function ScopeMode({ cell, inputs, seed }: { cell: CellParams; inputs: St
           </span>
         </figcaption>
         {error && <p className="warn">Simulation failed: {error}</p>}
-        <Scope ref={scope} msPerDiv={msPerDiv} vRange={[-100, 60]} iRange={iRange} showVm={showVm} />
+        <Scope ref={scope} msPerDiv={msPerDiv} vRange={[-100, 60]} iRange={iRange} showVm={showVm} triggered={triggered} stored={stored} />
         <p className="legendline">
           The cell runs continuously, and every control on the left acts on it as you move it. Nothing resets it: change the
           leak or the holding current and watch it relax, slow currents included. Only switching models starts it again.
           {showVm && <> <span style={{ color: ORANGE }}>- -</span> true Vm.</>}{" "}
-          Unlike the step protocol, a scope run cannot be replayed.
+          Unlike the step protocol, a scope run cannot be replayed.{" "}
+          {triggered
+            ? "With pulses on, each sweep starts at a pulse onset, so stored traces line up with the live one."
+            : "Store keeps the screen as a reference; with pulses on, sweeps are triggered and line up."}
+          {stored.map((sn, n) => (
+            <span key={n} className="pinlabel"><br />
+              <StoredKey dash={STORED_DASH[n % STORED_DASH.length]} /> stored {n + 1}: {sn.label}
+              {sn.msPerDiv !== msPerDiv && <> (hidden: stored at {fmtDiv(sn.msPerDiv)}/div)</>}
+              {sn.triggered !== triggered && sn.msPerDiv === msPerDiv && <> (stored {sn.triggered ? "triggered" : "free running"}, so it may not line up)</>}
+            </span>
+          ))}
         </p>
       </figure>
     </>
@@ -192,6 +222,15 @@ export function niceRange(lo: number, hi: number, divs: number): [number, number
   if (bottom + divs * step < hi) bottom += step;
   if (bottom > lo) bottom -= step;
   return [bottom, bottom + divs * step];
+}
+
+/** a short line in the stored trace's dash pattern, for the legend */
+function StoredKey({ dash }: { dash: number[] }) {
+  return (
+    <svg width="22" height="8" aria-hidden="true" style={{ verticalAlign: "middle" }}>
+      <line x1="1" y1="4" x2="21" y2="4" stroke={MUTED} strokeWidth="1.5" strokeDasharray={dash.join(" ")} />
+    </svg>
+  );
 }
 
 function Tile({ label, value, unit, sub }: { label: string; value: string; unit: string; sub?: React.ReactNode }) {

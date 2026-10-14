@@ -43,6 +43,14 @@ await page.click("#pulse-on");
 await page.waitForTimeout(2500);
 const live = await page.evaluate(() => [...document.querySelectorAll(".tile")].map((t) => t.textContent ?? ""));
 if (!live.some((t) => /Firing rate\s*[0-9]/.test(t))) problems.push("scope: no live firing rate after 2.5 s: " + live.join(" | "));
+// store a screen, cut the leak, and look at the live trace over the stored one
+await page.waitForTimeout(2000);
+await page.click("#scope-store");
+await page.getByRole("textbox", { name: "gL (leak)" }).fill("15");
+await page.keyboard.press("Enter");
+await page.waitForTimeout(4500);
+const legend = await page.evaluate(() => document.querySelector(".scope-screen")?.parentElement?.textContent ?? "");
+if (!/stored 1: pyramidal, gL 28\.95 nS/.test(legend)) problems.push("scope: the stored trace's label is missing");
 await page.screenshot({ path: `${out}/scope.png`, fullPage: true });
 await page.selectOption("#model-select", "gnrh");
 await page.waitForTimeout(3000);
