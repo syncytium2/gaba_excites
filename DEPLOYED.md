@@ -4,10 +4,10 @@ Written by `npm run deploy`. Do not edit by hand.
 
 | | |
 |---|---|
-| **Deployed at** | 2026-09-23 13:51 UTC |
-| **Commit** | `ae37d13` — The leak is the control and Rin is measured: a gL slider in nS that noth |
-| **Bundle** | `assets/index-B44kymrm.js` |
-| **Worker version** | `5ecfb56e-882d-4a78-bd86-b6b2a25c8676` |
+| **Deployed at** | 2026-10-14 20:22 UTC |
+| **Commit** | `2b90075` — Plain fields instead of constructor parameter properties, so the CLI run |
+| **Bundle** | `assets/index-FvNME9fP.js` |
+| **Worker version** | `e41a8af6-6fe1-4c0e-9fe8-607b964e69db` |
 | **Live** | https://gaba-excites.tonydefazio.workers.dev https://gaba.tonydefazio.com |
 
 Verified at deploy time: tests pass, CSP in the shipped HTML, Born stamp baked
