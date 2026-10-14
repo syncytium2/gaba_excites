@@ -41,7 +41,11 @@ export interface Snapshot {
 export interface ScopeHandle {
   push(f: ScopeFrame): void;
   clear(): void;
-  /** what is on screen now, without the erase bar */
+  /**
+   * The whole screen as it stands, including the columns under the erase bar.
+   * The bar only marks where the head is; under it is the previous pass, and
+   * a stored trace should be a complete screen with no gap.
+   */
   snapshot(label: string): Snapshot;
 }
 
@@ -120,10 +124,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
     clear: reset,
     snapshot(label) {
       const c = cols.current;
-      const w = c.filled.length;
       const filled = Uint8Array.from(c.filled);
-      const gap = eraseCols(w);
-      for (let q = 0; q < w; q++) if (inErase(q, c.head, w, gap)) filled[q] = 0;
       return {
         label, msPerDiv: props.current.msPerDiv, triggered: props.current.triggered,
         vrMin: c.vrMin.slice(), vrMax: c.vrMax.slice(), iMin: c.iMin.slice(), iMax: c.iMax.slice(), filled,
