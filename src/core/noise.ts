@@ -77,32 +77,40 @@ export class OU {
 }
 
 /**
+ * The recording filter: a Gaussian low-pass at fc, σ_t = 0.1325 / fc
+ * (Colquhoun & Sigworth), as a unit-sum kernel over samples dtMs apart, and
+ * the gain that restores the RMS the kernel's Σh² takes away.
+ */
+function recKernel(p: NoiseParams, dtMs: number): { h: number[]; gain: number } {
+  const fcPerMs = Math.max(p.recBandwidth, 0.01); // kHz = 1/ms
+  const sigSamples = 0.1325 / fcPerMs / dtMs;
+  const half = Math.max(1, Math.ceil(4 * sigSamples));
+  const h: number[] = [];
+  let sum = 0;
+  for (let k = -half; k <= half; k++) {
+    const w = sigSamples > 0.05 ? Math.exp(-0.5 * (k / sigSamples) ** 2) : k === 0 ? 1 : 0;
+    h.push(w);
+    sum += w;
+  }
+  let ss = 0;
+  for (let k = 0; k < h.length; k++) {
+    h[k] /= sum;
+    ss += h[k] * h[k];
+  }
+  return { h, gain: p.recSigma / Math.sqrt(ss) };
+}
+
+/**
  * Filtered Gaussian noise plus hum, added in place to `v`, sampled every dtMs.
- * Gaussian filter: σ_t = 0.1325 / fc (Colquhoun & Sigworth). The kernel is
- * normalized to unit sum, which shrinks white-noise variance by Σh²; the
- * output is rescaled by 1/√Σh² so its RMS equals recSigma.
+ * The kernel is normalized to unit sum, which shrinks white-noise variance by
+ * Σh²; the output is rescaled by 1/√Σh² so its RMS equals recSigma.
  */
 export function addRecordingNoise(v: Float32Array, dtMs: number, p: NoiseParams, seed: number): void {
   if (p.recSigma > 0) {
-    const fcPerMs = Math.max(p.recBandwidth, 0.01); // kHz = 1/ms
-    const sigSamples = 0.1325 / fcPerMs / dtMs;
-    const half = Math.max(1, Math.ceil(4 * sigSamples));
-    const h: number[] = [];
-    let sum = 0;
-    for (let k = -half; k <= half; k++) {
-      const w = sigSamples > 0.05 ? Math.exp(-0.5 * (k / sigSamples) ** 2) : k === 0 ? 1 : 0;
-      h.push(w);
-      sum += w;
-    }
-    let ss = 0;
-    for (let k = 0; k < h.length; k++) {
-      h[k] /= sum;
-      ss += h[k] * h[k];
-    }
-    const gain = p.recSigma / Math.sqrt(ss);
+    const { h, gain } = recKernel(p, dtMs);
     const n = v.length;
     const g = gaussian(seed);
-    const white = new Float32Array(n + 2 * half);
+    const white = new Float32Array(n + h.length - 1);
     for (let i = 0; i < white.length; i++) white[i] = g();
     for (let i = 0; i < n; i++) {
       let acc = 0;
@@ -114,5 +122,44 @@ export function addRecordingNoise(v: Float32Array, dtMs: number, p: NoiseParams,
     const phase = 2 * Math.PI * rng(seed ^ 0x5bd1e995)();
     const w = (2 * Math.PI * p.humHz) / 1000; // rad per ms
     for (let i = 0; i < v.length; i++) v[i] += p.humAmp * Math.sin(w * i * dtMs + phase);
+  }
+}
+
+/**
+ * The same recording noise, one sample at a time, for the oscilloscope: the
+ * same kernel run over a ring of white noise, so the same filter and RMS, with
+ * no end to the trace. The hum keeps its phase across calls.
+ */
+export class RecordingNoise {
+  private h: number[];
+  private gain: number;
+  private ring: Float64Array;
+  private head = 0;
+  private g: () => number;
+  private n = 0;
+  private humW: number;
+  private humPhase: number;
+  constructor(private p: NoiseParams, private dtMs: number, seed: number) {
+    const k = recKernel(p, dtMs);
+    this.h = k.h;
+    this.gain = k.gain;
+    this.g = gaussian(seed);
+    this.ring = Float64Array.from({ length: this.h.length }, () => this.g());
+    this.humW = (2 * Math.PI * p.humHz) / 1000;
+    this.humPhase = 2 * Math.PI * rng(seed ^ 0x5bd1e995)();
+  }
+  next(): number {
+    let out = 0;
+    if (this.p.recSigma > 0) {
+      const L = this.h.length;
+      this.ring[this.head] = this.g();
+      this.head = (this.head + 1) % L;
+      let acc = 0;
+      for (let k = 0; k < L; k++) acc += this.h[k] * this.ring[(this.head + k) % L];
+      out += this.gain * acc;
+    }
+    if (this.p.humAmp > 0) out += this.p.humAmp * Math.sin(this.humW * this.n * this.dtMs + this.humPhase);
+    this.n++;
+    return out;
   }
 }

@@ -331,3 +331,35 @@ experiment itself (protocol, electrode, noise). The voltage-gated heading
 says plainly that the channels are fixed at their published values until the
 channel editor arrives. Two stale lines went with it: "not yet deployed", and
 "the Rin solve", which ended when the leak became the control.
+
+## 2026-10-14 — an oscilloscope
+
+Asked whether the solver was fast enough for a real-time oscilloscope mode,
+then to build it. It was measured first, not argued. At the shipped dt of 0.01
+ms on an Apple M4 Pro, the pyramidal cell runs 68–98× faster than real time
+and the GnRH cell 19–21×, with and without PSCs and noise. 1× therefore needs
+no new optimization, even on a device several times slower.
+
+The design keeps one integrator. `simulate.ts` now exports its `step()`, and
+the new `src/core/stream.ts` calls it. A stream differs from a sweep only in
+bookkeeping: it draws PSC events and membrane noise as it goes, from the same
+seeds in the same order. So `stream.test.ts` can hold it to `runSweep` sample
+for sample, on both cells, through ragged chunk sizes. Recording noise gained
+an online form with the same kernel (the kernel was factored out unchanged,
+and the step protocol's noise is bit-identical).
+
+Settings are live and never reset the cell: a new leak or Cm rebuilds the
+cell around the same state vector. That is the teaching point a stepped
+protocol hides, because it settles before every run. Only a model switch,
+whose state vector has a different shape, settles again. The stream runs in
+its own worker (`src/scope-worker.ts`), paced by the wall clock. It never
+catches up after a stall, and it reports the speed it achieved, so a slow
+device says so rather than stuttering. The screen is a canvas that keeps
+min/max per pixel column, so spikes keep their height at 2 s/div.
+
+The starting pulse belongs to each model, as presets do. A pulse that drives
+one cell is wrong for the other: 700 pA for the pyramidal cell (rheobase
+561), and 24 pA on −6 pA for GnRH (the paper's 4-spike step).
+
+Also recorded, from the owner, as a small fix for later: the "AP peak ·
+half-width" tile reads "47 · 0.70 mV · ms", which looks like an area.

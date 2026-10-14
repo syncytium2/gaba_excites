@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type uPlot from "uplot";
-import { PUBLISHED_RS, publishedParams, type CellParams } from "./core/cell.ts";
+import { buildCell, cellRinAt, PUBLISHED_RS, publishedParams, type CellParams } from "./core/cell.ts";
 import { MODELS, MODEL_LIST, type ModelId } from "./core/models.ts";
 import { DEFAULT_NOISE, type NoiseParams } from "./core/noise.ts";
 import { DEFAULT_ELECTRODE, type Electrode, type Sweep } from "./core/simulate.ts";
 import type { FamilySummary } from "./core/analysis.ts";
-import { PRESETS, presetsFor, toProtocol, MAX_SWEEPS, type ProtocolForm } from "./core/protocol.ts";
+import { PRESETS, presetsFor, toProtocol, MAX_SWEEPS, SCOPE_PULSE, type ProtocolForm } from "./core/protocol.ts";
 import type { SynInput } from "./core/synapses.ts";
+import type { Pulse } from "./core/stream.ts";
 import type { CellInfo, Request, Response } from "./worker.ts";
 import { NumField } from "./ui/NumField.tsx";
 import { Plot } from "./ui/Plot.tsx";
 import { PhasePlot } from "./ui/PhasePlot.tsx";
 import { Panel, usePanels } from "./ui/Panel.tsx";
 import { Tip } from "./ui/Tip.tsx";
+import { ScopeMode } from "./ui/ScopeMode.tsx";
 import { AQUA, AXIS, BLUE, GRID, INK2, MUTED, ORANGE, rampColor } from "./ui/palette.ts";
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 
@@ -51,10 +53,13 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refined, setRefined] = useState<{ value: number; tol: number; key: string } | null>(null);
+  // Step protocol, or the oscilloscope: the cell running continuously, every control live
+  const [mode, setMode] = useState<"steps" | "scope">("steps");
+  const [pulse, setPulse] = useState<Pulse>(SCOPE_PULSE.rs);
 
   const protocol = useMemo(() => toProtocol(form), [form]);
   // The left panels collapse. The ones you reach for first start open.
-  const panels = usePanels({ model: true, cell: true, electrode: false, protocol: true, glu: false, gaba: false, noise: false });
+  const panels = usePanels({ model: true, cell: true, electrode: false, protocol: true, stimulus: true, glu: false, gaba: false, noise: false });
 
   // ------------------------------------------------------------ worker
   const worker = useRef<Worker | null>(null);
@@ -82,7 +87,7 @@ export function App() {
 
   const runKey = JSON.stringify({ cell, ihold, electrode, protocol, glu, gaba, seed, noise });
   useEffect(() => {
-    if (protocol.amps.length === 0) return;
+    if (mode === "scope" || protocol.amps.length === 0) return;
     setBusy(true);
     const h = setTimeout(() => {
       const id = ++lastId.current;
@@ -92,7 +97,7 @@ export function App() {
     }, 90);
     return () => clearTimeout(h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runKey]);
+  }, [runKey, mode]);
 
   const refineRheobase = () => {
     if (!result) return;
@@ -111,6 +116,7 @@ export function App() {
     const p = presetsFor(id)[0];
     setCell(publishedParams(id));
     setIhold(m.defaults.ihold);
+    setPulse({ ...SCOPE_PULSE[id], enabled: pulse.enabled }); // the pulse that suits this cell, still on if it was
     setPresetId(p.id);
     setForm(p.protocol);
     setGlu(p.glu);
@@ -149,8 +155,13 @@ export function App() {
   const model = MODELS[cell.model];
   const noiseOn = noise.recSigma > 0 || noise.humAmp > 0 || noise.memSigma > 0;
   const presets = presetsFor(cell.model);
-  // Rin is measured from the cell the leak and channels make, so τm is too
-  const rinRest = result?.cell.rinRest ?? NaN;
+  // Rin is measured from the cell the leak and channels make, so τm is too.
+  // Computed here rather than taken from the last run, so it is right in either mode.
+  const built = useMemo(() => {
+    const c = buildCell(cell);
+    return { vRest: c.vRest, rinRest: c.rinRest, rinAtHold: cellRinAt(c, ihold), areaUm2: c.areaUm2 };
+  }, [cell, ihold]);
+  const rinRest = built.rinRest;
   const tauM = (rinRest * cell.cm) / 1000;
   const preset = presets.find((p) => p.id === presetId);
   const refinedValid = refined && refined.key === runKey ? refined : null;
@@ -229,13 +240,9 @@ export function App() {
             <div className="derived">
               <div>Rin at rest = <b>{fmt(rinRest, 1)} MΩ</b>, measured: leak plus the channels open at rest</div>
               <div>τm = Rin·Cm = <b>{fmt(tauM, 1)} ms</b></div>
-              {result && (
-                <>
-                  <div>rest {fmt(result.cell.vRest, 1)} mV · Rin at Ihold {fmt(result.cell.rinAtHold, 1)} MΩ</div>
-                  <div>area {Math.round(result.cell.areaUm2).toLocaleString()} µm²</div>
-                </>
-              )}
-              {result && !Number.isFinite(result.cell.vRest) && (
+              <div>rest {fmt(built.vRest, 1)} mV · Rin at Ihold {fmt(built.rinAtHold, 1)} MΩ</div>
+              <div>area {Math.round(built.areaUm2).toLocaleString()} µm²</div>
+              {!Number.isFinite(built.vRest) && (
                 <div className="warn">No stable rest: with this leak the channels keep the cell depolarized, so rest and Rin are undefined.</div>
               )}
             </div>
@@ -255,6 +262,7 @@ export function App() {
               onChange={(cp) => setElectrode({ ...electrode, cp })} />
           </Panel>
 
+          {mode === "steps" ? (
           <Panel title="Protocol" open={panels.open.protocol} onToggle={() => panels.toggle("protocol")}
             summary={`${preset ? preset.label : "Custom"} · ${protocol.amps.length} sweep${protocol.amps.length === 1 ? "" : "s"}, ${protocol.stepDur} ms steps`}>
             <label className="select">
@@ -292,6 +300,26 @@ export function App() {
             </div>
             <div className="small">{protocol.amps.length} sweep{protocol.amps.length === 1 ? "" : "s"}: {protocol.amps.slice(0, 12).join(", ")}{protocol.amps.length > 12 ? ", …" : ""} pA</div>
           </Panel>
+          ) : (
+          <Panel title="Stimulus" open={panels.open.stimulus} onToggle={() => panels.toggle("stimulus")}
+            summary={`Ihold ${ihold} pA` + (pulse.enabled ? ` · pulses ${pulse.amp} pA, ${pulse.width} ms every ${pulse.period} ms` : " · pulses off")}>
+            <p className="note">
+              The holding current in the Cell panel is the DC knob: turn it and watch the cell start to fire. Pulses repeat on top of it.
+            </p>
+            <label className="check">
+              <input id="pulse-on" type="checkbox" checked={pulse.enabled} onChange={(e) => setPulse({ ...pulse, enabled: e.target.checked })} />
+              Repeating pulses
+            </label>
+            <div className="row3">
+              <NumField label="Amplitude" unit="pA" value={pulse.amp} step={cell.model === "rs" ? 50 : 2} disabled={!pulse.enabled}
+                onChange={(amp) => setPulse({ ...pulse, amp })} />
+              <NumField label="Width" unit="ms" value={pulse.width} min={0.1} max={10000} step={10} disabled={!pulse.enabled}
+                onChange={(width) => setPulse({ ...pulse, width })} />
+              <NumField label="Period" unit="ms" value={pulse.period} min={1} max={20000} step={50} disabled={!pulse.enabled}
+                onChange={(period) => setPulse({ ...pulse, period })} />
+            </div>
+          </Panel>
+          )}
 
           <SynPanel title="Glutamate" color={ORANGE} syn={glu} erevEditable={false}
             open={panels.open.glu} onToggle={() => panels.toggle("glu")} onEnable={() => panels.set("glu", true)}
@@ -314,59 +342,76 @@ export function App() {
         </aside>
 
         <main className="figures">
-          <div className="status" aria-live="polite">
-            {error ? <span className="warn">Simulation failed: {error}</span> : busy ? "simulating…" : result ? `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms` : ""}
+          <div className="modebar">
+            <div className="seg" role="radiogroup" aria-label="Mode">
+              <button id="mode-steps" role="radio" aria-checked={mode === "steps"} className={mode === "steps" ? "on" : ""} onClick={() => setMode("steps")}>
+                Step protocol
+              </button>
+              <button id="mode-scope" role="radio" aria-checked={mode === "scope"} className={mode === "scope" ? "on" : ""} onClick={() => setMode("scope")}>
+                Oscilloscope
+              </button>
+            </div>
+            <div className="status" aria-live="polite">
+              {error ? <span className="warn">Simulation failed: {error}</span> : mode === "scope" ? "" : busy ? "simulating…" : result ? `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms` : ""}
+            </div>
           </div>
 
-          <Stats summary={summary} rinRest={rinRest} rinHold={result?.cell.rinAtHold ?? NaN} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} />
-
-          {result && sweeps.length > 0 && (
+          {mode === "scope" ? (
+            <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} />
+          ) : (
             <>
-              <figure className="card">
-                <figcaption>
-                  <span>Recorded voltage{showVm ? ", with true Vm of the selected sweep dashed" : ""}</span>
-                  <span className="check">
-                    <input id="show-vm" type="checkbox" checked={showVm} onChange={(e) => setShowVm(e.target.checked)} />
-                    <label htmlFor="show-vm">show</label>
-                    <Tip text={<>
-                      <b>True Vm</b> is the membrane potential itself. The <b>recorded</b> trace is what the amplifier reports, taken at the
-                      pipette: Vm, plus I·Rs from series resistance (less what bridge balance removes), smoothed by pipette capacitance, plus
-                      recording noise. At a rig you only ever see the recorded trace; the simulation knows both. Every number on this page is
-                      measured on true Vm.
-                    </>}>true Vm</Tip>
-                  </span>
-                </figcaption>
-                <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} />
-                <p className="legendline">
-                  Sweeps shade light → dark with step amplitude; <span style={{ color: ORANGE }}>■</span> the selected sweep ({sweeps[sel]?.amp} pA). Hover to read values, click a trace to select it.
-                  {synOn && <> Conductances are the selected sweep's: <span style={{ color: ORANGE }}>■</span> glutamate, <span style={{ color: AQUA }}>■</span> GABA.</>}
-                </p>
-              </figure>
 
-              <div className="twoup">
+            <Stats summary={summary} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} />
+
+            {result && sweeps.length > 0 && (
+              <>
                 <figure className="card">
                   <figcaption>
-                    <span>F–I curve</span>
-                    <span className="btns">
-                      <button onClick={pinCurrent} disabled={!summary}>Pin this curve</button>
-                      {pins.length > 0 && <button className="linkish" onClick={() => setPins([])}>clear pins</button>}
-                      <button className="linkish" onClick={downloadCsv}>CSV</button>
+                    <span>Recorded voltage{showVm ? ", with true Vm of the selected sweep dashed" : ""}</span>
+                    <span className="check">
+                      <input id="show-vm" type="checkbox" checked={showVm} onChange={(e) => setShowVm(e.target.checked)} />
+                      <label htmlFor="show-vm">show</label>
+                      <Tip text={<>
+                        <b>True Vm</b> is the membrane potential itself. The <b>recorded</b> trace is what the amplifier reports, taken at the
+                        pipette: Vm, plus I·Rs from series resistance (less what bridge balance removes), smoothed by pipette capacitance, plus
+                        recording noise. At a rig you only ever see the recorded trace; the simulation knows both. Every number on this page is
+                        measured on true Vm.
+                      </>}>true Vm</Tip>
                     </span>
                   </figcaption>
-                  <FIPlot summary={summary!} pins={pins} />
+                  <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} />
                   <p className="legendline">
-                    Mean rate is spikes in the step ÷ its duration; initial rate is 1 / the first interspike interval. Steps below
-                    0 pA are left off; they are in the table.
-                    {pins.map((p, i) => <span key={i} className="pinlabel"><br /><span className="dash">- -</span> {p.label}</span>)}
+                    Sweeps shade light → dark with step amplitude; <span style={{ color: ORANGE }}>■</span> the selected sweep ({sweeps[sel]?.amp} pA). Hover to read values, click a trace to select it.
+                    {synOn && <> Conductances are the selected sweep's: <span style={{ color: ORANGE }}>■</span> glutamate, <span style={{ color: AQUA }}>■</span> GABA.</>}
                   </p>
                 </figure>
-                <figure className="card">
-                  <figcaption><span>Phase plot, {sweeps[sel]?.amp} pA</span></figcaption>
-                  <PhasePlot vm={sweeps[sel].vm} dt={sweeps[sel].sampleMs} color={ORANGE} />
-                </figure>
-              </div>
 
-              <SweepTable summary={summary!} sel={sel} onSelect={setSelected} />
+                <div className="twoup">
+                  <figure className="card">
+                    <figcaption>
+                      <span>F–I curve</span>
+                      <span className="btns">
+                        <button onClick={pinCurrent} disabled={!summary}>Pin this curve</button>
+                        {pins.length > 0 && <button className="linkish" onClick={() => setPins([])}>clear pins</button>}
+                        <button className="linkish" onClick={downloadCsv}>CSV</button>
+                      </span>
+                    </figcaption>
+                    <FIPlot summary={summary!} pins={pins} />
+                    <p className="legendline">
+                      Mean rate is spikes in the step ÷ its duration; initial rate is 1 / the first interspike interval. Steps below
+                      0 pA are left off; they are in the table.
+                      {pins.map((p, i) => <span key={i} className="pinlabel"><br /><span className="dash">- -</span> {p.label}</span>)}
+                    </p>
+                  </figure>
+                  <figure className="card">
+                    <figcaption><span>Phase plot, {sweeps[sel]?.amp} pA</span></figcaption>
+                    <PhasePlot vm={sweeps[sel].vm} dt={sweeps[sel].sampleMs} color={ORANGE} />
+                  </figure>
+                </div>
+
+                <SweepTable summary={summary!} sel={sel} onSelect={setSelected} />
+              </>
+            )}
             </>
           )}
         </main>

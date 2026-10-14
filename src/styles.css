@@ -173,3 +173,14 @@ footer { margin-top: 28px; color: var(--muted); font-size: 12.5px; max-width: 70
 }
 .tip:hover .tip-body, .tip:focus .tip-body, .tip:focus-within .tip-body { visibility: visible; opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .tip-body { transition: none; } }
+
+/* ---- mode switch and oscilloscope ---- */
+.modebar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.modebar .seg { margin: 0; }
+.scope-ctrls { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; font-weight: 400; font-size: 12.5px; color: var(--ink-2); }
+.scope-ctrls .seg { margin: 0; }
+.select.inline { display: inline-flex; align-items: center; gap: 6px; }
+.select.inline select { width: auto; padding: 2px 4px; font-size: 12.5px; }
+.scope-screen { width: 100%; }
+.scope-screen canvas { display: block; }
+.panel .check { margin: 4px 0; color: var(--ink-2); }

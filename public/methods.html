@@ -45,6 +45,7 @@
   <li><a href="#noise">Noise</a></li>
   <li><a href="#integration">Integration</a></li>
   <li><a href="#measurements">Measurements</a></li>
+  <li><a href="#scope">The oscilloscope</a></li>
   <li><a href="#validation">Checked against NEURON</a></li>
   <li><a href="#gaba">When GABA excites</a></li>
   <li><a href="#limits">What it leaves out</a></li>
@@ -277,6 +278,34 @@ within 0.2 ms.</p>
 <tr><td>F–I gain</td><td>Least-squares slope of mean rate against step current over the sweeps that fired, in Hz/nA.</td></tr>
 </tbody>
 </table></div>
+
+<h2 id="scope">6b. The oscilloscope</h2>
+<p>The step protocol settles the cell before every run and replays a fixed family of sweeps. The oscilloscope runs the
+same cell continuously instead, and every control acts on it as you move it: turn the holding current and watch it start
+to fire, or switch GABA on mid-burst.</p>
+<ul>
+  <li><strong>The same model and the same integrator.</strong> The oscilloscope advances the cell with the very function
+  the step protocol uses, at the same dt of 0.01 ms. It draws PSC events and membrane noise as it goes, from the same
+  seeds in the same order. So as long as nothing is changed, a scope run reproduces a step-protocol sweep sample for
+  sample, and the test suite holds it to that on both cells.</li>
+  <li><strong>Nothing resets the cell.</strong> A new leak, Cm or holding current takes effect from the present state, so
+  you see the cell relax to its new behavior, slow currents included: the M current's adaptation, the GnRH cell's slow
+  inward current (τ 1.5 s) and its h-current. Only switching models starts again, from a settled state.</li>
+  <li><strong>Stimulus.</strong> The holding current is the DC level. A repeating pulse (amplitude, width, period) can be
+  added on top. Its starting amplitude belongs to each cell: 700 pA for the pyramidal cell, above its 561 pA rheobase,
+  and 24 pA on −6 pA for the GnRH cell, the paper's 4-spike step.</li>
+  <li><strong>The screen</strong> writes the recorded voltage and the command current left to right at the chosen time
+  base and wraps, with an erase bar ahead of the write head. Each pixel column keeps the minimum and maximum of every
+  sample in it, so a spike reaches its full height at any time base. Recording noise uses the same Gaussian filter as in
+  the step protocol, applied as the samples arrive.</li>
+  <li><strong>Readouts</strong> are measured on true Vm, as everywhere else: firing rate over the last 2 s of simulated
+  time (spikes counted with the same −20/−40 mV detector), mean Vm over the last 1 s, and Vm now.</li>
+  <li><strong>Speed.</strong> The simulation keeps pace with the wall clock at 0.1×, 1× or 10×. On an Apple M4 Pro the
+  pyramidal cell runs 68–98× faster than real time and the GnRH cell 19–21×, with and without PSCs and noise, so 1× has
+  a wide margin. After a stall, such as a hidden tab, it resumes where it was rather than racing to catch up. If a device
+  cannot keep up, the Speed readout shows the speed actually achieved instead of letting the trace stutter.</li>
+  <li><strong>A scope run cannot be replayed.</strong> Rheobase and the F–I curve belong to the step protocol.</li>
+</ul>
 
 <h2 id="validation">7. Checked against NEURON</h2>
 <p>The port was run against NEURON 9.0.2 executing the <em>original</em> ModelDB mechanisms (repository commit

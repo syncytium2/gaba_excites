@@ -12,7 +12,7 @@ import type { StepProtocol, Sweep } from "./simulate.ts";
 
 /** Upward crossing that counts as a spike, and the level it must fall below to re-arm. */
 export const SPIKE_LEVEL = -20;
-const REARM_LEVEL = -40;
+export const REARM_LEVEL = -40;
 /** dV/dt that defines spike threshold, mV/ms (= V/s). The usual 20 V/s criterion. */
 export const THRESH_DVDT = 20;
 

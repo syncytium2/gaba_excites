@@ -26,6 +26,10 @@ with what was taken from it, is at https://gaba.tonydefazio.com/lit.
   AP peak and half-width, input resistance (measured, never set: from the
   steady-state I–V at rest and from the hyperpolarizing steps), and the F–I curve (mean and initial
   rate); F–I curves can be pinned for comparison and exported as CSV.
+- An oscilloscope mode runs the same cell continuously, with every control
+  live and a repeating current pulse on top of the holding current. It uses
+  the same integrator; unchanged, it reproduces a step-protocol sweep sample
+  for sample. Readouts (firing rate, mean Vm) are measured on true Vm.
 - Two kinds of noise: recording noise (filtered Gaussian plus mains hum, on
   the recorded trace only) and membrane noise (an Ornstein–Uhlenbeck current
   the cell feels).

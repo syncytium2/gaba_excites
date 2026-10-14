@@ -106,7 +106,7 @@ export function settle(cell: BuiltCell, e: Electrode, ihold: number, ms: number,
   return s;
 }
 
-interface SynNow {
+export interface SynNow {
   gGlu: number;
   gGaba: number;
   eGlu: number;
@@ -116,9 +116,10 @@ interface SynNow {
 /**
  * One integration step, in place. `iCmd` enters through the pipette; `iMem`
  * (membrane noise) is injected at the membrane itself, so it never produces
- * a bridge error.
+ * a bridge error. Exported so that the oscilloscope's stream (stream.ts)
+ * integrates with exactly this code, not a copy of it.
  */
-function step(cell: BuiltCell, e: Electrode, s: Float64Array, iCmd: number, iMem: number, dt: number, syn: SynNow): void {
+export function step(cell: BuiltCell, e: Electrode, s: Float64Array, iCmd: number, iMem: number, dt: number, syn: SynNow): void {
   const iv = cell.iv;
   const v0 = s[iv];
   const p0 = s[iv + 1];

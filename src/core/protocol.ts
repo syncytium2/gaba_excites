@@ -7,6 +7,7 @@
 
 import { GNRH, type ModelId } from "./models.ts";
 import type { StepProtocol } from "./simulate.ts";
+import type { Pulse } from "./stream.ts";
 import { DEFAULT_GABA, DEFAULT_GLU, type SynInput } from "./synapses.ts";
 
 export interface ProtocolForm {
@@ -78,6 +79,18 @@ const FI: ProtocolForm = {
  * sources. Off until ticked.
  */
 const GNRH_GABA: SynInput = { ...DEFAULT_GABA, erev: GNRH.defaults.eGaba, ...GNRH.gabaKinetics };
+
+/**
+ * The oscilloscope's starting pulse train, one per model, because a pulse
+ * that makes one cell fire is far too big or too small for the other.
+ * Pyramidal: 700 pA, above its 561 pA rheobase (gaba.test.ts). GnRH: 24 pA on
+ * its −6 pA holding current, which fires 4 spikes in 500 ms (Adams et al.
+ * 2018 Fig. 7F; gnrh.test.ts). Off until ticked.
+ */
+export const SCOPE_PULSE: Record<ModelId, Pulse> = {
+  rs: { enabled: false, amp: 700, width: 500, period: 1500 },
+  gnrh: { enabled: false, amp: 24, width: 500, period: 1500 },
+};
 
 export const PRESETS: Preset[] = [
   {

@@ -36,12 +36,30 @@ await page.waitForTimeout(300);
 await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
 await page.screenshot({ path: `${out}/gnrh.png`, fullPage: true });
 
+// the oscilloscope: running live on both cells, with pulses on the pyramidal cell
+await page.selectOption("#model-select", "rs");
+await page.click("#mode-scope");
+await page.click("#pulse-on");
+await page.waitForTimeout(2500);
+const live = await page.evaluate(() => [...document.querySelectorAll(".tile")].map((t) => t.textContent ?? ""));
+if (!live.some((t) => /Firing rate\s*[0-9]/.test(t))) problems.push("scope: no live firing rate after 2.5 s: " + live.join(" | "));
+await page.screenshot({ path: `${out}/scope.png`, fullPage: true });
+await page.selectOption("#model-select", "gnrh");
+await page.waitForTimeout(3000);
+await page.screenshot({ path: `${out}/scope-gnrh.png`, fullPage: true });
+await page.click("#mode-steps");
+await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
+
 await page.setViewportSize({ width: 390, height: 900 });
 await page.selectOption("#model-select", "rs");
 await page.waitForTimeout(600);
 await page.screenshot({ path: `${out}/phone.png`, fullPage: true });
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
 if (overflow) problems.push("horizontal overflow at 390 px");
+await page.click("#mode-scope");
+await page.waitForTimeout(1500);
+await page.screenshot({ path: `${out}/scope-phone.png`, fullPage: true });
+if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) problems.push("scope: horizontal overflow at 390 px");
 
 await browser.close();
 if (problems.length) { console.error(problems.join("\n")); process.exit(1); }
