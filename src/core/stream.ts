@@ -71,7 +71,12 @@ class Synapse {
   a = 0;
   b = 0;
   next = Infinity;
-  constructor(private inp: SynInput, private dt: number, seed: number) {
+  // plain fields, not constructor parameter properties: node's type stripping cannot handle those
+  private inp: SynInput;
+  private dt: number;
+  constructor(inp: SynInput, dt: number, seed: number) {
+    this.inp = inp;
+    this.dt = dt;
     this.k = kinetics(inp, dt);
     this.draw = rng(seed);
     this.schedule(0);

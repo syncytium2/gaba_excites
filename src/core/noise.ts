@@ -139,7 +139,13 @@ export class RecordingNoise {
   private n = 0;
   private humW: number;
   private humPhase: number;
-  constructor(private p: NoiseParams, private dtMs: number, seed: number) {
+  // plain fields, not constructor parameter properties: node's type stripping
+  // (which runs the CLI) cannot handle those
+  private p: NoiseParams;
+  private dtMs: number;
+  constructor(p: NoiseParams, dtMs: number, seed: number) {
+    this.p = p;
+    this.dtMs = dtMs;
     const k = recKernel(p, dtMs);
     this.h = k.h;
     this.gain = k.gain;
