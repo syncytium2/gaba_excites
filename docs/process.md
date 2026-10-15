@@ -372,3 +372,11 @@ up, and a free-running sweep drifts against a 1.5 s pulse period. So with
 pulses on, the screen now triggers on pulse onset, with hold-off, as a real
 scope does. The stream reports onsets for this, and a test pins their
 timing. Pause has a fixed width.
+
+## 2026-10-15 — two readouts, not one product
+
+The "AP peak · half-width" tile read "47 · 0.70 mV · ms". A middle dot between
+units is how a product is written, so it looked like an area in mV·ms (the
+owner's catch, 2026-10-14). It is now two tiles, "AP peak 47 mV" and "AP
+half-width 0.70 ms", each with its unit and a line saying what it measures.
+The item has left the roadmap's small fixes, which are empty again.

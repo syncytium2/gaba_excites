@@ -531,7 +531,8 @@ function Stats({ summary, rinRest, rinHold, refined, onRefine, tol }: {
         sub={refined ? (Number.isFinite(refined.value) ? `refined: ${fmt(refined.value, d)} ± ${fmt(refined.tol, d)} pA` : "refining…")
           : s && Number.isFinite(s.rheobase) ? <button className="linkish" onClick={onRefine}>refine to {tol} pA</button> : "no step fired"} />
       <Tile label="Threshold" value={s ? fmt(s.threshold, 1) : "—"} unit="mV" sub="first spike, dV/dt ≥ 20 V/s" />
-      <Tile label="AP peak · half-width" value={s ? `${fmt(s.apPeak, 0)} · ${fmt(s.apHalfWidth, 2)}` : "—"} unit="mV · ms" />
+      <Tile label="AP peak" value={s ? fmt(s.apPeak, 0) : "—"} unit="mV" sub="first spike at rheobase" />
+      <Tile label="AP half-width" value={s ? fmt(s.apHalfWidth, 2) : "—"} unit="ms" sub="at half the threshold-to-peak height" />
       <Tile label="Rin, measured" value={s ? fmt(s.rinMeasured, 1) : "—"} unit="MΩ"
         sub={s && Number.isFinite(s.rinMeasured)
           ? `from steps ≤ 0 pA at the holding Vm. Steady-state slope: ${fmt(rinRest, 0)} at rest${Math.abs(rinHold - rinRest) > 0.02 * rinRest ? `, ${fmt(rinHold, 0)} at Ihold` : ""}`

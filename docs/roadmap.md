@@ -3,14 +3,6 @@
 What is deliberately NOT in v0.1, and the order it is likely to arrive in.
 The owner's words are quoted where the item came from them.
 
-## Small fixes (to do)
-
-- **The "AP peak · half-width" tile reads as a product.** It shows
-  "47 · 0.70 mV · ms", and a middle dot between units is how a product is
-  written, so it looks like an area in mV·ms. Split it into two tiles,
-  "AP peak 47 mV" and "AP half-width 0.70 ms", or at least write each unit
-  beside its own number. The owner flagged it on 2026-10-14.
-
 ## Next
 
 - **Plug-and-play channels, and an interface to edit them.** "Future versions
