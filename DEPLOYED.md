@@ -4,10 +4,10 @@ Written by `npm run deploy`. Do not edit by hand.
 
 | | |
 |---|---|
-| **Deployed at** | 2026-10-14 20:22 UTC |
-| **Commit** | `2b90075` — Plain fields instead of constructor parameter properties, so the CLI run |
-| **Bundle** | `assets/index-FvNME9fP.js` |
-| **Worker version** | `e41a8af6-6fe1-4c0e-9fe8-607b964e69db` |
+| **Deployed at** | 2026-10-15 14:12 UTC |
+| **Commit** | `0805abe` — AP peak and half-width as two tiles, so the units do not read as mV·ms |
+| **Bundle** | `assets/index-FgjguxTx.js` |
+| **Worker version** | `98f9e808-e9ef-4756-8fab-7997d8368ef2` |
 | **Live** | https://gaba-excites.tonydefazio.workers.dev https://gaba.tonydefazio.com |
 
 Verified at deploy time: tests pass, CSP in the shipped HTML, Born stamp baked
