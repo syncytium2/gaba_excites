@@ -38,6 +38,7 @@
 <nav aria-label="Contents">
 <ol>
   <li><a href="#model">The pyramidal cell</a></li>
+  <li><a href="#fs">The fast-spiking interneuron</a></li>
   <li><a href="#gnrh">The GnRH neuron</a></li>
   <li><a href="#passive">Leak, Cm, Ihold, and the measured Rin</a></li>
   <li><a href="#electrode">The electrode: Rs, bridge balance, pipette capacitance</a></li>
@@ -96,6 +97,18 @@ low on purpose: the RS model was fit partly to recordings in vivo, where backgro
 membrane in a high-conductance state. The simulator opens on these published values, with the leak at the template's 28.95 nS
 (0.1 mS/cm²); the leak and Cm controls move away from them.</p>
 
+
+<h2 id="fs">1a. The fast-spiking interneuron</h2>
+<p>From the same paper and the same ModelDB entry as the pyramidal cell: <code>sIN_template</code>. It uses the
+<em>same</em> two mechanisms, Traub I<sub>Na</sub> and I<sub>Kd</sub>, with I<sub>Kd</sub> at twice the density
+(10 against 5 mS/cm²) and no M current, in a 67 µm sphere (Cm = 141.0 pF) with a leak of 0.15 mS/cm² (21.15 nS).
+It rests at −70.0 mV with Rin = <strong>47.3 MΩ</strong>; the template's comment gives 48.</p>
+<p>Those two differences are the lesson. With no slow current to build up, it does not adapt: on an 800 ms step of
+800 pA it fires at 101 Hz from start to finish, where the pyramidal cell starts at 43 Hz and falls to 10 Hz as its M
+current builds. The extra K⁺ repolarizes faster, so the spike is narrower (half-width 0.56 against 0.70 ms) at the
+same threshold. Rheobase is 385 pA, and the rate climbs steeply above it: 191 Hz at 1.6 nA, about 300 Hz at
+3.2 nA. Like the pyramidal cell, it is checked spike for spike against NEURON (see
+<a href="#validation">Checked against NEURON</a>).</p>
 
 <h2 id="gnrh">1b. The GnRH neuron</h2>
 <p>The second model, chosen from the <strong>Model</strong> menu, is a mouse <strong>gonadotropin-releasing
@@ -332,6 +345,9 @@ Spike counts agree exactly at every amplitude, and every spike time agrees to wi
 sits barely above threshold. Near threshold a long interspike interval amplifies any small numerical difference.
 Every other spike agrees to within 0.09 ms. This comparison is part of the test suite
 (<code>src/core/oracle.test.ts</code>), and <code>tools/neuron_oracle.py</code> regenerates the reference.</p>
+<p>The fast-spiking interneuron is checked the same way, against <code>sIN_template</code> with the same mechanisms
+and protocol. Spike counts agree exactly at every amplitude from 250 to 3200 pA, 526 spikes in all at up to about
+300 Hz, and every spike time agrees to within 0.015 ms.</p>
 <p class="note">The electrode and synapse models are not part of the published cell, so NEURON cannot check them.
 The test suite checks them separately. With Cp = 0, changing Rs leaves Vm identical to the last bit. An unbalanced
 bridge offsets the record by exactly I·Rs. A single PSC peaks at exactly its set conductance. GABA reversing at the

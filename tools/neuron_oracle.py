@@ -1,11 +1,14 @@
 """
-NEURON oracle for the stock cell.
+NEURON oracle for the Pospischil et al. 2008 cells.
 
-Runs the ORIGINAL ModelDB 123623 mechanisms (HH_traub.mod, IM_cortex.mod;
-Pospischil et al. 2008) in NEURON, on the published regular-spiking cell, and
-writes the spike times of a current-step family to
-src/core/oracle/neuron_rs.json. src/core/oracle.test.ts then requires the
-TypeScript port to reproduce them.
+Runs the ORIGINAL ModelDB 123623 mechanisms (HH_traub.mod, IM_cortex.mod) in
+NEURON, on one of the paper's published one-compartment cells, and writes the
+spike times of a current-step family to src/core/oracle/neuron_<cell>.json.
+src/core/oracle.test.ts then requires the TypeScript port to reproduce them.
+
+    rs   sPY_template, the regular-spiking pyramidal cell (the default)
+    fs   sIN_template, the fast-spiking interneuron: the same INa and IK at
+         double the K+ density, no M current, a 67 um sphere
 
 The mechanisms are not vendored here: they are ModelDB's, fetched from
 github.com/ModelDBRepository/123623 at the commit recorded in the output.
@@ -13,30 +16,41 @@ github.com/ModelDBRepository/123623 at the commit recorded in the output.
     python3 -m venv .venv-neuron && .venv-neuron/bin/pip install neuron
     git clone https://github.com/ModelDBRepository/123623 /tmp/md123623
     (cd /tmp/md123623 && ../path/to/.venv-neuron/bin/nrnivmodl HH_traub.mod IM_cortex.mod)
-    .venv-neuron/bin/python tools/neuron_oracle.py /tmp/md123623
+    .venv-neuron/bin/python tools/neuron_oracle.py /tmp/md123623        # rs
+    .venv-neuron/bin/python tools/neuron_oracle.py /tmp/md123623 fs     # fs
 
-Protocol, matched on the TypeScript side: 3000 ms settle at 0 pA, then a
+Protocol, matched on the TypeScript side, for both cells: 3000 ms settle at 0 pA, then a
 sweep with a step from 100 ms for 800 ms. Fixed step dt = 0.01 ms, implicit
 Euler (NEURON's default), 36 degC.
 """
 import json, math, os, subprocess, sys
 
 md = os.path.abspath(sys.argv[1])
+CELL = sys.argv[2] if len(sys.argv) > 2 else "rs"
+# Each cell exactly as its template defines it (sPY_template, sIN_template).
+CELLS = {
+    "rs": dict(diam=96, g_pas=1e-4, gkbar=0.005, gkbar_im=7e-5, v_init=-70.571,
+               amps=[500, 550, 600, 700, 800, 1000, 1500]),
+    "fs": dict(diam=67, g_pas=1.5e-4, gkbar=0.01, gkbar_im=0, v_init=-70.0,
+               amps=[250, 300, 350, 400, 500, 800, 1600, 3200]),
+}
+C = CELLS[CELL]
 os.chdir(md)
 from neuron import h
 h.nrn_load_dll(os.path.join(md, "arm64", ".libs", "libnrnmech.dylib")) if not hasattr(h, "hh2") else None
 h.load_file("stdrun.hoc")
 
 SETTLE, STEP_ON, STEP_DUR, SWEEP = 3000.0, 100.0, 800.0, 1000.0
-AMPS_PA = [500, 550, 600, 700, 800, 1000, 1500]
+AMPS_PA = C["amps"]
 DT = 0.01
 
 soma = h.Section(name="soma")
-soma.nseg = 1; soma.diam = 96; soma.L = 96; soma.cm = 1; soma.Ra = 100
-soma.insert("pas"); soma.e_pas = -70; soma.g_pas = 1e-4
+soma.nseg = 1; soma.diam = C["diam"]; soma.L = C["diam"]; soma.cm = 1; soma.Ra = 100
+soma.insert("pas"); soma.e_pas = -70; soma.g_pas = C["g_pas"]
 soma.insert("hh2"); soma.ek = -100; soma.ena = 50
-soma.vtraub_hh2 = -55; soma.gnabar_hh2 = 0.05; soma.gkbar_hh2 = 0.005
-soma.insert("im"); h.taumax_im = 1000; soma.gkbar_im = 7e-5
+soma.vtraub_hh2 = -55; soma.gnabar_hh2 = 0.05; soma.gkbar_hh2 = C["gkbar"]
+if C["gkbar_im"]:
+    soma.insert("im"); h.taumax_im = 1000; soma.gkbar_im = C["gkbar_im"]
 h.celsius = 36
 
 stim = h.IClamp(soma(0.5))
@@ -46,7 +60,7 @@ h.dt = DT; h.steps_per_ms = 1 / DT; h.secondorder = 0
 
 def run(amp_pa):
     stim.delay = SETTLE + STEP_ON; stim.dur = STEP_DUR; stim.amp = amp_pa / 1000.0
-    h.v_init = -70.571
+    h.v_init = C["v_init"]
     h.finitialize(h.v_init)
     h.continuerun(SETTLE + SWEEP)
     v = vvec.as_numpy(); t = tvec.as_numpy()
@@ -70,6 +84,6 @@ for a in AMPS_PA:
     sp, v0, vmax = run(a)
     out["sweeps"].append({"amp": a, "spikes": sp, "vStart": v0, "vMax": vmax})
     print(a, len(sp), sp[:4], round(v0, 3))
-dest = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "core", "oracle", "neuron_rs.json")
+dest = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "core", "oracle", f"neuron_{CELL}.json")
 with open(dest, "w") as f: json.dump(out, f, indent=1)
 print("wrote", os.path.normpath(dest))

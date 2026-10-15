@@ -24,9 +24,9 @@ Where the cells come from.
 
 Pospischil M, Toledo-Rodriguez M, Monier C, Piwkowska Z, Bal T, Frégnac Y, et al. (2008). Minimal Hodgkin–Huxley type models for different classes of cortical and thalamic neurons. Biol Cybern 99(4-5):427–441.
 
-[doi:10.1007/s00422-008-0263-8](https://doi.org/10.1007/s00422-008-0263-8) · [PMID 19011929](https://pubmed.ncbi.nlm.nih.gov/19011929/) · *subscription* · models: pyramidal
+[doi:10.1007/s00422-008-0263-8](https://doi.org/10.1007/s00422-008-0263-8) · [PMID 19011929](https://pubmed.ncbi.nlm.nih.gov/19011929/) · *subscription* · models: pyramidal, fs
 
-**Took:** The regular-spiking pyramidal cell: its currents (Traub INa and IKd, slow IM) and the published cell they make.
+**Took:** The regular-spiking pyramidal cell and the fast-spiking interneuron: their currents (Traub INa and IKd, slow IM) and the published cells they make.
 
 **Used in:** [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/models.ts`](../src/core/models.ts)
 
@@ -36,11 +36,11 @@ Pospischil M, Toledo-Rodriguez M, Monier C, Piwkowska Z, Bal T, Frégnac Y, et a
 
 Destexhe A (2009). ModelDB 123623: minimal Hodgkin–Huxley models of cortical and thalamic neurons (NEURON code for Pospischil et al. 2008).
 
-[modeldb.science/123623](https://modeldb.science/123623) · [code @ 8dfc13f](https://github.com/ModelDBRepository/123623/tree/8dfc13fb03c162f5ad1b5e13f94225c983391af7) · *open (code)* · models: pyramidal
+[modeldb.science/123623](https://modeldb.science/123623) · [code @ 8dfc13f](https://github.com/ModelDBRepository/123623/tree/8dfc13fb03c162f5ad1b5e13f94225c983391af7) · *open (code)* · models: pyramidal, fs
 
-**Took:** Every pyramidal-cell parameter, from sPY_template, HH_traub.mod and IM_cortex.mod — and the mechanisms themselves, run in NEURON as the oracle the port is tested against.
+**Took:** Every pyramidal-cell parameter, from sPY_template, and every fast-spiking-cell parameter, from sIN_template, with HH_traub.mod and IM_cortex.mod — and the mechanisms themselves, run in NEURON as the oracle each port is tested against.
 
-**Used in:** [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/models.ts`](../src/core/models.ts), [`tools/neuron_oracle.py`](../tools/neuron_oracle.py), [`src/core/oracle.test.ts`](../src/core/oracle.test.ts)
+**Used in:** [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/models.ts`](../src/core/models.ts), [`tools/neuron_oracle.py`](../tools/neuron_oracle.py), [`src/core/oracle.test.ts`](../src/core/oracle.test.ts), [`src/core/oracle/neuron_fs.json`](../src/core/oracle/neuron_fs.json)
 
 **Notes:** [`notes/pospischil2008.md`](notes/pospischil2008.md)
 

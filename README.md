@@ -22,15 +22,20 @@ Live at **https://gaba.tonydefazio.com**. The methods page, with every equation,
 is at [`/methods`](https://gaba.tonydefazio.com/methods) (source:
 `public/methods.html`).
 
-## Two cells
+## Three cells
 
-Two cell models, chosen from a menu:
+Three cell models, chosen from a menu:
 
 - **Cortical pyramidal (regular spiking):** Pospischil et al. (2008), ported
   from its ModelDB source (123623) and **checked spike-for-spike against
   NEURON** running the original mechanisms. Three voltage-gated currents:
   transient Na⁺, delayed-rectifier K⁺, and a slow M-type K⁺ current that makes
   firing adapt.
+- **Cortical interneuron (fast spiking):** from the same paper and ModelDB
+  entry. The same two Na⁺ and K⁺ channels, with twice the K⁺ and no M current,
+  and **checked spike-for-spike against NEURON** the same way. It does not
+  adapt: at 800 pA it fires at 101 Hz from start to finish, where the
+  pyramidal cell falls from 43 to 10 Hz.
 - **GnRH neuron (mouse, negative feedback):** Adams et al. (2018, J Neurosci
   38:1249). Ten currents, including a Markov fast Na⁺ scheme, and a calcium
   pool. Transcribed from the paper. There is no public code to compare against,
@@ -39,7 +44,9 @@ Two cell models, chosen from a menu:
 
 Side by side, they make the course's point. A large, leaky cell needs hundreds
 of picoamps to fire (561 pA). A small cell with an input resistance near
-0.5 GΩ fires on about 18 pA.
+0.5 GΩ fires on about 18 pA. And the pyramidal cell and the interneuron share
+their channels: what separates an adapting cell from a fast, non-adapting one
+is the density of one K⁺ current and whether a slow one is there at all.
 
 ## What you can change, and what it teaches
 
@@ -119,7 +126,7 @@ reason.
 
 - `src/core/` — the models, pure TypeScript, no DOM. `channels.ts` (every
   channel behind one `Channel` interface, with declarative gate builders and
-  the Markov Na⁺ scheme), `models.ts` (the two models as data), `cell.ts`
+  the Markov Na⁺ scheme), `models.ts` (the models as data), `cell.ts`
   (whole-cell ↔ density mapping, the leak and the measured Rin, the calcium steady state),
   `synapses.ts`, `noise.ts`, `simulate.ts` (electrode circuit and
   integrator), `analysis.ts` (spikes, threshold, F–I, Rin), `protocol.ts`

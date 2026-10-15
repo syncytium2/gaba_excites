@@ -380,3 +380,36 @@ units is how a product is written, so it looked like an area in mV·ms (the
 owner's catch, 2026-10-14). It is now two tiles, "AP peak 47 mV" and "AP
 half-width 0.70 ms", each with its unit and a line saying what it measures.
 The item has left the roadmap's small fixes, which are empty again.
+
+## 2026-10-15 — a third cell, fast and non-adapting
+
+Asked to evaluate a very-high-frequency neuron, "like cerebellar granule
+cells (1 kHz I think)". PubMed corrected the premise. The >700 Hz bursts belong
+to mossy fibre boutons, the terminals driving granule cells (Rancz et al.
+2007). Granule cells themselves fire sparsely, burst on a few EPSCs, sit
+under tonic GABA_A inhibition (Chadderton et al. 2004), and burst at theta
+in slices (D'Angelo et al. 2001). Their standard model is multi-compartment
+(Diwakar et al. 2009). A real kHz cell would need Kv3-type channels, which
+neither source has, plus a finer sample interval and possibly a per-model
+spike re-arm level. That is a project of its own.
+
+What was cheap and well checked was already in our source: ModelDB 123623's
+fast-spiking interneuron, `sIN_template`. It is the pyramidal cell's two
+channels, with twice the K⁺ and no M current. It is now a third model. The
+NEURON environment had gone, so it was rebuilt in a scratch venv by the
+oracle tool's own instructions (NEURON 9.0.2, ModelDB commit `8dfc13f`).
+Before it was trusted, it regenerated the pyramidal reference
+byte-identically. `tools/neuron_oracle.py` gained a cell argument (`rs`
+unchanged and still the default; `fs` writes `neuron_fs.json`), and
+`oracle.test.ts` runs both. FS spike counts match NEURON on every sweep, 526
+spikes up to about 300 Hz, with every spike time within 0.015 ms.
+
+The teaching point it adds is about voltage-gated conductances. The same
+channels give an adapting cell or a fast, non-adapting one, depending on one
+density and on whether a slow current exists. At 800 pA the FS cell fires at
+101 Hz from start to finish, while the pyramidal cell falls from 43 to 10 Hz.
+Its spike is narrower (0.56 against 0.70 ms half-width) at the same
+threshold. Rheobase is 385 pA. `fs.test.ts` pins every number the presets
+and docs quote. Its ceiling is about 400 Hz, with the spikes shrinking, so it
+is fast, not kHz. Each model now carries a short name, for pin and
+stored-trace labels, instead of the UI assuming there are two.

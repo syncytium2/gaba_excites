@@ -168,7 +168,7 @@ export function App() {
 
   const pinCurrent = () => {
     if (!summary) return;
-    const label = `Pin ${pins.length + 1}: ${cell.model === "rs" ? "pyramidal" : "GnRH"}, gL ${fmt(cell.gLeak, 2)} nS (Rin ${fmt(rinRest, 0)} MΩ), Cm ${fmt(cell.cm, 0)} pF` +
+    const label = `Pin ${pins.length + 1}: ${model.short}, gL ${fmt(cell.gLeak, 2)} nS (Rin ${fmt(rinRest, 0)} MΩ), Cm ${fmt(cell.cm, 0)} pF` +
       (gaba.enabled ? `, GABA ${gaba.erev} mV` : "") + (glu.enabled ? ", glu on" : "") + (ihold ? `, Ihold ${ihold} pA` : "") + (noise.memSigma ? `, noise ${noise.memSigma} pA` : "");
     setPins([...pins, { label, points: summary.stats.map((s) => ({ amp: s.amp, rate: s.meanRate })).sort((a, b) => a.amp - b.amp) }].slice(-4));
   };
@@ -311,7 +311,7 @@ export function App() {
               Repeating pulses
             </label>
             <div className="row3">
-              <NumField label="Amplitude" unit="pA" value={pulse.amp} step={cell.model === "rs" ? 50 : 2} disabled={!pulse.enabled}
+              <NumField label="Amplitude" unit="pA" value={pulse.amp} step={cell.model === "gnrh" ? 2 : 50} disabled={!pulse.enabled}
                 onChange={(amp) => setPulse({ ...pulse, amp })} />
               <NumField label="Width" unit="ms" value={pulse.width} min={0.1} max={10000} step={10} disabled={!pulse.enabled}
                 onChange={(width) => setPulse({ ...pulse, width })} />

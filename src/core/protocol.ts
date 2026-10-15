@@ -89,6 +89,7 @@ const GNRH_GABA: SynInput = { ...DEFAULT_GABA, erev: GNRH.defaults.eGaba, ...GNR
  */
 export const SCOPE_PULSE: Record<ModelId, Pulse> = {
   rs: { enabled: false, amp: 700, width: 500, period: 1500 },
+  fs: { enabled: false, amp: 800, width: 500, period: 1500 },
   gnrh: { enabled: false, amp: 24, width: 500, period: 1500 },
 };
 
@@ -146,6 +147,24 @@ export const PRESETS: Preset[] = [
     protocol: FI,
     glu: DEFAULT_GLU,
     gaba: { ...DEFAULT_GABA, enabled: true, rate: 200, gPeak: 3, erev: -35 },
+  },
+  {
+    id: "fs-fi",
+    model: "fs",
+    label: "F–I family",
+    note: "Rheobase is 385 pA, then the rate climbs steeply: 101 Hz at 800 pA, 191 Hz at 1.6 nA. Initial and final rates are the same, because this cell has no slow current to build up: it does not adapt. Pin the curve, switch to the pyramidal cell, and compare.",
+    protocol: { ...FI, first: -200, delta: 200, count: 10 },
+    glu: DEFAULT_GLU,
+    gaba: DEFAULT_GABA,
+  },
+  {
+    id: "fs-noadapt",
+    model: "fs",
+    label: "Same step, no adaptation",
+    note: "800 pA, the step that takes the pyramidal cell from 43 Hz at its start to 10 Hz by its end as the M current builds. Here the rate starts at 101 Hz and is still 101 Hz at the end. Same INa and IKd as the pyramidal cell, at twice the K⁺ density, which also narrows the spike (half-width 0.56 against 0.70 ms); no M current, so nothing adapts.",
+    protocol: { ...FI, mode: "list", list: "800" },
+    glu: DEFAULT_GLU,
+    gaba: DEFAULT_GABA,
   },
   {
     id: "gnrh-fi",

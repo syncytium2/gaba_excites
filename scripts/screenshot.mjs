@@ -30,6 +30,12 @@ for (const preset of ["shunt", "barrage"]) {
   await page.screenshot({ path: `${out}/${preset}.png`, fullPage: true });
 }
 
+// the fast-spiking interneuron, on its own F–I preset
+await page.selectOption("#model-select", "fs");
+await page.waitForTimeout(300);
+await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
+await page.screenshot({ path: `${out}/fs.png`, fullPage: true });
+
 // the GnRH model, with membrane noise
 await page.selectOption("#model-select", "gnrh");
 await page.waitForTimeout(300);

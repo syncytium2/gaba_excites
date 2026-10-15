@@ -19,7 +19,7 @@ import {
   type Channel,
 } from "./channels.ts";
 
-export type ModelId = "rs" | "gnrh";
+export type ModelId = "rs" | "fs" | "gnrh";
 
 export interface ModelChannel {
   channel: Channel;
@@ -51,6 +51,8 @@ export interface Range {
 export interface ModelDef {
   id: ModelId;
   label: string;
+  /** a word or two, for pin and stored-trace labels */
+  short: string;
   /** one line for the UI under the selector */
   blurb: string;
   citation: string;
@@ -99,6 +101,7 @@ const RS_CM = (Math.PI * 96 * 96) / 100;
 export const RS: ModelDef = {
   id: "rs",
   label: "Cortical pyramidal (regular spiking)",
+  short: "pyramidal",
   blurb: "Pospischil et al. 2008: Traub INa and IKd, slow M-current for adaptation.",
   citation: "Pospischil M, Toledo-Rodriguez M, Monier C, et al. (2008) Biol Cybern 99:427–441",
   doi: "10.1007/s00422-008-0263-8",
@@ -122,6 +125,47 @@ export const RS: ModelDef = {
   validation: "Spike counts match NEURON running the original ModelDB mechanisms exactly; spike times within 0.2 ms.",
 };
 
+// ---------------------------------------------------------------- FS interneuron
+
+/**
+ * Fast-spiking interneuron, ModelDB 123623 `sIN_template` (Pospischil et al.
+ * 2008): the same Traub INa and IKd as the pyramidal cell, at double the K⁺
+ * density (10 against 5 mS/cm²) and with no M current, so it fires fast and
+ * does not adapt. diam = L = 67 µm → π·67² µm² = 14 103 µm² → 141.03 pF.
+ * Leak g_pas = 0.15 mS/cm², 21.15 nS, which gives Rin = 47.3 MΩ at rest (the
+ * template's comment: "Rin = 48Meg"). E_K −100, E_Na +50, E_L −70 mV, as in
+ * the template. src/core/oracle.test.ts holds it to NEURON running the
+ * template's own mechanisms (tools/neuron_oracle.py fs).
+ */
+const FS_CM = (Math.PI * 67 * 67) / 100;
+
+export const FS: ModelDef = {
+  id: "fs",
+  label: "Cortical interneuron (fast spiking)",
+  short: "fast-spiking",
+  blurb: "Pospischil et al. 2008: the pyramidal cell's INa and IKd, with twice the K⁺ and no M current. Fast, and it does not adapt.",
+  citation: "Pospischil M, Toledo-Rodriguez M, Monier C, et al. (2008) Biol Cybern 99:427–441",
+  doi: "10.1007/s00422-008-0263-8",
+  cmRef: FS_CM,
+  eLeak: -70,
+  channels: () => [
+    { channel: makeNa(-55), gbar: 50 * FS_CM, erev: 50 },
+    { channel: makeKd(-55), gbar: 10 * FS_CM, erev: -100 },
+  ],
+  defaults: { cm: 141.03, gLeak: 0.15 * FS_CM, ihold: 0, eGaba: -80 },
+  eGabaSource: "−80 mV: a conventional hyperpolarizing GABA_A reversal for an adult cortical neuron, as for the pyramidal cell",
+  ranges: {
+    gLeak: { min: 0, max: 100, step: 0.5 },
+    cm: { min: 20, max: 600, step: 1 },
+    ihold: { min: -500, max: 2000, step: 5 },
+    memNoise: { min: 0, max: 300, step: 5 },
+  },
+  rheobaseTol: 1,
+  // no slow gates: INa and IKd settle within milliseconds
+  settleMs: 1000,
+  validation: "Spike counts match NEURON running the original ModelDB mechanisms exactly; spike times within 0.02 ms.",
+};
+
 // ---------------------------------------------------------------- GnRH
 
 /**
@@ -142,6 +186,7 @@ const ECA_G = 82.5;
 export const GNRH: ModelDef = {
   id: "gnrh",
   label: "GnRH neuron (mouse, negative feedback)",
+  short: "GnRH",
   blurb: "Adams et al. 2018: Markov INaF, INaP, IA, IK, T- and HVA-type ICa, IS, Ih, IKCa, with a calcium pool.",
   citation: "Adams C, Stroberg W, DeFazio RA, Schnell S, Moenter SM (2018) J Neurosci 38:1249–1263",
   doi: "10.1523/JNEUROSCI.2988-17.2017",
@@ -257,5 +302,5 @@ export const GNRH: ModelDef = {
     "Transcribed from the paper (no public code). Checked against the paper's reported rest (−70 mV at −6 pA) and its Fig. 7F spike counts.",
 };
 
-export const MODELS: Record<ModelId, ModelDef> = { rs: RS, gnrh: GNRH };
-export const MODEL_LIST: ModelDef[] = [RS, GNRH];
+export const MODELS: Record<ModelId, ModelDef> = { rs: RS, fs: FS, gnrh: GNRH };
+export const MODEL_LIST: ModelDef[] = [RS, FS, GNRH];

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CellParams } from "../core/cell.ts";
+import { MODELS } from "../core/models.ts";
 import type { StreamInputs } from "../core/stream.ts";
 import type { ScopeRequest, ScopeResponse } from "../scope-worker.ts";
 import { fmtDiv, Scope, STORED_DASH, type ScopeHandle, type Snapshot } from "./Scope.tsx";
@@ -131,7 +132,7 @@ export function ScopeMode({ cell, inputs, seed }: { cell: CellParams; inputs: St
 
   // what a stored trace was taken with, so the overlay says what it is
   const label = () => {
-    const parts = [cell.model === "rs" ? "pyramidal" : "GnRH", `gL ${fmt(cell.gLeak, 2)} nS`, `Ihold ${inputs.ihold} pA`];
+    const parts = [MODELS[cell.model].short, `gL ${fmt(cell.gLeak, 2)} nS`, `Ihold ${inputs.ihold} pA`];
     if (inputs.pulse.enabled) parts.push(`pulse ${inputs.pulse.amp} pA`);
     if (inputs.glu.enabled) parts.push(`glu ${inputs.glu.rate} Hz`);
     if (inputs.gaba.enabled) parts.push(`GABA ${inputs.gaba.rate} Hz, E ${inputs.gaba.erev} mV`);

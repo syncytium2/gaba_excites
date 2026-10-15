@@ -11,10 +11,14 @@ with what was taken from it, is at https://gaba.tonydefazio.com/lit.
 
 ## What it does
 
-- Two models, chosen from a menu:
+- Three models, chosen from a menu:
   - the regular-spiking (RS) pyramidal cell of Pospischil et al. 2008
     (Biol Cybern 99:427, doi:10.1007/s00422-008-0263-8; ModelDB 123623): one
     compartment, Traub INa and IKd, slow M-type IK for adaptation;
+  - the fast-spiking interneuron of the same paper and ModelDB entry
+    (sIN_template): the same INa and IKd, twice the K+ density, no M current;
+    it does not adapt, and like the pyramidal cell it is checked spike for
+    spike against NEURON running the original mechanisms;
   - the mouse GnRH neuron of Adams et al. 2018 (J Neurosci 38:1249,
     doi:10.1523/JNEUROSCI.2988-17.2017), negative-feedback parameter set:
     Markov INaF, INaP, IA, IK, T-type and HVA ICa, IS, Ih, IKCa, calcium pool.
