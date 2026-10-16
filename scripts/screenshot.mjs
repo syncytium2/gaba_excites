@@ -30,6 +30,19 @@ for (const preset of ["shunt", "barrage"]) {
   await page.screenshot({ path: `${out}/${preset}.png`, fullPage: true });
 }
 
+// the siren: silent on every ordinary page so far, then driven past a real cell
+if (await page.locator(".siren").count()) problems.push("siren: showing on an ordinary preset");
+await page.click(".seg button:has-text('List')");
+await page.fill(".listfield textarea", "0, 25600");
+await page.locator(".listfield textarea").blur();
+await page.waitForTimeout(400);
+await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
+if (!(await page.locator(".siren").count())) problems.push("siren: not showing at 25.6 nA");
+await page.locator(".siren").focus();
+await page.waitForTimeout(200);
+await page.screenshot({ path: `${out}/siren.png`, fullPage: false });
+await page.selectOption(presetSelect, "fi");
+
 // the fast-spiking interneuron, on its own F–I preset
 await page.selectOption("#model-select", "fs");
 await page.waitForTimeout(300);
@@ -58,6 +71,14 @@ await page.waitForTimeout(4500);
 const legend = await page.evaluate(() => document.querySelector(".scope-screen")?.parentElement?.textContent ?? "");
 if (!/stored 1: pyramidal, gL 28\.95 nS/.test(legend)) problems.push("scope: the stored trace's label is missing");
 await page.screenshot({ path: `${out}/scope.png`, fullPage: true });
+// the siren in scope mode: silent so far, then a 30 nA pulse
+if (await page.locator(".siren").count()) problems.push("siren: showing in ordinary scope use");
+await page.getByRole("textbox", { name: "Amplitude" }).fill("30000");
+await page.keyboard.press("Enter");
+await page.waitForTimeout(2500);
+if (!(await page.locator(".siren").count())) problems.push("siren: not showing in scope mode at 30 nA");
+await page.getByRole("textbox", { name: "Amplitude" }).fill("700");
+await page.keyboard.press("Enter");
 await page.selectOption("#model-select", "gnrh");
 await page.waitForTimeout(3000);
 await page.screenshot({ path: `${out}/scope-gnrh.png`, fullPage: true });

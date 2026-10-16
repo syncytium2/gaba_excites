@@ -413,3 +413,30 @@ threshold. Rheobase is 385 pA. `fs.test.ts` pins every number the presets
 and docs quote. Its ceiling is about 400 Hz, with the spikes shrinking, so it
 is fast, not kHz. Each model now carries a short name, for pin and
 stored-trace labels, instead of the UI assuming there are two.
+
+## 2026-10-16 — a siren for unphysiologic drive
+
+Testing the fast-spiking cell, the owner noticed that "the pyramidal neuron
+can go pretty hard with massive injections". It was measured, not argued.
+Both Pospischil cells reach several hundred Hz on tens of nanoamps (the
+pyramidal cell 400 Hz at 12.8 nA, with 21 mV spike peaks and its adaptation
+gone). Both are in depolarization block by 25.6 nA. The fast-spiking label
+describes realistic drive, not the top of the curve.
+
+The owner asked for "a little red siren that starts blinking when the model
+is driven to unphysiologic extremes". They chose the triggers from options
+that each come from the cell itself, so nothing is a picked number:
+
+- spike failure: no overshoot of 0 mV, or Vm above −30 mV for 50 ms;
+- Vm outside the reversal potentials in play;
+- injected current more than 10× the published cell's rheobase from its
+  holding current.
+
+That rheobase is now part of each model (561, 385 and 17 pA, pinned by
+tests). The detector, `src/core/extremes.ts`, is one stateful watcher used by
+the step protocol (per sweep) and the scope (continuous, a one-second window).
+`extremes.test.ts` runs every preset of every cell and requires silence, and
+checks that each criterion trips where it should. Testing it also turned up
+an older artefact, a first-sample dip in the recorded trace when a step
+starts at 0 ms, which went to the roadmap's small fixes rather than into this
+change.

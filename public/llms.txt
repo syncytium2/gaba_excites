@@ -34,6 +34,10 @@ with what was taken from it, is at https://gaba.tonydefazio.com/lit.
   live and a repeating current pulse on top of the holding current. It uses
   the same integrator; unchanged, it reproduces a step-protocol sweep sample
   for sample. Readouts (firing rate, mean Vm) are measured on true Vm.
+- A siren flags unphysiologic drive, using criteria taken from the cell
+  itself: spike failure (no overshoot, or depolarization block above -30 mV
+  for 50 ms), Vm beyond the reversal potentials in play, or injected current
+  more than 10x the published cell's rheobase from its holding current.
 - Two kinds of noise: recording noise (filtered Gaussian plus mains hum, on
   the recorded trace only) and membrane noise (an Ornstein–Uhlenbeck current
   the cell feels).

@@ -47,6 +47,7 @@
   <li><a href="#integration">Integration</a></li>
   <li><a href="#measurements">Measurements</a></li>
   <li><a href="#scope">The oscilloscope</a></li>
+  <li><a href="#siren">The siren</a></li>
   <li><a href="#validation">Checked against NEURON</a></li>
   <li><a href="#gaba">When GABA excites</a></li>
   <li><a href="#limits">What it leaves out</a></li>
@@ -324,6 +325,24 @@ to fire, or switch GABA on mid-burst.</p>
   cannot keep up, the Speed readout shows the speed actually achieved instead of letting the trace stutter.</li>
   <li><strong>A scope run cannot be replayed.</strong> Rheobase and the F–I curve belong to the step protocol.</li>
 </ul>
+
+<h2 id="siren">6c. The siren</h2>
+<p>These models will compute an answer for any current, however large. A small red siren blinks beside the mode switch
+while the cell is being driven past what a real cell would do; hover over it, focus it or tap it for the reasons. Every
+criterion comes from the cell itself, and they are the owner's choice of three:</p>
+<ul>
+  <li><strong>Spike failure:</strong> a spike that no longer overshoots 0 mV, or depolarization block, Vm held above
+  −30 mV for 50 ms or more. A normal spike spends about a millisecond above −30 mV.</li>
+  <li><strong>Vm beyond the reversal potentials:</strong> Vm outside the span of the reversal potentials in play, those of
+  the channels, the leak and any PSCs that are on. No conductance can take Vm there; only injected current can.</li>
+  <li><strong>Current:</strong> injected current more than 10 times the published cell's rheobase (800 ms step) away from
+  its published holding current. That is ±5.6 nA for the pyramidal cell, ±3.9 nA for the fast-spiking cell, and
+  −6 ± 170 pA for the GnRH cell.</li>
+</ul>
+<p>In the step protocol it reports which steps tripped it; in the oscilloscope it stays on while anything tripped in the
+last second of simulated time. The test suite runs every preset of every cell and requires the siren to stay silent,
+and requires each criterion to trip where it should. For example, the pyramidal cell at 12.8 nA fires at 400 Hz with
+overshooting spikes, past the current limit; both Pospischil cells are in depolarization block by 25.6 nA.</p>
 
 <h2 id="validation">7. Checked against NEURON</h2>
 <p>The port was run against NEURON 9.0.2 executing the <em>original</em> ModelDB mechanisms (repository commit

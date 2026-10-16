@@ -15,6 +15,8 @@ import { PhasePlot } from "./ui/PhasePlot.tsx";
 import { Panel, usePanels } from "./ui/Panel.tsx";
 import { Tip } from "./ui/Tip.tsx";
 import { ScopeMode } from "./ui/ScopeMode.tsx";
+import { Siren } from "./ui/Siren.tsx";
+import { describe as describeTrip, ExtremeWatch, limitsFor, type ExtremeKind } from "./core/extremes.ts";
 import { AQUA, AXIS, BLUE, GRID, INK2, MUTED, ORANGE, rampColor } from "./ui/palette.ts";
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 
@@ -159,8 +161,25 @@ export function App() {
   // Computed here rather than taken from the last run, so it is right in either mode.
   const built = useMemo(() => {
     const c = buildCell(cell);
-    return { vRest: c.vRest, rinRest: c.rinRest, rinAtHold: cellRinAt(c, ihold), areaUm2: c.areaUm2 };
+    return { cell: c, vRest: c.vRest, rinRest: c.rinRest, rinAtHold: cellRinAt(c, ihold), areaUm2: c.areaUm2 };
   }, [cell, ihold]);
+  const limits = useMemo(() => limitsFor(built.cell, MODELS[cell.model], [glu, gaba]), [built, cell.model, glu, gaba]);
+  // The siren, step mode: any sweep of the last run driven past a real cell (src/core/extremes.ts)
+  const stepReasons = useMemo(() => {
+    if (!result) return [];
+    const seen = new Map<ExtremeKind, { text: string; amps: number[] }>();
+    for (const s of result.sweeps) {
+      const w = new ExtremeWatch(limits);
+      w.feed(s.vm, s.iCmd, 0, s.sampleMs);
+      for (const trip of w.trips.values()) {
+        const e = seen.get(trip.kind) ?? { text: describeTrip(trip, limits), amps: [] };
+        e.amps.push(s.amp);
+        seen.set(trip.kind, e);
+      }
+    }
+    return [...seen.values()].map((e) => `${e.text} (step${e.amps.length > 1 ? "s" : ""} ${e.amps.join(", ")} pA)`);
+  }, [result, limits]);
+  const [scopeReasons, setScopeReasons] = useState<string[]>([]);
   const rinRest = built.rinRest;
   const tauM = (rinRest * cell.cm) / 1000;
   const preset = presets.find((p) => p.id === presetId);
@@ -351,13 +370,14 @@ export function App() {
                 Oscilloscope
               </button>
             </div>
+            <Siren reasons={mode === "scope" ? scopeReasons : stepReasons} />
             <div className="status" aria-live="polite">
               {error ? <span className="warn">Simulation failed: {error}</span> : mode === "scope" ? "" : busy ? "simulating…" : result ? `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms` : ""}
             </div>
           </div>
 
           {mode === "scope" ? (
-            <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} />
+            <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} limits={limits} onExtremes={setScopeReasons} />
           ) : (
             <>
 

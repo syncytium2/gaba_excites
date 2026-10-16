@@ -3,6 +3,15 @@
 What is deliberately NOT in v0.1, and the order it is likely to arrive in.
 The owner's words are quoted where the item came from them.
 
+## Small fixes (to do)
+
+- **The first recorded sample dips when a step starts at 0 ms.** With
+  stepStart = 0 and a nonzero step, sample 0 of the recorded trace takes the
+  step's command current, but the cell is still at its settled state, so bridge
+  balance subtracts the whole I·Rs at once: −454 mV at 25.6 nA with Rs 15 MΩ.
+  Sample 0 should use the command that was in force before the step. Vm and
+  every measurement are unaffected. Found 2026-10-16 while testing the siren.
+
 ## Next
 
 - **Plug-and-play channels, and an interface to edit them.** "Future versions

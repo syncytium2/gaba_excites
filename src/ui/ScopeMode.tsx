@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CellParams } from "../core/cell.ts";
 import { MODELS } from "../core/models.ts";
+import { describe as describeTrip, ExtremeWatch, type Limits } from "../core/extremes.ts";
 import type { StreamInputs } from "../core/stream.ts";
 import type { ScopeRequest, ScopeResponse } from "../scope-worker.ts";
 import { fmtDiv, Scope, STORED_DASH, type ScopeHandle, type Snapshot } from "./Scope.tsx";
@@ -32,7 +33,12 @@ interface Readout {
  * screen, the scope's own controls, and the live readouts, which are measured
  * on true Vm like every other number on the page.
  */
-export function ScopeMode({ cell, inputs, seed }: { cell: CellParams; inputs: StreamInputs; seed: number }) {
+/** the siren stays on while anything tripped within this much simulated time */
+const SIREN_WINDOW = 1000;
+
+export function ScopeMode({ cell, inputs, seed, limits, onExtremes }: {
+  cell: CellParams; inputs: StreamInputs; seed: number; limits: Limits; onExtremes: (reasons: string[]) => void;
+}) {
   const scope = useRef<ScopeHandle>(null);
   const worker = useRef<Worker | null>(null);
   const [msPerDiv, setMsPerDiv] = useState(200);
@@ -49,6 +55,14 @@ export function ScopeMode({ cell, inputs, seed }: { cell: CellParams; inputs: St
   const vmBins = useRef<{ t: number; sum: number; n: number }[]>([]);
   const live = useRef({ vNow: NaN, achieved: 1, speed: 1, t: 0 });
 
+  // the siren's watcher runs continuously, on every chunk, with the current limits
+  const watch = useRef(new ExtremeWatch(limits));
+  const limitsRef = useRef(limits);
+  limitsRef.current = limits;
+  useEffect(() => watch.current.setLimits(limits), [limits]);
+  const onExtremesRef = useRef(onExtremes);
+  onExtremesRef.current = onExtremes;
+
   const latest = useRef({ cell, inputs, speed });
   latest.current = { cell, inputs, speed };
 
@@ -62,6 +76,7 @@ export function ScopeMode({ cell, inputs, seed }: { cell: CellParams; inputs: St
         return;
       }
       scope.current?.push(r);
+      watch.current.feed(r.vm, r.iCmd, r.t0, r.sampleMs);
       const tEnd = r.t0 + r.vm.length * r.sampleMs;
       let sum = 0;
       for (let i = 0; i < r.vm.length; i++) sum += r.vm[i];
@@ -83,6 +98,8 @@ export function ScopeMode({ cell, inputs, seed }: { cell: CellParams; inputs: St
       const bins = vmBins.current;
       const n = bins.reduce((s, b) => s + b.n, 0);
       const span = Math.min(RATE_WINDOW, live.current.t);
+      const recent = watch.current.since(live.current.t - SIREN_WINDOW);
+      onExtremesRef.current(recent.map((x) => describeTrip(x, limitsRef.current)));
       setReadout({
         rate: span > 200 ? (spikes.current.length / span) * 1000 : NaN,
         meanVm: n ? bins.reduce((s, b) => s + b.sum, 0) / n : NaN,
@@ -90,6 +107,8 @@ export function ScopeMode({ cell, inputs, seed }: { cell: CellParams; inputs: St
       });
     }, 250);
     return () => {
+      onExtremesRef.current([]);
+      watch.current = new ExtremeWatch(limitsRef.current);
       document.removeEventListener("visibilitychange", vis);
       clearInterval(pub);
       w.terminate();

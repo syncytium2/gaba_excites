@@ -80,6 +80,12 @@ export interface ModelDef {
   /** where the gabaKinetics come from, for the UI */
   gabaKineticsSource?: string;
   ranges: { gLeak: Range; cm: Range; ihold: Range; memNoise: Range };
+  /**
+   * rheobase of the published cell, pA: an 800 ms step from the published
+   * holding current, bisected to 1 pA. The siren's current bound is 10× this
+   * (extremes.ts). Pinned by gaba.test.ts, fs.test.ts and extremes.test.ts.
+   */
+  rheobase: number;
   /** rheobase bisection tolerance, pA — 1 pA is fine resolution for one cell and coarse for the other */
   rheobaseTol: number;
   /** settle before each run, ms — long enough for the slowest gate */
@@ -120,6 +126,7 @@ export const RS: ModelDef = {
     ihold: { min: -500, max: 1000, step: 5 },
     memNoise: { min: 0, max: 300, step: 5 },
   },
+  rheobase: 561,
   rheobaseTol: 1,
   settleMs: 3000,
   validation: "Spike counts match NEURON running the original ModelDB mechanisms exactly; spike times within 0.2 ms.",
@@ -160,6 +167,7 @@ export const FS: ModelDef = {
     ihold: { min: -500, max: 2000, step: 5 },
     memNoise: { min: 0, max: 300, step: 5 },
   },
+  rheobase: 385,
   rheobaseTol: 1,
   // no slow gates: INa and IKd settle within milliseconds
   settleMs: 1000,
@@ -296,6 +304,7 @@ export const GNRH: ModelDef = {
     ihold: { min: -50, max: 50, step: 1 },
     memNoise: { min: 0, max: 30, step: 0.5 },
   },
+  rheobase: 17,
   rheobaseTol: 0.1,
   settleMs: 8000,
   validation:
