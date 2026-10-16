@@ -236,7 +236,7 @@ export function niceRange(lo: number, hi: number, divs: number): [number, number
   const raw = span / divs;
   const p = 10 ** Math.floor(Math.log10(raw));
   const step = [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= raw)!;
-  // centre the levels in use, then snap the bottom to a whole division
+  // center the levels in use, then snap the bottom to a whole division
   const mid = (lo + hi) / 2;
   let bottom = Math.floor((mid - (divs * step) / 2) / step) * step;
   if (bottom + divs * step < hi) bottom += step;

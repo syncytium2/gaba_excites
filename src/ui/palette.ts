@@ -23,7 +23,7 @@ export const ORANGE = "#eb6834";
 export const AQUA = "#1baf7a";
 
 // Steps 250 → 650. A family of 13–40 sweeps cannot give every sweep a color you
-// could name apart from its neighbour, and it does not try: the ramp encodes
+// could name apart from its neighbor, and it does not try: the ramp encodes
 // step amplitude as a continuous gradient (sequential), and a sweep's IDENTITY
 // comes from hover, click-to-select and the table. Every other step (250, 350,
 // 450, 550, 650) passes the validator's ordinal check; adjacent steps do not,
