@@ -4,10 +4,10 @@ Written by `npm run deploy`. Do not edit by hand.
 
 | | |
 |---|---|
-| **Deployed at** | 2026-10-15 14:12 UTC |
-| **Commit** | `0805abe` — AP peak and half-width as two tiles, so the units do not read as mV·ms |
-| **Bundle** | `assets/index-FgjguxTx.js` |
-| **Worker version** | `98f9e808-e9ef-4756-8fab-7997d8368ef2` |
+| **Deployed at** | 2026-10-16 19:33 UTC |
+| **Commit** | `7765b3f` — American spellings in two code comments: neighbor, center |
+| **Bundle** | `assets/index-Bz-MNpaL.js` |
+| **Worker version** | `a0b56b3b-e1c7-48d7-b6e5-4d28f11bb74b` |
 | **Live** | https://gaba-excites.tonydefazio.workers.dev https://gaba.tonydefazio.com |
 
 Verified at deploy time: tests pass, CSP in the shipped HTML, Born stamp baked
