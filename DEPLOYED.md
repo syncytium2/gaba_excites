@@ -4,10 +4,10 @@ Written by `npm run deploy`. Do not edit by hand.
 
 | | |
 |---|---|
-| **Deployed at** | 2026-10-16 19:33 UTC |
-| **Commit** | `7765b3f` — American spellings in two code comments: neighbor, center |
-| **Bundle** | `assets/index-Bz-MNpaL.js` |
-| **Worker version** | `a0b56b3b-e1c7-48d7-b6e5-4d28f11bb74b` |
+| **Deployed at** | 2026-10-17 17:35 UTC |
+| **Commit** | `0f2ad35` — Old school: green phosphor, knurled knobs, analog meters, and an audio m |
+| **Bundle** | `assets/index-BB7ZpCno.js` |
+| **Worker version** | `a536318a-70c0-4a25-9299-3bf73b7543aa` |
 | **Live** | https://gaba-excites.tonydefazio.workers.dev https://gaba.tonydefazio.com |
 
 Verified at deploy time: tests pass, CSP in the shipped HTML, Born stamp baked
