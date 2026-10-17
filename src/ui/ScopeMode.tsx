@@ -7,6 +7,10 @@ import type { ScopeRequest, ScopeResponse } from "../scope-worker.ts";
 import { fmtDiv, Scope, STORED_DASH, type ScopeHandle, type Snapshot } from "./Scope.tsx";
 import { Tip } from "./Tip.tsx";
 import { MUTED, ORANGE } from "./palette.ts";
+import { Monitor } from "./audio.ts";
+import { Meter } from "./Meter.tsx";
+import { NumField } from "./NumField.tsx";
+import type { MonitorMode } from "../core/monitor.ts";
 
 const TIMEBASES = [10, 20, 50, 100, 200, 500, 1000, 2000];
 const SPEEDS = [0.1, 1, 10];
@@ -17,6 +21,13 @@ const RATE_WINDOW = 2000;
 const VM_WINDOW = 1000;
 
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
+
+/** full scale of the old-school rate meter, per cell: each cell's own working range */
+const RATE_SCALE: Record<string, number[]> = {
+  rs: [0, 20, 40, 60, 80, 100],
+  fs: [0, 100, 200, 300, 400, 500],
+  gnrh: [0, 10, 20, 30, 40, 50],
+};
 
 interface Readout {
   rate: number;
@@ -36,8 +47,8 @@ interface Readout {
 /** the siren stays on while anything tripped within this much simulated time */
 const SIREN_WINDOW = 1000;
 
-export function ScopeMode({ cell, inputs, seed, limits, onExtremes }: {
-  cell: CellParams; inputs: StreamInputs; seed: number; limits: Limits; onExtremes: (reasons: string[]) => void;
+export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false }: {
+  cell: CellParams; inputs: StreamInputs; seed: number; limits: Limits; onExtremes: (reasons: string[]) => void; oldSchool?: boolean;
 }) {
   const scope = useRef<ScopeHandle>(null);
   const worker = useRef<Worker | null>(null);
@@ -49,6 +60,10 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes }: {
   const [error, setError] = useState<string | null>(null);
   const [readout, setReadout] = useState<Readout | null>(null);
   const [stored, setStored] = useState<Snapshot[]>([]);
+  // the audio monitor: off until asked for (browsers allow sound only after a click)
+  const [sound, setSound] = useState<MonitorMode>("off");
+  const [volume, setVolume] = useState(50);
+  const monitor = useRef<Monitor | null>(null);
 
   // rolling measurements, kept off React state and published a few times a second
   const spikes = useRef<number[]>([]);
@@ -77,6 +92,11 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes }: {
       }
       scope.current?.push(r);
       watch.current.feed(r.vm, r.iCmd, r.t0, r.sampleMs);
+      // sound is real time only: at 0.1× or 10× it would be meaningless
+      if (monitor.current) {
+        if (latest.current.speed === 1 && !pausedRef.current) monitor.current.push(r);
+        else monitor.current.silence();
+      }
       const tEnd = r.t0 + r.vm.length * r.sampleMs;
       let sum = 0;
       for (let i = 0; i < r.vm.length; i++) sum += r.vm[i];
@@ -111,6 +131,7 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes }: {
       watch.current = new ExtremeWatch(limitsRef.current);
       document.removeEventListener("visibilitychange", vis);
       clearInterval(pub);
+      monitor.current?.silence();
       w.terminate();
       worker.current = null;
     };
@@ -133,6 +154,22 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes }: {
     worker.current?.postMessage({ kind: "update", cell, inputs } satisfies ScopeRequest);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cellKey, inputsKey]);
+
+  // the monitor outlives a new draw, but not the mode
+  useEffect(() => () => {
+    monitor.current?.close();
+    monitor.current = null;
+  }, []);
+  useEffect(() => monitor.current?.setNoise(inputs.noise), [inputsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => monitor.current?.setVolume(volume / 100), [volume]);
+  const changeSound = (m: MonitorMode) => {
+    if (m !== "off" && !monitor.current) {
+      monitor.current = new Monitor(); // made in a click, so the browser allows it
+      monitor.current.setVolume(volume / 100);
+    }
+    monitor.current?.setMode(m, inputs.noise);
+    setSound(m);
+  };
 
   const changeSpeed = (s: number) => {
     setSpeed(s);
@@ -165,8 +202,22 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes }: {
   const triggered = inputs.pulse.enabled;
 
   const lagging = readout && readout.achieved < 0.85 * readout.speed;
+  const speedText = readout ? `${fmt(readout.achieved, readout.achieved < 1 ? 2 : 1)}× real time` : "—";
+  const rateScale = RATE_SCALE[cell.model];
   return (
     <>
+      {oldSchool ? (
+        <div className="meters">
+          <Meter label="FIRING RATE" unit="Hz" value={readout?.rate ?? NaN} min={rateScale[0]} max={rateScale[rateScale.length - 1]} major={rateScale}
+            sub="spikes in the last 2 s" />
+          <Meter label="MEMBRANE POTENTIAL" unit="mV" value={readout?.meanVm ?? NaN} min={-100} max={0} major={[-100, -80, -60, -40, -20, 0]}
+            sub="mean true Vm, last 1 s" />
+          <div className="meter-side">
+            <div className="m-speed">{speedText}</div>
+            <div className="small">{lagging ? <span className="warn">this device's limit; asked for {readout!.speed}×</span> : `asked for ${speed}×`}</div>
+          </div>
+        </div>
+      ) : (
       <div className="stats">
         <Tile label="Firing rate" value={readout ? fmt(readout.rate, 1) : "—"} unit="Hz" sub="spikes in the last 2 s" />
         <Tile label="Mean Vm" value={readout ? fmt(readout.meanVm, 1) : "—"} unit="mV" sub="over the last 1 s" />
@@ -174,6 +225,7 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes }: {
         <Tile label="Speed" value={readout ? `${fmt(readout.achieved, readout.achieved < 1 ? 2 : 1)}×` : "—"} unit="real time"
           sub={lagging ? <span className="warn">this device's limit; asked for {readout!.speed}×</span> : `asked for ${speed}×`} />
       </div>
+      )}
 
       <figure className="card">
         <figcaption>
@@ -206,8 +258,28 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes }: {
             </span>
           </span>
         </figcaption>
+        <div className="scope-row">
+          <span className="seg small" role="radiogroup" aria-label="Audio monitor">
+            {([["off", "Sound off"], ["pop", "Hiss & pop"], ["tone", "Tone (Vm)"]] as const).map(([m, name]) => (
+              <button key={m} id={`sound-${m}`} role="radio" aria-checked={sound === m} className={sound === m ? "on" : ""} onClick={() => changeSound(m)}>
+                {name}
+              </button>
+            ))}
+          </span>
+          {sound !== "off" && (
+            <>
+              <span className="volume"><NumField label="Volume" unit="%" value={volume} min={0} max={100} step={5} slider onChange={setVolume} /></span>
+              {(speed !== 1 || paused) && <span className="small">Sound plays at 1× while running.</span>}
+              <Tip text={sound === "pop"
+                ? <>An audio monitor, as on a rig: the recording noise is the <b>hiss</b>, each spike a <b>pop</b>. Raise the noise RMS for more hiss.</>
+                : <>A tone whose <b>pitch follows true Vm</b>: four octaves from −90 to +40 mV. Drift glides, PSPs blip, spikes chirp.</>}>
+                what you hear
+              </Tip>
+            </>
+          )}
+        </div>
         {error && <p className="warn">Simulation failed: {error}</p>}
-        <Scope ref={scope} msPerDiv={msPerDiv} vRange={[-100, 60]} iRange={iRange} showVm={showVm} triggered={triggered} stored={stored} />
+        <Scope ref={scope} msPerDiv={msPerDiv} vRange={[-100, 60]} iRange={iRange} showVm={showVm} triggered={triggered} stored={stored} phosphor={oldSchool} />
         <p className="legendline">
           The cell runs continuously, and every control on the left acts on it as you move it. Nothing resets it: change the
           leak or the holding current and watch it relax, slow currents included. Only switching models starts it again.

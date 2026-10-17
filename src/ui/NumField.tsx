@@ -1,4 +1,5 @@
-import { useEffect, useId, useState } from "react";
+import { useContext, useEffect, useId, useState } from "react";
+import { Knob, KnobContext, useNarrow } from "./Knob.tsx";
 
 interface Props {
   label: React.ReactNode;
@@ -31,6 +32,9 @@ export function NumField({ label, value, unit, onChange, min, max, step = 1, sli
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editing, digits]);
 
+  // Old school: a ranged field becomes a knob (phones keep the field)
+  const knobs = useContext(KnobContext);
+  const narrow = useNarrow();
   const clamp = (v: number) => Math.min(max ?? Infinity, Math.max(min ?? -Infinity, v));
   const commit = () => {
     setEditing(false);
@@ -38,6 +42,9 @@ export function NumField({ label, value, unit, onChange, min, max, step = 1, sli
     if (Number.isFinite(v)) onChange(clamp(v));
     else setText(fmt(value));
   };
+
+  if (knobs && !narrow && min !== undefined && max !== undefined)
+    return <Knob label={label} value={value} unit={unit} onChange={onChange} min={min} max={max} step={step} digits={digits} hint={hint} disabled={disabled} />;
 
   return (
     <div className={"numfield" + (disabled ? " disabled" : "")}>

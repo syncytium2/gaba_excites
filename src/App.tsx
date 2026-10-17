@@ -16,6 +16,7 @@ import { Panel, usePanels } from "./ui/Panel.tsx";
 import { Tip } from "./ui/Tip.tsx";
 import { ScopeMode } from "./ui/ScopeMode.tsx";
 import { Siren } from "./ui/Siren.tsx";
+import { KnobContext } from "./ui/Knob.tsx";
 import { describe as describeTrip, ExtremeWatch, limitsFor, type ExtremeKind } from "./core/extremes.ts";
 import { AQUA, AXIS, BLUE, GRID, INK2, MUTED, ORANGE, rampColor } from "./ui/palette.ts";
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
@@ -58,6 +59,24 @@ export function App() {
   // Step protocol, or the oscilloscope: the cell running continuously, every control live
   const [mode, setMode] = useState<"steps" | "scope">("steps");
   const [pulse, setPulse] = useState<Pulse>(SCOPE_PULSE.rs);
+  // Old school: the oscilloscope as a green-phosphor instrument, with knobs and meters.
+  // Remembered in this browser as a convenience only; every access is guarded.
+  const [oldSchoolPref, setOldSchoolPref] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("gaba_excites.oldschool") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const setOldSchool = (on: boolean) => {
+    setOldSchoolPref(on);
+    try {
+      localStorage.setItem("gaba_excites.oldschool", on ? "1" : "0");
+    } catch {
+      /* storage unavailable: still works for this visit */
+    }
+  };
+  const oldSchool = mode === "scope" && oldSchoolPref;
 
   const protocol = useMemo(() => toProtocol(form), [form]);
   // The left panels collapse. The ones you reach for first start open.
@@ -217,7 +236,7 @@ export function App() {
 
   // ------------------------------------------------------------ render
   return (
-    <div className="page">
+    <div className={"page" + (oldSchool ? " old-school" : "")}>
       <header>
         <h1>
           gaba_excites
@@ -232,6 +251,7 @@ export function App() {
         </p>
       </header>
 
+      <KnobContext.Provider value={oldSchool}>
       <div className="layout">
         <aside className="tools">
           <Panel title="Model" open={panels.open.model} onToggle={() => panels.toggle("model")}
@@ -331,6 +351,7 @@ export function App() {
             </label>
             <div className="row3">
               <NumField label="Amplitude" unit="pA" value={pulse.amp} step={cell.model === "gnrh" ? 2 : 50} disabled={!pulse.enabled}
+                min={-3 * limits.iBound} max={3 * limits.iBound}
                 onChange={(amp) => setPulse({ ...pulse, amp })} />
               <NumField label="Width" unit="ms" value={pulse.width} min={0.1} max={10000} step={10} disabled={!pulse.enabled}
                 onChange={(width) => setPulse({ ...pulse, width })} />
@@ -370,6 +391,12 @@ export function App() {
                 Oscilloscope
               </button>
             </div>
+            {mode === "scope" && (
+              <label className="check oldschool-toggle">
+                <input id="old-school" type="checkbox" checked={oldSchoolPref} onChange={(e) => setOldSchool(e.target.checked)} />
+                Old school
+              </label>
+            )}
             <Siren reasons={mode === "scope" ? scopeReasons : stepReasons} />
             <div className="status" aria-live="polite">
               {error ? <span className="warn">Simulation failed: {error}</span> : mode === "scope" ? "" : busy ? "simulating…" : result ? `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms` : ""}
@@ -377,7 +404,7 @@ export function App() {
           </div>
 
           {mode === "scope" ? (
-            <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} limits={limits} onExtremes={setScopeReasons} />
+            <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} limits={limits} onExtremes={setScopeReasons} oldSchool={oldSchool} />
           ) : (
             <>
 
@@ -436,6 +463,8 @@ export function App() {
           )}
         </main>
       </div>
+
+      </KnobContext.Provider>
 
       <footer>
         <p>

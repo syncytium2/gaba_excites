@@ -194,3 +194,91 @@ button.fixed-w { min-width: 4.6em; text-align: center; }
 .siren .tip-body ul { margin: 6px 0; padding-left: 18px; }
 @keyframes siren-blink { 0% { opacity: 1; } 100% { opacity: 0.2; } }
 @media (prefers-reduced-motion: reduce) { .siren-light { animation: none; } }
+
+/* ---- the audio monitor row ---- */
+.scope-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 0 0 6px; font-size: 12.5px; color: var(--ink-2); }
+.scope-row .seg { margin: 0; }
+.scope-row .volume { min-width: 210px; }
+.scope-row .volume .numfield { margin: 0; }
+
+/* ---- Old school: the scope page as an instrument panel ----
+   Opt-in, scope mode only; the step protocol keeps its light, slide-ready look.
+   Dark enamel panels, cream engraving, amber indicators, a green-phosphor tube. */
+.page.old-school {
+  --page: #1a1b19;
+  --surface: #2a2b27;
+  --ink: #ece6d6;
+  --ink-2: #cfc8b6;
+  --muted: #9d9786;
+  --grid: #3b3c37;
+  --axis: #5a5b53;
+  --ring: rgba(0, 0, 0, 0.55);
+  --accent: #e3a33b;
+  --warn: #ff9d7a;
+  color-scheme: dark;
+}
+.page.old-school { background: var(--page); color: var(--ink); }
+body:has(.page.old-school) { background: #1a1b19; }
+.page.old-school a, .page.old-school button.linkish { color: #f0bd62; }
+.page.old-school .panel, .page.old-school .card, .page.old-school .tile {
+  background: linear-gradient(#2e2f2b, #272824);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.page.old-school button, .page.old-school .select select, .page.old-school .nf-box input, .page.old-school .listfield textarea {
+  background: #141513; color: var(--ink); border-color: #4d4e47;
+}
+.page.old-school .seg { border-color: #4d4e47; }
+.page.old-school .seg button + button { border-left-color: #4d4e47; }
+.page.old-school .seg button.on { background: var(--accent); color: #141513; }
+.page.old-school .ph-toggle, .page.old-school .panel h2 { color: #e3c98f; letter-spacing: 0.09em; }
+.page.old-school .tip-body { background: #0d0e0c; color: var(--ink); border: 1px solid #4d4e47; }
+.page.old-school .tip-mark { background: #6c6758; color: #141513; }
+.page.old-school .card figcaption { color: #e3c98f; }
+.page.old-school .scope-screen canvas { border-radius: 10px; box-shadow: inset 0 0 0 1px #000, 0 0 0 6px #0c0d0b, 0 0 0 7px #3a3b35; }
+.page.old-school .scope-screen { padding: 7px; }
+.page.old-school .siren { color: #ff6b5c; }
+.oldschool-toggle { font-size: 12.5px; color: var(--ink-2); }
+
+/* ---- knobs (Old school) ---- */
+.page.old-school .ph-toggle { background: none; border: none; }
+.page.old-school .pb { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: flex-start; }
+/* a collapsed panel stays collapsed: author display: flex would otherwise beat the hidden attribute */
+.page.old-school .pb[hidden] { display: none; }
+.page.old-school .pb > * { flex-basis: 100%; }
+.page.old-school .pb > .knobfield { flex-basis: auto; }
+.page.old-school .pb > .row2, .page.old-school .pb > .row3 { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.knobfield { display: inline-flex; flex-direction: column; align-items: center; width: 86px; margin: 4px 0; }
+.kf-label { font-size: 11.5px; color: var(--ink-2); text-align: center; line-height: 1.2; min-height: 2.4em; display: flex; align-items: flex-end; justify-content: center; gap: 3px; letter-spacing: 0.02em; }
+.knob { width: 62px; height: 62px; cursor: grab; touch-action: none; border-radius: 50%; }
+.knob:active { cursor: grabbing; }
+.knob:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.knob svg { width: 100%; height: 100%; display: block; }
+.k-tick { stroke: #bdb6a3; stroke-width: 1; }
+.k-skirt { fill: #8f8f88; stroke: #3d3d39; stroke-width: 0.6; }
+.k-knurl { stroke: #191a17; stroke-width: 1.1; }
+.k-grip { fill: #2b2c29; stroke: #0d0d0c; stroke-width: 0.6; }
+.k-cap { fill: #383935; stroke: #1b1c19; stroke-width: 0.5; }
+.k-pointer { stroke: #f2ead6; stroke-width: 2.2; stroke-linecap: round; }
+.knobfield.disabled { opacity: 0.45; }
+.knobfield.disabled .knob { cursor: default; }
+.kf-value { font: 12px ui-monospace, Menlo, Consolas, monospace; padding: 1px 6px; margin-top: 2px; background: #0e0f0d !important; color: #ffb547 !important; border: 1px solid #3e3f39 !important; border-radius: 3px; text-shadow: 0 0 4px rgba(255, 170, 60, 0.6); min-width: 64px; }
+.kf-value .nf-unit { color: #c28a3c; font-size: 10px; }
+.kf-edit { width: 70px; margin-top: 2px; font: 12px ui-monospace, Menlo, Consolas, monospace; text-align: right; background: #0e0f0d; color: #ffb547; border: 1px solid var(--accent); border-radius: 3px; padding: 1px 4px; }
+
+/* ---- analog meters (Old school) ---- */
+.meters { display: flex; gap: 14px; flex-wrap: wrap; align-items: stretch; }
+.meter { margin: 0; flex: 1 1 220px; max-width: 320px; background: linear-gradient(#2e2f2b, #252622); border-radius: 8px; padding: 8px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.5); }
+.meter svg { width: 100%; display: block; }
+.m-face { fill: #efe7cf; stroke: #0e0f0d; stroke-width: 2; }
+.m-arc { fill: none; stroke: #2a2620; stroke-width: 1; }
+.m-major { stroke: #2a2620; stroke-width: 1.4; }
+.m-minor { stroke: #2a2620; stroke-width: 0.7; }
+.m-num { font: 8px ui-monospace, Menlo, Consolas, monospace; fill: #2a2620; text-anchor: middle; }
+.m-unit { font: 10px Georgia, "Times New Roman", serif; fill: #2a2620; text-anchor: middle; font-style: italic; }
+.m-label { font: 7px system-ui, sans-serif; letter-spacing: 0.12em; fill: #6b6352; text-anchor: middle; }
+.m-needle { stroke: #1a1714; stroke-width: 1.4; stroke-linecap: round; }
+.m-pivot { fill: #1a1714; }
+.m-sub { font-size: 11.5px; color: var(--ink-2); text-align: center; margin-top: 4px; }
+.m-sub b { display: block; font-size: 11px; letter-spacing: 0.12em; color: #e3c98f; font-weight: 650; }
+.meter-side { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 8px 12px; }
+.m-speed { font: 600 15px ui-monospace, Menlo, Consolas, monospace; color: #ffb547; text-shadow: 0 0 5px rgba(255, 170, 60, 0.55); }

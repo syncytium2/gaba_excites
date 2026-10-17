@@ -440,3 +440,33 @@ checks that each criterion trips where it should. Testing it also turned up
 an older artefact, a first-sample dip in the recorded trace when a step
 starts at 0 ms, which went to the roadmap's small fixes rather than into this
 change.
+
+## 2026-10-17 — old school, and sound
+
+The owner asked to consider an "old school mode: green phosphor oscilloscope,
+knurled knobs for everything, dials for measured pars instead of digital
+readouts", and sound, "hiss and pop, later we had tones". After the
+proposal, they chose knobs everywhere and a tone that follows Vm.
+
+The audio monitor came first because it teaches as well as decorates.
+`src/core/monitor.ts` holds the arithmetic, tested: pitch from Vm, binning
+that never averages a spike away, and hiss level from the recording noise.
+`src/ui/audio.ts` plays it with built-in Web Audio nodes only. That keeps it
+clear of the security policy, because an AudioWorklet would need a script
+loaded at run time. Pops are built from spike times rather than the raw
+trace, because the worker delivers samples in uneven bursts and a raw trace
+would crackle. Sound plays at 1× only.
+
+Old school is a switch, for the oscilloscope only, so the step protocol
+keeps the light look the site was designed around for slides. It brings:
+
+- a phosphor renderer with persistence, faded in steps big enough that 8-bit
+  rounding leaves no ghost, and held while paused;
+- a Knob that takes over from every ranged NumField through a React context,
+  with drag, wheel, keyboard and typed entry, slider semantics, and plain
+  fields at phone width;
+- meters with damped-spring needles.
+
+The screenshot check drives all of it: knob count, a keyboard turn, a typed
+value, both sound modes, collapsed panels staying collapsed (a bug it caught
+— author `display: flex` beat the `hidden` attribute), and phone width.

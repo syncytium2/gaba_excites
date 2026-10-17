@@ -48,6 +48,7 @@
   <li><a href="#measurements">Measurements</a></li>
   <li><a href="#scope">The oscilloscope</a></li>
   <li><a href="#siren">The siren</a></li>
+  <li><a href="#oldschool">Old school, and the audio monitor</a></li>
   <li><a href="#validation">Checked against NEURON</a></li>
   <li><a href="#gaba">When GABA excites</a></li>
   <li><a href="#limits">What it leaves out</a></li>
@@ -343,6 +344,31 @@ criterion comes from the cell itself, and they are the owner's choice of three:<
 last second of simulated time. The test suite runs every preset of every cell and requires the siren to stay silent,
 and requires each criterion to trip where it should. For example, the pyramidal cell at 12.8 nA fires at 400 Hz with
 overshooting spikes, past the current limit; both Pospischil cells are in depolarization block by 25.6 nA.</p>
+
+<h2 id="oldschool">6d. Old school, and the audio monitor</h2>
+<p><strong>The audio monitor</strong> is in the oscilloscope, off until asked for. Listening to the cell was how a rig was
+run, and it still teaches: you hear the rate climb as you turn up the holding current, GABA change sides as E_GABA
+crosses its crossover, and depolarization block as the pops stopping while the hiss goes on.</p>
+<ul>
+  <li><strong>Hiss and pop</strong>, the classic monitor: the recording noise as hiss (its loudness follows the noise RMS)
+  and each spike as a pop. It is built from events, not by sending the trace to the speaker, so the worker's uneven
+  delivery cannot make it crackle; sound is scheduled about 0.1 s ahead on the audio clock.</li>
+  <li><strong>Tone (Vm)</strong>, the later kind: a tone whose pitch follows true Vm, four octaves from −90 mV (200 Hz) to
+  +40 mV (3.2 kHz), equal steps in voltage being equal musical intervals. Drift glides, PSPs blip, and spikes chirp;
+  a bin that holds a spike takes its peak, so no spike is averaged away.</li>
+  <li>Sound plays at 1× while running, and is synthesized entirely in the browser, with nothing fetched.</li>
+</ul>
+<p><strong>Old school</strong> is a switch beside the mode buttons, for the oscilloscope only; the step protocol keeps its
+light, slide-ready figures. It turns the page into an instrument panel:</p>
+<ul>
+  <li>a <strong>green-phosphor tube</strong> with persistence (about half a second while the beam runs, held while paused,
+  like a storage scope), a beam spot at the write head, and a dimmer trace where the beam moves fast, as on a real tube;</li>
+  <li><strong>knurled knobs</strong> for every ranged control: drag (Shift for fine), scroll, or use the arrow, Page and
+  Home/End keys; double-click or press Enter to type an exact value. Phones keep the ordinary fields;</li>
+  <li><strong>analog meters</strong> for firing rate and mean Vm, whose needles have the ballistics of a moving-coil meter
+  (damped, with slight overshoot). They read the same quantities as the digital readouts, smoothed further by the needle:
+  an analog rate meter is a low-pass filter.</li>
+</ul>
 
 <h2 id="validation">7. Checked against NEURON</h2>
 <p>The port was run against NEURON 9.0.2 executing the <em>original</em> ModelDB mechanisms (repository commit

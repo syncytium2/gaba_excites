@@ -82,6 +82,36 @@ await page.keyboard.press("Enter");
 await page.selectOption("#model-select", "gnrh");
 await page.waitForTimeout(3000);
 await page.screenshot({ path: `${out}/scope-gnrh.png`, fullPage: true });
+
+// Old school: knobs, meters, the phosphor tube, and the audio monitor
+await page.check("#old-school");
+await page.waitForTimeout(300);
+const knobCount = await page.locator(".knob").count();
+if (knobCount < 15) problems.push(`old school: only ${knobCount} knobs`);
+if (await page.locator(".meter").count() !== 2) problems.push("old school: the two meters are missing");
+if (await page.locator(".panel.closed .pb:visible").count()) problems.push("old school: a collapsed panel shows its contents");
+const glKnob = page.getByRole("slider", { name: "gL (leak)" });
+await glKnob.focus();
+await page.keyboard.press("End");
+if ((await glKnob.getAttribute("aria-valuenow")) !== "5") problems.push("old school: End did not take the GnRH leak knob to its maximum (5 nS)");
+await glKnob.dblclick();
+await page.keyboard.press("ControlOrMeta+a");
+await page.keyboard.type("1");
+await page.keyboard.press("Enter");
+if ((await glKnob.getAttribute("aria-valuenow")) !== "1") problems.push("old school: typing an exact value into a knob failed");
+await page.click("#sound-pop");
+await page.waitForTimeout(1200);
+await page.click("#sound-tone");
+await page.waitForTimeout(1200);
+await page.screenshot({ path: `${out}/oldschool.png`, fullPage: true });
+await page.click("#sound-off");
+await page.setViewportSize({ width: 390, height: 900 });
+await page.waitForTimeout(500);
+if (await page.locator(".knob").count()) problems.push("old school: knobs shown at phone width");
+if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) problems.push("old school: horizontal overflow at 390 px");
+await page.screenshot({ path: `${out}/oldschool-phone.png`, fullPage: true });
+await page.setViewportSize({ width: 1440, height: 1000 });
+await page.uncheck("#old-school");
 await page.click("#mode-steps");
 await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
 
