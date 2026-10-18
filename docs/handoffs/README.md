@@ -13,10 +13,15 @@ Name: `YYYY-MM-DD-<slug>.md`, the date it was written.
 - [`2026-10-18-channel-editor.md`](2026-10-18-channel-editor.md): a single-cell Na⁺ channel editor and an excitability
   scorecard, for threshold and hyperexcitability.
 - [`2026-10-18-adrs.md`](2026-10-18-adrs.md): architecture decision records, extracted from `docs/process.md`. Read
-  it with [`2026-10-18-adrs-addendum.md`](2026-10-18-adrs-addendum.md), which adds four things Tony approved, among them
-  an index test, `src/adr.test.ts`.
+  it with [`2026-10-18-adr-enforcement.md`](2026-10-18-adr-enforcement.md): ADR hygiene enforced by tests, a CI step and
+  a Claude Code hook, never by instructions in AGENTS.md.
 
 All three can run **in parallel**, each in its own worktree. Each handoff says which files it owns, so the sessions do
 not collide. The explainer and the channel editor both touch `src/App.tsx`, so read both of their "Coordination"
-sections before starting either. The ADR session touches only `docs/`, plus its index test. It
-merges the ADR framework to main first, so the other sessions can number ADRs of their own.
+sections before starting either. The ADR session touches `docs/`, plus its script, test, hook and
+one CI step. It merges that framework to main first, so the other sessions can number ADRs of their own.
+
+## Superseded
+
+- [`2026-10-18-adrs-addendum.md`](2026-10-18-adrs-addendum.md): superseded the same day by
+  `2026-10-18-adr-enforcement.md`, because it enforced rules by writing them into AGENTS.md.
