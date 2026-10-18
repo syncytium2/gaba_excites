@@ -213,6 +213,41 @@ export function runAll(models: ModelId[] = ["rs", "fs", "gnrh"]): Result[] {
   return out;
 }
 
+/**
+ * Threshold against drive: the edited and control cells, each held at `vHold`, stepped at
+ * multiples of its own rheobase. A K⁺ current that inactivates (GnRH's I_A) can only shape
+ * threshold while it is still available, so its effect shows at short latency and from
+ * hyperpolarized holding potentials, not at rheobase, where the spike comes late.
+ */
+export function driveSweep(model: ModelId, edits: Edits, vHold: number, mults = [1, 1.1, 1.25, 1.5, 2, 3, 5]) {
+  return withEdits(model, edits, () => {
+    const cell = buildCell(publishedParams(model));
+    const { ihold, stable } = holdAt(cell, vHold);
+    const inputs: Inputs = { ihold, electrode: E, glu: DEFAULT_GLU, gaba: DEFAULT_GABA };
+    const st = settle(cell, E, ihold, MODELS[model].settleMs, DEFAULT_SIM.dt);
+    const fires = (a: number) => sweepStats(runSweep(cell, inputs, proto(a), a, st, DEFAULT_SIM, 0), proto(a)).nInStep > 0;
+    let lo = 0;
+    let hi = model === "gnrh" ? 300 : 4000;
+    const tol = model === "gnrh" ? 0.1 : 1;
+    while (hi - lo > tol) {
+      const mid = (lo + hi) / 2;
+      if (fires(mid)) hi = mid;
+      else lo = mid;
+    }
+    const rows = mults.map((mult) => {
+      const amp = mult * hi;
+      const sw = runSweep(cell, inputs, proto(amp), amp, st, DEFAULT_SIM, 0);
+      const dt = sw.sampleMs;
+      const sp = detectSpikes(sw.vm, dt).find((x) => x.t >= STEP.stepStart);
+      if (!sp) return { mult, amp, latency: NaN, thresholds: [] as CriterionThreshold[] };
+      const onset = Math.round(STEP.stepStart / dt);
+      const ic = Math.ceil(sp.t / dt);
+      return { mult, amp, latency: sp.t - STEP.stepStart, thresholds: CRITERIA.map((c) => thresholdAt(sw.vm, dt, ic, c, onset)) };
+    });
+    return { ihold, stable, rheobase: hi, rows };
+  });
+}
+
 // ---------------------------------------------------------------- the table
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

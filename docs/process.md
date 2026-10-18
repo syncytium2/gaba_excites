@@ -555,3 +555,30 @@ the darkroom (`gaba_excites/2026-10-18_threshold-criteria/`).
   rheobase 7% and lengthens rheobase latency (102 to 448 ms).
 - **No criterion's walk-back reached the step onset** in any run. With a short latency, though (fast-spiking, Na⁺
   +6 mV, 22 ms), the 1 V/s point sits on the tail of the charging ramp. Low criteria need a check against that.
+
+## 2026-10-18 — when K⁺ does move threshold: GnRH I_A, at short latency
+
+The owner asked how to deal with the result that K⁺ edits do not move threshold, since he remembered a strong story in
+at least one cell type. It is his own: DeFazio & Moenter 2002 (Mol Endocrinol 16:2255) report that estradiol lowers
+GnRH threshold and latency through I_A. The PDF is still not in hand (not in `lit/` nor his library). Kress et al. 2010
+also allow it: "subthreshold potassium currents, especially those on the axon, might participate in setting voltage
+threshold (Bekkers and Delaney, 2001; Shah et al., 2008)". Neither of those papers is on file.
+
+The earlier runs measured threshold at rheobase only, and in GnRH the rheobase spike comes about 790 ms into the step,
+after I_A has inactivated. `driveSweep` in `tools/experiments/threshold_criteria.ts` steps each cell at 1× to 5× its
+own rheobase, from −70 and −80 mV (figures: darkroom `gaba_excites/2026-10-18_k-threshold-drive/`):
+
+- **GnRH, I_A blocked:** at rheobase, threshold is unchanged (under 0.5 mV). As drive rises and latency shortens, the
+  control cell's threshold at 20 V/s rises (−32.4 to −30.4 mV from −70 mV; −32.6 to −29.7 mV from −80 mV), while the
+  I_A-blocked cell's stays flat or falls. At 5× rheobase the difference is −3.5 mV from −70 mV and −5.5 mV from −80 mV,
+  where more I_A is available. Same current (3× control rheobase, from −80 mV): −29.9 against −34.1 mV, and latency
+  110 against 8 ms.
+- **Pyramidal and fast-spiking, Kd or M blocked:** no change in threshold at any drive or holding potential. The Traub
+  Kd activates too far above threshold, and M too slowly, to act before the upstroke. The models have no low-threshold,
+  fast-activating K⁺ current (D-type, Kv1), the kind the Bekkers & Delaney citation concerns. That is a limit of the
+  stock channels, not evidence that cortical K⁺ channels never set threshold.
+- **So K⁺ can move threshold, when the current is active at the moment of takeoff.** Whether a K⁺ effect appears depends
+  on the protocol (drive, holding potential, step length), not only on the channel. Rheobase protocols hide an
+  inactivating K⁺ current's effect on threshold, and show its effect on latency instead.
+- **The 1 and 2 V/s criteria fail at short latency:** the charging ramp after step onset exceeds them, and the walk-back
+  runs to the onset. So does 10 V/s at the shortest cortical latencies. The figures leave those points out.
