@@ -470,3 +470,26 @@ keeps the light look the site was designed around for slides. It brings:
 The screenshot check drives all of it: knob count, a keyboard turn, a typed
 value, both sound modes, collapsed panels staying collapsed (a bug it caught
 — author `display: flex` beat the `hidden` attribute), and phone width.
+
+## 2026-10-17 to 2026-10-18 — threshold, the literature, and two handoffs
+
+Three goals were set for these days: an explainer; a tool for understanding threshold (A-type K⁺ channels against Na⁺
+channel properties, across models); and multiple definitions of excitability and hyperexcitability. Then a fourth:
+studying ion channel mutations and epilepsy, with a search of Lori Isom's research. All four were advised on, and none
+was built.
+
+- **Threshold belongs to Na⁺.** Scratch experiments blocked K⁺ in all three models from a matched starting potential, at
+  the owner's insistence that it is the only fair comparison. Voltage threshold moved by 0.4 mV at most, while rheobase,
+  latency and spike width changed. The published match, which the owner remembered and then found, is Kress et al.
+  (2010) Hippocampus 20:558. The details are in `docs/handoffs/2026-10-18-channel-editor.md`.
+- **Literature handling** moved onto the estate's own tool, murderboard's `fetch_paper.py`, after the owner pointed out
+  that hand searches had bypassed it. Unreachable papers go on his want-list. The Adams 2018 full text showed an
+  apparent contradiction with DeFazio & Moenter 2002 on estradiol, I_A, threshold and latency.
+- **Isom's program** turned out to center on β subunits and cell-type-specific changes in current density, persistent
+  current and resurgent current, more than on the shifted voltage dependence the owner had pictured. The tool is framed
+  as "how changing Na⁺ channel properties changes excitability". The owner judged a two-neuron circuit too big a step,
+  so the editor stays single-cell.
+- **Outside feedback** asked for a simple explainer that anyone can use. It must be built from the owner's own text,
+  which he is writing.
+
+Both pieces of work went to handoffs, to run in parallel: `docs/handoffs/`.

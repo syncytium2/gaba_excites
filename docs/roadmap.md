@@ -11,6 +11,14 @@ The owner's words are quoted where the item came from them.
   balance subtracts the whole I·Rs at once: −454 mV at 25.6 nA with Rs 15 MΩ.
   Sample 0 should use the command that was in force before the step. Vm and
   every measurement are unaffected. Found 2026-10-16 while testing the siren.
+- **The stored sample rate is 33 kHz, not the 40 kHz the comment in
+  `src/core/simulate.ts` claims.** With dt = 0.01 ms, sampleMs 0.025 rounds to
+  every 3 steps (0.03 ms). Each sweep reports its true sampleMs, and every
+  measurement uses it, so only the comment and any doc that repeats it are
+  wrong. Found 2026-10-17.
+- **The spike detector skips spikes that never repolarize.** A spike that
+  stays above −40 mV (K⁺ block, large Na⁺ edits) is never counted. The
+  planned excitability scorecard needs them counted. Found 2026-10-17.
 
 ## Next
 
