@@ -16,12 +16,12 @@ Name: `YYYY-MM-DD-<slug>.md`, the date it was written.
   it with [`2026-10-18-adr-enforcement.md`](2026-10-18-adr-enforcement.md): ADR hygiene enforced by tests, a CI step and
   a Claude Code hook, never by instructions in AGENTS.md.
 
-## Superseded
-
-- [`2026-10-18-adrs-addendum.md`](2026-10-18-adrs-addendum.md): superseded the same day by
-  `2026-10-18-adr-enforcement.md`, because it enforced rules by writing them into AGENTS.md.
-
 All three can run **in parallel**, each in its own worktree. Each handoff says which files it owns, so the sessions do
 not collide. The explainer and the channel editor both touch `src/App.tsx`, so read both of their "Coordination"
 sections before starting either. The ADR session touches `docs/`, plus its script, test, hook and
 one CI step. It merges that framework to main first, so the other sessions can number ADRs of their own.
+
+## Superseded
+
+- [`2026-10-18-adrs-addendum.md`](2026-10-18-adrs-addendum.md): superseded the same day by
+  `2026-10-18-adr-enforcement.md`, because it enforced rules by writing them into AGENTS.md.
