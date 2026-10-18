@@ -516,7 +516,17 @@ What it found (800 ms steps, started from the control cell's rest; table: `node 
   for these edits. They will not agree for a persistent fraction or for K⁺ edits.
 - **Threshold behaves the same in both cell types; firing does not.** At twice control rheobase, a +6 mV activation shift
   dropped the pyramidal cell from 41 to 6 Hz and the fast-spiking cell from 96 to 65 Hz.
-- **Not yet trusted:** at inactivation shifts of −15 and −20 mV, the measured threshold came out near −20 mV, the
-  spike-detection level. That looks like the threshold walk-back failing on small spikes, not a result. With a −15 mV
-  shift, the pyramidal cell's rheobase rose yet its rate at fixed current also rose (41 to 58 Hz). That disagreement
-  between measures may be real, and is worth checking before anyone teaches it.
+- **Plotted, because a table was not enough to trust.** The owner asked for figures; they changed two readings:
+  - **The "threshold near −20 mV" readings are not spikes.** With inactivation shifted −20 mV (both cells) or −15 mV
+    (the fast-spiking cell), the event at "rheobase" is a hump that peaks at about −20 mV, the detector's spike level,
+    and its dV/dt barely reaches 20 V/s. So the rheobase there is the current that pushes a hump over −20 mV. The
+    detector needs an amplitude or overshoot criterion before the scorecard can use it. The pyramidal cell's event at
+    −15 mV is a small AP (peak about −5 mV).
+  - **A +6 mV activation shift sends the pyramidal cell into depolarization block** at twice control rheobase: five
+    spikes, then Vm sits at −43 mV for the rest of the step. Its "6 Hz" is five spikes over the step, and the experiment's
+    `repolarizes` flag says yes because only the first spike is checked. The siren would miss it too: its block criterion
+    is Vm above −30 mV for 50 ms (`src/core/extremes.ts`). The fast-spiking cell, with the same shift and drive, keeps
+    firing at 65 Hz.
+  - **With inactivation shifted −15 mV, spikes are smaller and the rate is higher** in both cells at twice control
+    rheobase (pyramidal 41 to 58 Hz; fast-spiking 96 to 99 Hz), although rheobase rose. Smaller spikes plausibly recruit
+    less K⁺ current; not yet checked.
