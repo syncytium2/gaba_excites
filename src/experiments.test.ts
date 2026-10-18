@@ -8,6 +8,7 @@ import { MODELS } from "./core/models.ts";
 import { buildCell } from "./core/cell.ts";
 import { fig7fCounts, longStep, meanHInf, withSlowIk } from "../tools/experiments/slow_ik_inactivation.ts";
 import { sweepShifts } from "../tools/experiments/na_shift.ts";
+import { conditions, measure, startV } from "../tools/experiments/threshold_criteria.ts";
 
 describe("experiment: DeFazio & Moenter 2021 slow I_K inactivation on the Adams 2018 GnRH model", () => {
   it("at the measured V½ (−30 mV) the paper's Fig. 7F counts are unchanged", () => {
@@ -54,5 +55,31 @@ describe("experiment: shifting the Traub Na⁺ channel's voltage dependence in t
     sweepShifts("fs", [[6, 6]]);
     const [c] = sweepShifts("fs", [[0, 0]]);
     expect(c.rheobase).toBeCloseTo(385, -0.5);
+  });
+});
+
+describe("experiment: threshold at 1, 2, 10 and 20 V/s, across cells and Na⁺ and K⁺ edits", () => {
+  const thr = (r: ReturnType<typeof measure>) => r.thresholds.map((t) => t.v);
+  const pick = { rs: "kd-0", fs: "kd-0", gnrh: "a-0" } as const;
+
+  it("the criterion moves threshold 7 mV in the cortical cells and about 13.5 mV in GnRH", () => {
+    const span = { rs: 7.2, fs: 7.0, gnrh: 13.5 } as const;
+    for (const m of ["rs", "fs", "gnrh"] as const) {
+      const t = thr(measure(m, conditions(m)[0]));
+      expect(t[3] - t[0]).toBeCloseTo(span[m], 0);
+      expect(t).toEqual([...t].sort((a, b) => a - b));
+    }
+  });
+
+  it("a −6 mV Na⁺ shift moves threshold about 6 mV at every criterion; blocking a K⁺ current moves it under 0.5 mV", () => {
+    for (const m of ["rs", "fs", "gnrh"] as const) {
+      const v0 = startV(m);
+      const cs = conditions(m);
+      const c = thr(measure(m, cs[0], v0));
+      const na = thr(measure(m, cs.find((x) => x.id === "na-6")!, v0));
+      const k = thr(measure(m, cs.find((x) => x.id === pick[m])!, v0));
+      na.forEach((v, i) => expect(Math.abs(v - c[i] + 6)).toBeLessThan(1));
+      k.forEach((v, i) => expect(Math.abs(v - c[i])).toBeLessThan(0.5));
+    }
   });
 });

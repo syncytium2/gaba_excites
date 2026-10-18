@@ -530,3 +530,28 @@ What it found (800 ms steps, started from the control cell's rest; table: `node 
   - **With inactivation shifted −15 mV, spikes are smaller and the rate is higher** in both cells at twice control
     rheobase (pyramidal 41 to 58 Hz; fast-spiking 96 to 99 Hz), although rheobase rose. Smaller spikes plausibly recruit
     less K⁺ current; not yet checked.
+
+## 2026-10-18 — threshold depends on its definition; the Na⁺/K⁺ split does not
+
+The owner asked for the Na⁺ figures again, now with K⁺ edits and the GnRH cell, to see the threshold criterion (1, 2,
+10, 20 V/s) against cell type against Na⁺ changes against K⁺ changes. He recalled 1 V/s for GnRH and 2 V/s for other
+neurons. The repo uses 20 V/s everywhere, and neither value is recorded in the repo or in any paper on file. Kress et
+al. 2010 used 10 V/s. `tools/experiments/threshold_criteria.ts`, tested in `src/experiments.test.ts`. Figures are in
+the darkroom (`gaba_excites/2026-10-18_threshold-criteria/`).
+
+- **The criterion moves threshold more than most edits do.** From 1 to 20 V/s, control threshold rises 7.2 mV
+  (pyramidal), 7.0 mV (fast-spiking) and 13.5 mV (GnRH), whose takeoff is slower. That is more than a 6 mV Na⁺ shift
+  does. A threshold number means little without its criterion.
+- **The conclusion is robust to the criterion.** Na⁺ edits move threshold at every criterion. K⁺ edits (Kd halved or
+  blocked, M blocked, I_A, I_K or I_KCa blocked) move it by under 0.5 mV at every criterion, in every cell. This is
+  the "threshold belongs to Na⁺" result of 2026-10-17, now with four definitions.
+- **The size of a Na⁺ effect depends on the criterion, and in opposite ways by cell.** With Na⁺ shifted +6 mV, the
+  fast-spiking cell's threshold rises 8.9 mV at 1 V/s but 6.9 mV at 20 V/s. GnRH rises 4.3 mV at 1 V/s and 6.0 mV at
+  20 V/s. gNa × 0.5 raises GnRH threshold 2.6 mV at 1 V/s and 4.0 mV at 20 V/s. The low criteria sit on the slow
+  approach, which the cell's other currents shape; the high criteria sit on the Na⁺-driven upstroke.
+- **K⁺ edits show up elsewhere.** GnRH with I_A blocked: latency at 23.7 pA falls from 219 to 50 ms, and rheobase
+  *rises* from 15.8 to 18.4 pA (held at −70.1 mV, which takes −16.9 pA; it rests at −62.7 mV unheld). Two measures of
+  excitability disagree. This supersedes the handoff's 23.1 pA, which came from a 3 s settle. M block lowers pyramidal
+  rheobase 7% and lengthens rheobase latency (102 to 448 ms).
+- **No criterion's walk-back reached the step onset** in any run. With a short latency, though (fast-spiking, Na⁺
+  +6 mV, 22 ms), the 1 V/s point sits on the tail of the charging ramp. Low criteria need a check against that.
