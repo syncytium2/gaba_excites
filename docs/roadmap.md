@@ -16,9 +16,11 @@ The owner's words are quoted where the item came from them.
   every 3 steps (0.03 ms). Each sweep reports its true sampleMs, and every
   measurement uses it, so only the comment and any doc that repeats it are
   wrong. Found 2026-10-17.
-- **The spike detector skips spikes that never repolarize.** A spike that
-  stays above −40 mV (K⁺ block, large Na⁺ edits) is never counted. The
-  planned excitability scorecard needs them counted. Found 2026-10-17.
+- **The spike detector mishandles spikes that never repolarize.** The first
+  such spike is counted, but its half-width runs to the end of the sweep, and
+  nothing more is counted until Vm falls below −40 mV (K⁺ block, large Na⁺
+  edits). The planned excitability scorecard needs these flagged and counted.
+  Found 2026-10-17; the description corrected 2026-10-18.
 
 ## Next
 

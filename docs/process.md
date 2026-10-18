@@ -493,3 +493,30 @@ was built.
   which he is writing.
 
 Both pieces of work went to handoffs, to run in parallel: `docs/handoffs/`.
+
+## 2026-10-18 — Na⁺ voltage shifts, as a kept experiment
+
+The channel-editor handoff offered a throwaway script that shifts the Traub Na⁺ channel's voltage dependence. The
+owner asked why it should be thrown away: this question is central to the project. So it went into
+`tools/experiments/na_shift.ts` and is covered by `src/experiments.test.ts`, like the slow I_K experiment. Nothing in
+the shipped model changed. The shifted channel is built from two stock `makeNa` instances, one for each gate. Rush–Larsen
+gates are independent, so the split is exact.
+
+What it found (800 ms steps, started from the control cell's rest; table: `node tools/experiments/na_shift.ts`):
+
+- **Activation sets threshold, about 1 mV per mV, in both cells.** A −6 mV activation shift took threshold from −39.4 to
+  −45.3 mV and rheobase from 561 to 366 pA in the pyramidal cell; in the fast-spiking cell, from −39.2 to −45.3 mV and 385
+  to 252 pA. A +6 mV shift raised rheobase 54% in the pyramidal cell and 84% in the fast-spiking cell.
+- **Inactivation shifts of ±6 mV do almost nothing** (rheobase within 3 pA, threshold within 0.5 mV). The Traub h∞ is
+  still 0.95 at −45 mV and 0.60 at −35 mV, so its midpoint is near −34 mV, far depolarized from a typical neuronal Na⁺
+  channel. Inactivation starts to matter only at shifts of −12 mV or more. A depolarized-inactivation variant therefore
+  cannot be shown with this channel's inactivation shift; it needs the persistent-fraction control. That is a limit of the
+  stock channel, and the editor must say so.
+- **No shift moved rest or Rin.** The Na⁺ channel is closed at −70 mV (m∞³ ≈ 10⁻¹⁰), so the free and held views agree
+  for these edits. They will not agree for a persistent fraction or for K⁺ edits.
+- **Threshold behaves the same in both cell types; firing does not.** At twice control rheobase, a +6 mV activation shift
+  dropped the pyramidal cell from 41 to 6 Hz and the fast-spiking cell from 96 to 65 Hz.
+- **Not yet trusted:** at inactivation shifts of −15 and −20 mV, the measured threshold came out near −20 mV, the
+  spike-detection level. That looks like the threshold walk-back failing on small spikes, not a result. With a −15 mV
+  shift, the pyramidal cell's rheobase rose yet its rate at fixed current also rose (41 to 58 Hz). That disagreement
+  between measures may be real, and is worth checking before anyone teaches it.
