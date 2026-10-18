@@ -15,5 +15,6 @@ Name: `YYYY-MM-DD-<slug>.md`, the date it was written.
 - [`2026-10-18-adrs.md`](2026-10-18-adrs.md): architecture decision records, extracted from `docs/process.md`. It touches
   no code.
 
-The first two are meant to run **in parallel**, and the ADR handoff can run alongside them,, in separate worktrees. Each handoff says which files it owns, so that the two
-sessions do not collide. Read both handoffs' "Coordination" sections before starting either one.
+All three can run **in parallel**, each in its own worktree. Each handoff says which files it owns, so the sessions do
+not collide. The explainer and the channel editor both touch `src/App.tsx`, so read both of their "Coordination"
+sections before starting either. The ADR session touches only `docs/`.
