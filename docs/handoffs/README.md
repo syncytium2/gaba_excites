@@ -13,10 +13,10 @@ Name: `YYYY-MM-DD-<slug>.md`, the date it was written.
 - [`2026-10-18-channel-editor.md`](2026-10-18-channel-editor.md): a single-cell Na⁺ channel editor and an excitability
   scorecard, for threshold and hyperexcitability.
 - [`2026-10-18-adrs.md`](2026-10-18-adrs.md): architecture decision records, extracted from `docs/process.md`. Read
-  it with [`2026-10-18-adrs-addendum.md`](2026-10-18-adrs-addendum.md), which adds four things Tony approved, among them
-  an index test, `src/adr.test.ts`.
+  it with [`2026-10-18-adrs-addendum.md`](2026-10-18-adrs-addendum.md), which adds what Tony approved, including ADR
+  hygiene enforced by `scripts/next_adr.sh` (vendored from interface2) and `src/adr.test.ts`.
 
 All three can run **in parallel**, each in its own worktree. Each handoff says which files it owns, so the sessions do
 not collide. The explainer and the channel editor both touch `src/App.tsx`, so read both of their "Coordination"
-sections before starting either. The ADR session touches only `docs/`, plus its index test. It
+sections before starting either. The ADR session touches only `docs/`, plus its script and test. It
 merges the ADR framework to main first, so the other sessions can number ADRs of their own.
