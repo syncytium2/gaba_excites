@@ -12,6 +12,8 @@ Name: `YYYY-MM-DD-<slug>.md`, the date it was written.
   built from Tony's text. **It waits for his text.**
 - [`2026-10-18-channel-editor.md`](2026-10-18-channel-editor.md): a single-cell Na⁺ channel editor and an excitability
   scorecard, for threshold and hyperexcitability.
+- [`2026-10-18-adrs.md`](2026-10-18-adrs.md): architecture decision records, extracted from `docs/process.md`. It touches
+  no code.
 
-The two are meant to run **in parallel**, in separate worktrees. Each handoff says which files it owns, so that the two
+The first two are meant to run **in parallel**, and the ADR handoff can run alongside them,, in separate worktrees. Each handoff says which files it owns, so that the two
 sessions do not collide. Read both handoffs' "Coordination" sections before starting either one.
