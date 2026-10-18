@@ -493,3 +493,25 @@ was built.
   which he is writing.
 
 Both pieces of work went to handoffs, to run in parallel: `docs/handoffs/`.
+
+## 2026-10-18 — the explainer's shape, and armory's delivery hook
+
+- **The entry point is a blinking "Start here" button**, not a page first. It opens a pop-up of about 100 words for
+  someone with no background (the owner's example: a non-scientist CTO), with links out. The owner's draft text becomes
+  a "Read more" page behind it. Nothing is built yet: the owner asked for a plan first.
+- **Link out before building.** A web search found good material on action potentials (PhET, Bezanilla's *The Nerve
+  Impulse*, Bean 2007, Neuroscience Online) and almost none, for a newcomer, on excitability as such or on GABA
+  exciting. Those gaps are where the site's own pages earn their place.
+- **A glossary page, separate from both.** Short definitions on hover; a click (or, on a phone, a link inside the
+  tapped tooltip) opens `/glossary#term` for the longer definition and outside links. One source file feeds the
+  hovers and the page, rendered and checked the way `lit/sources.json` and `/lit` are.
+- **Plain words over jargon in the owner's text:** "negative" and "less negative" rather than "hyperpolarized" and
+  "depolarized", with one line saying the app uses those words. The owner's view: students do not get the terms.
+- **An EEG sentence was corrected and then softened.** Buzsáki, Anastassiou & Koch 2012 name synaptic current the
+  major contributor to EEG, but not the only one. The draft now says only that many neurons active together produce
+  the signal. The full review is on the owner's want-list for a closer check.
+- **Armory's `send-goes-nowhere.py` hook and `tools/show.py` are vendored here**, pinned to armory 1646eb7. Files sent
+  through the chat never reach the owner in the VS Code extension and report success anyway; the hook answers every
+  send with the path-based remedy. The owner's point: a rule kept in memory or a doc has to be remembered, and a hook
+  fires by itself. Known gap: run from a worktree, `show.py` names the darkroom folder after the worktree, not the
+  repository, so pass `--project gaba_excites` there until armory fixes it.
