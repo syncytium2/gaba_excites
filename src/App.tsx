@@ -20,6 +20,8 @@ import { KnobContext } from "./ui/Knob.tsx";
 import { describe as describeTrip, ExtremeWatch, limitsFor, type ExtremeKind } from "./core/extremes.ts";
 import { AQUA, AXIS, BLUE, GRID, INK2, MUTED, ORANGE, rampColor } from "./ui/palette.ts";
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
+import { Notebook } from "./ui/Notebook.tsx";
+import type { RunSettings } from "./core/report.ts";
 
 interface Result {
   sweeps: Sweep[];
@@ -27,6 +29,8 @@ interface Result {
   cell: CellInfo;
   ms: number;
   protocol: ReturnType<typeof toProtocol>;
+  /** the settings that produced this result, for the notebook */
+  settings: RunSettings;
 }
 
 interface Pin {
@@ -86,13 +90,14 @@ export function App() {
   const worker = useRef<Worker | null>(null);
   const lastId = useRef(0);
   const pendingProto = useRef(protocol);
+  const pendingSettings = useRef<RunSettings | null>(null);
   useEffect(() => {
     const w = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
     w.onmessage = (ev: MessageEvent<Response>) => {
       const r = ev.data;
       if (r.id !== lastId.current && r.kind === "run") return; // stale
       if (r.kind === "run") {
-        setResult({ sweeps: r.sweeps, summary: r.summary, cell: r.cell, ms: r.ms, protocol: pendingProto.current });
+        setResult({ sweeps: r.sweeps, summary: r.summary, cell: r.cell, ms: r.ms, protocol: pendingProto.current, settings: pendingSettings.current! });
         setBusy(false);
         setError(null);
       } else if (r.kind === "rheobase") {
@@ -113,6 +118,7 @@ export function App() {
     const h = setTimeout(() => {
       const id = ++lastId.current;
       pendingProto.current = protocol;
+      pendingSettings.current = { cell, ihold, electrode, protocol, glu, gaba, noise, seed, preset: PRESETS.find((p) => p.id === presetId)?.label };
       const msg: Request = { kind: "run", id, cell, inputs: { ihold, electrode, glu, gaba, noise }, protocol, seed };
       worker.current?.postMessage(msg);
     }, 90);
@@ -457,6 +463,8 @@ export function App() {
                 </div>
 
                 <SweepTable summary={summary!} sel={sel} onSelect={setSelected} />
+
+                <Notebook run={busy ? null : { sweeps, summary: summary!, settings: result.settings, cell: result.cell }} model={MODELS[result.settings.cell.model]} app={{ version: VERSION, updated: UPDATED }} />
               </>
             )}
             </>

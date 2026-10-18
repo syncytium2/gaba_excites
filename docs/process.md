@@ -604,3 +604,29 @@ own rheobase, from −70 and −80 mV (figures: darkroom `gaba_excites/2026-10-1
   send with the path-based remedy. The owner's point: a rule kept in memory or a doc has to be remembered, and a hook
   fires by itself. Known gap: run from a worktree, `show.py` names the darkroom folder after the worktree, not the
   repository, so pass `--project gaba_excites` there until armory fixes it.
+
+## 2026-10-18 — report generation, version 1: the lab notebook
+
+The owner saw the experiment tooling as a way for students to document their own experiments, and asked for report
+generation in the app. Version 1 lives in `src/core/report.ts` (records, saving, the report), `src/core/svgplot.ts` (the
+report's figures) and `src/core/threshold.ts` (threshold at a chosen criterion), all pure TypeScript and tested in
+`report.test.ts`. The UI is `src/ui/Notebook.tsx`, one card after the sweep table. App.tsx gained only a settings
+snapshot on each result and the mount line.
+
+- **A run records everything needed to repeat it.** That is the full settings, including the seed. The model is
+  deterministic for a given seed, so a later "verify" can re-run a report and check its numbers. That is not built yet.
+- **Threshold is tabulated at 1, 2, 10 and 20 V/s.** The owner's sources: he defined 1 V/s for GnRH neurons in
+  DeFazio & Moenter 2002 (the K⁺ current paper), and his KNDy work used 2 V/s. The KNDy citation is still to be added to
+  `lit/sources.json`. Kress et al. 2010 used 10 V/s. The app's own readout stays at 20 V/s, so no pinned number moves.
+  A criterion that the charging after step onset already exceeds is marked "ramp", not reported.
+- **The report is one HTML file, with no script, no fetch and no external resource.** Its figures are inline SVG and
+  its styles inline. A test enforces that the only `<script>` is an inert JSON block, which holds the runs so the
+  report loads back into the app. It prints to PDF from any browser. Students hand it in themselves; nothing leaves
+  the browser.
+- **A notebook holds at most 8 runs:** one categorical color each, never cycled (the dataviz rule). Runs are kept in
+  `localStorage` as a convenience, guarded, with a warning if the browser refuses. The durable copy is the downloaded
+  notebook or report.
+- **The screenshot check drives it:** it records two runs, checks the "changed from run 1" line, downloads the report,
+  confirms the report makes no requests, and loads it back.
+- **Not in version 1:** deep links to reopen a run (they wait on the explainer session's URL state), channel edits
+  (they wait on the channel editor), the verify button, and scope-mode recording.

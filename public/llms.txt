@@ -30,6 +30,10 @@ with what was taken from it, is at https://gaba.tonydefazio.com/lit.
   AP peak and half-width, input resistance (measured, never set: from the
   steady-state I–V at rest and from the hyperpolarizing steps), and the F–I curve (mean and initial
   rate); F–I curves can be pinned for comparison and exported as CSV.
+- A lab notebook records runs with titles and notes and downloads a
+  self-contained HTML report (tables, figures, an auto-written methods
+  paragraph, threshold at 1, 2, 10 and 20 V/s). The report embeds its runs as
+  JSON and loads back in. Everything stays in the browser.
 - An oscilloscope mode runs the same cell continuously, with every control
   live and a repeating current pulse on top of the holding current. It uses
   the same integrator; unchanged, it reproduces a step-protocol sweep sample

@@ -146,6 +146,35 @@ Colquhoun D, Sigworth FJ (1995). Fitting and statistical analysis of single-chan
 
 **Used in:** [`src/core/noise.ts`](../src/core/noise.ts)
 
+### `defazio2002k`
+
+DeFazio RA, Moenter SM (2002). Estradiol feedback alters potassium currents and firing properties of gonadotropin-releasing hormone neurons. Mol Endocrinol 16(10):2255–2265.
+
+[doi:10.1210/me.2002-0155](https://doi.org/10.1210/me.2002-0155) · *not in hand (on the owner's want-list)* · models: GnRH
+
+**Took:** The 1 V/s dV/dt criterion for GnRH action-potential threshold, which the owner defined in this paper. The notebook's report tabulates threshold at 1 V/s alongside 2, 10 and 20 V/s. Also the report that estradiol lowers GnRH threshold and latency through I_A, which motivated the K⁺-block experiments. Attributed on the owner's word (2026-10-18); the PDF has not been read here, so there is no quotation yet.
+
+**Used in:** [`src/core/threshold.ts`](../src/core/threshold.ts), [`src/core/report.ts`](../src/core/report.ts), [`tools/experiments/threshold_criteria.ts`](../tools/experiments/threshold_criteria.ts)
+
+### `kress2010`
+
+Kress GJ, Dowling MJ, Eisenman LN, Mennerick S (2010). Axonal sodium channel distribution shapes the depolarized action potential threshold of dentate granule neurons. Hippocampus 20(4):558–571.
+
+[doi:10.1002/hipo.20667](https://doi.org/10.1002/hipo.20667) · *open (NIH author manuscript)* · models: pyramidal, fs, GnRH
+
+**Took:** The 10 V/s threshold criterion, tabulated in the notebook's report. Also the comparison the threshold experiments reproduce: intracellular TEA, with a bias current restoring a negative rest, left voltage threshold unchanged and changed rheobase.
+
+> The membrane potential at which phase plot slope reached 10 mV ms-1 (Kress et al., 2008; Naundorf et al., 2006; Shu et al., 2007) was denoted voltage threshold.
+> — Methods
+
+> Blocking DG neuron KVs with intracellular TEA depolarized the resting membrane potential and altered rheobase but did not alter action potential voltage threshold.
+> — Discussion
+
+> It is possible that subthreshold potassium currents, especially those on the axon, might participate in setting voltage threshold (Bekkers and Delaney, 2001; Shah et al., 2008).
+> — Results
+
+**Used in:** [`src/core/threshold.ts`](../src/core/threshold.ts), [`src/core/report.ts`](../src/core/report.ts), [`tools/experiments/threshold_criteria.ts`](../tools/experiments/threshold_criteria.ts), [`tools/experiments/na_shift.ts`](../tools/experiments/na_shift.ts)
+
 ## Background
 
 What the models were built on, credited but not read for any number here.

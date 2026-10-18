@@ -282,3 +282,22 @@ body:has(.page.old-school) { background: #1a1b19; }
 .m-sub b { display: block; font-size: 11px; letter-spacing: 0.12em; color: #e3c98f; font-weight: 650; }
 .meter-side { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 8px 12px; }
 .m-speed { font: 600 15px ui-monospace, Menlo, Consolas, monospace; color: #ffb547; text-shadow: 0 0 5px rgba(255, 170, 60, 0.55); }
+
+/* lab notebook (src/ui/Notebook.tsx) */
+.notebook { padding: 12px 14px; }
+.nb-head h2 { font-size: 15px; margin: 0 0 2px; }
+.nb-record, .nb-report { display: grid; grid-template-columns: 1fr 1.6fr auto; gap: 8px; align-items: start; margin: 10px 0; }
+.nb-report { grid-template-columns: 1.4fr 1fr auto auto auto auto; align-items: center; }
+.notebook input[type="text"], .notebook textarea { font: inherit; padding: 4px 6px; border: 1px solid var(--axis); border-radius: 6px; background: #fff; color: var(--ink); width: 100%; box-sizing: border-box; }
+.notebook textarea { resize: vertical; font-size: 13px; }
+.nb-runs { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 8px; }
+.nb-runs li { display: grid; grid-template-columns: 12px 1fr auto; gap: 8px; align-items: start; border-top: 1px solid var(--grid); padding-top: 8px; }
+.nb-runs .sw { width: 10px; height: 10px; border-radius: 2px; margin-top: 8px; }
+.nb-run { display: grid; gap: 3px; min-width: 0; }
+.nb-run input[type="text"] { font-weight: 600; }
+.nb-actions { display: flex; gap: 8px; }
+@media (max-width: 760px) {
+  .nb-record, .nb-report { grid-template-columns: 1fr; }
+  .nb-runs li { grid-template-columns: 12px 1fr; }
+  .nb-actions { grid-column: 2; }
+}

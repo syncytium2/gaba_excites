@@ -96,6 +96,14 @@ demand, command current, synaptic conductances, the F–I curve (mean and
 initial rate, with up to four pinned curves for comparison, and CSV export), a
 phase plot, and a per-sweep table.
 
+A lab notebook under the results records runs (full settings, measurements, and
+threshold at 1, 2, 10 and 20 V/s, since the criterion changes the number), with a
+title and notes for each. It shows what changed from the first run, and downloads
+a report: one self-contained HTML file with comparison tables, overlaid F–I
+curves and phase plots, each run's traces, and a methods paragraph written from
+the settings. The report carries its runs and loads back into the app. Runs stay
+in the browser; nothing is sent anywhere.
+
 ## The result it is named for
 
 On the published pyramidal cell, with clock-like GABA (200 Hz, 3 nS, 0.5/10 ms),
