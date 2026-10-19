@@ -55,3 +55,12 @@ The owner's words are quoted where the item came from them.
   parameter.
 - NMDA (voltage-dependent Mg²⁺ block) and GABA-B.
 - A card for this site on tonydefazio.com.
+- **Amplifier mode** (owner, 2026-10-19; parked so the tour gets finished first). A third face for the
+  oscilloscope, after Old school: the front panel of a real amplifier of the era, with its dials and switches
+  (an Axoclamp, an Axopatch, or a HEKA EPC-7; pick one). Its knobs would drive the electrode settings the
+  model already has (bridge balance, capacitance neutralization, series resistance), and perhaps the
+  amplifier's own filtering and bandwidth. Before building, look up the old papers on how action potentials
+  are distorted when recorded through different amplifiers, in particular through voltage-clamp (patch)
+  amplifiers used in current clamp. A candidate to find and check first: Magistretti et al. on whether action
+  potentials recorded with patch-clamp amplifiers are genuine (Trends Neurosci, mid-1990s), recalled, not
+  verified. Each number taken goes into `lit/sources.json`. Not started; do not start it before the tour ships.
