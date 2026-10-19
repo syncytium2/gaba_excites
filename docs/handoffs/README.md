@@ -21,6 +21,10 @@ not collide. The explainer and the channel editor both touch `src/App.tsx`, so r
 sections before starting either. The ADR session touches `docs/`, plus its script, test, hook and
 one CI step. It merges that framework to main first, so the other sessions can number ADRs of their own.
 
+- [`2026-10-19-gaba-opening.md`](2026-10-19-gaba-opening.md): the owner's upgrades to the explainer: open on the GnRH
+  cell with GABA PSPs at about −60 mV, then build up in steps with "try this" buttons, and make it formally
+  accessible. Read it with the explainer handoff.
+
 ## Superseded
 
 - [`2026-10-18-adrs-addendum.md`](2026-10-18-adrs-addendum.md): superseded the same day by

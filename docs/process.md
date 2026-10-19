@@ -631,3 +631,20 @@ snapshot on each result and the mount line.
   confirms the report makes no requests, and loads it back.
 - **Not in version 1:** deep links to reopen a run (they wait on the explainer session's URL state), channel edits
   (they wait on the channel editor), the verify button, and scope-mode recording.
+
+## 2026-10-19 — the GnRH cell's resting potential for the GABA opening
+
+The owner wants the explainer to open with his 2002 puzzle (DeFazio et al., Mol Endocrinol 16:2872): GABA, "the
+inhibitory transmitter", excites GnRH neurons. The opening runs in scope mode on the GnRH cell with GABA PSPs, where
+some PSPs fire a spike. The question was where the cell should sit.
+
+- **The model's −70 mV is Adams et al.'s choice.** −6 pA holds it there, and they started their current steps from
+  −69 ± 2 mV, "near the value determined" by their on-cell measurements. With no current the model rests at −67.5 mV.
+- **The papers disagree by method.** On-cell estimates are near −70 to −75 mV; gramicidin perforated patch gives
+  −51 to −59 mV; Moenter's 2010 review puts the interspike potential between −65 and −50 mV. The quotes and their
+  checks are in `lit/notes/gnrh-rest.md`.
+- **At −70 mV the measured GABA event (1 nS, 10 ms decay, E_GABA −36.5 mV) never fires the cell,** even at 50
+  events/s. At about −60 mV (+8 pA) it fires on a fraction of events, and sliding E_GABA to −60 mV removes the PSPs.
+- **The owner chose about −60 mV** ("much more fun and possibly more realistic"), set by a holding current shown as
+  such. −60 mV is the edge of firing in this model (+8.5 pA fires on its own), so the opening's settings need care, and
+  their numbers must be pinned by a test before any text quotes them. Not yet built.

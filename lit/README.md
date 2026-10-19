@@ -58,6 +58,9 @@ Adams C, Stroberg W, DeFazio RA, Schnell S, Moenter SM (2018). Gonadotropin-rele
 > cells were injected with current from 0 to 30 pA (500 ms, 2 pA steps)
 > — Materials and Methods, Whole-cell patch-clamp
 
+> Current injections were initiated from a mean membrane potential of −69 ± 2 mV, near the value determined in the above experiments.
+> — Results; the earlier experiments are on-cell measurements of Vm
+
 **Used in:** [`src/core/models.ts`](../src/core/models.ts), [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/gnrh.test.ts`](../src/core/gnrh.test.ts)
 
 **Notes:** [`notes/adams2018.md`](notes/adams2018.md)
@@ -76,6 +79,9 @@ DeFazio RA, Heger S, Ojeda SR, Moenter SM (2002). Activation of A-type γ-aminob
 
 > E GABA measured 100 msec after GABA application was −36.5 ± 1.2 mV (n = 16 cells from 13 adult diestrous females).
 > — Results; read from the publisher's full text, 2026-09-21
+
+> This was positive relative to the resting potential (−50.7 ± 1.7 mV, from current-clamp measurements)
+> — Results, gramicidin perforated patch; read through a summarizing web fetch, 2026-10-19 (Table 2 gives the on-cell rest, −72.7 ± 2.3 mV, n = 18); check against the PDF
 
 **Used in:** [`src/core/models.ts`](../src/core/models.ts), [`src/core/protocol.ts`](../src/core/protocol.ts)
 
@@ -223,6 +229,48 @@ LeBeau AP, Van Goor F, Stojilkovic SS, Sherman A (2000). Modeling of membrane ex
 [doi:10.1523/JNEUROSCI.20-24-09290.2000](https://doi.org/10.1523/JNEUROSCI.20-24-09290.2000) · [PMID 11125008](https://pubmed.ncbi.nlm.nih.gov/11125008/) · [PMC6773020](https://pmc.ncbi.nlm.nih.gov/articles/PMC6773020/) · *open (PubMed Central)* · models: GnRH
 
 **Took:** The original Hodgkin–Huxley GnRH model that Moran et al. 2016 built on. Not read directly for any number in this app.
+
+### `han2008`
+
+Han SK, Herbison AE (2008). Norepinephrine suppresses gonadotropin-releasing hormone neuron excitability in the adult mouse. Endocrinology 149(3):1129–1135.
+
+[doi:10.1210/en.2007-1241](https://doi.org/10.1210/en.2007-1241) · [PMID 18079196](https://pubmed.ncbi.nlm.nih.gov/18079196/) · [PMC6103434](https://pmc.ncbi.nlm.nih.gov/articles/PMC6103434/) · *open (PubMed Central)* · models: GnRH
+
+**Took:** GnRH neuron resting potentials by gramicidin perforated patch, by sex and cycle stage (−55.5 to −59.4 mV): evidence for the GABA opening's resting potential near −60 mV.
+
+> Under perforated-patch, resting membrane potentials (RMP; mV) were -59.4±1.0 (males, N=39), -55.5±1.5 (diestrous females, N=11), -59.3±1.2 (proestrous females, N=14), -55.6±2.5 (estrous females, N=13) and -58.8±1.1 (OVX females, N=11).
+> — Results
+
+**Notes:** [`notes/gnrh-rest.md`](notes/gnrh-rest.md)
+
+### `liu2008`
+
+Liu X, Lee K, Herbison AE (2008). Kisspeptin excites gonadotropin-releasing hormone neurons through a phospholipase C/calcium-dependent pathway regulating multiple ion channels. Endocrinology 149(9):4605–4614.
+
+[doi:10.1210/en.2008-0321](https://doi.org/10.1210/en.2008-0321) · [PMID 18483150](https://pubmed.ncbi.nlm.nih.gov/18483150/) · [PMC6116891](https://pmc.ncbi.nlm.nih.gov/articles/PMC6116891/) · *open (PubMed Central)* · models: GnRH
+
+**Took:** GnRH neuron resting potential by gramicidin perforated patch, −55 ± 1 mV (n = 188), junction potential not corrected (~−2 mV).
+
+> The 188 GnRH neurons included in this report had an average resting membrane potential (RMP) of -55±1mV and Rin of 1478±35MOhms.
+> — Results
+
+**Notes:** [`notes/gnrh-rest.md`](notes/gnrh-rest.md)
+
+### `moenter2010`
+
+Moenter SM (2010). Identified GnRH neuron electrophysiology: a decade of study. Brain Res 1364:10–24.
+
+[doi:10.1016/j.brainres.2010.09.066](https://doi.org/10.1016/j.brainres.2010.09.066) · [PMID 20920482](https://pubmed.ncbi.nlm.nih.gov/20920482/) · [PMC2992586](https://pmc.ncbi.nlm.nih.gov/articles/PMC2992586/) · *open (PubMed Central)* · models: GnRH
+
+**Took:** The range of GnRH neuron interspike potentials (−65 to −50 mV, whole-cell or perforated patch) against the on-cell estimate (~−75 mV).
+
+> The interspike potential of the majority of GnRH neurons is between −65 and −50 mV recorded in either whole-cell or perforated-patch configuration
+> — review text
+
+> Measurements made using a non-invasive method suggested a more hyperpolarized membrane potential of ~−75 mV.
+> — review text
+
+**Notes:** [`notes/gnrh-rest.md`](notes/gnrh-rest.md)
 
 ## Further reading
 

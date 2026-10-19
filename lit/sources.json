@@ -142,6 +142,10 @@
         {
           "text": "cells were injected with current from 0 to 30 pA (500 ms, 2 pA steps)",
           "where": "Materials and Methods, Whole-cell patch-clamp"
+        },
+        {
+          "text": "Current injections were initiated from a mean membrane potential of −69 ± 2 mV, near the value determined in the above experiments.",
+          "where": "Results; the earlier experiments are on-cell measurements of Vm"
         }
       ],
       "notes": "notes/adams2018.md"
@@ -228,6 +232,10 @@
         {
           "text": "E GABA measured 100 msec after GABA application was −36.5 ± 1.2 mV (n = 16 cells from 13 adult diestrous females).",
           "where": "Results; read from the publisher's full text, 2026-09-21"
+        },
+        {
+          "text": "This was positive relative to the resting potential (−50.7 ± 1.7 mV, from current-clamp measurements)",
+          "where": "Results, gramicidin perforated patch; read through a summarizing web fetch, 2026-10-19 (Table 2 gives the on-cell rest, −72.7 ± 2.3 mV, n = 18); check against the PDF"
         }
       ],
       "notes": "notes/defazio2002.md"
@@ -540,6 +548,102 @@
         {
           "text": "The action potential threshold was defined as the membrane potential at which the derivative exceeded 2 V/s.",
           "where": "Materials and Methods"
+        }
+      ]
+    },
+    {
+      "key": "han2008",
+      "type": "article",
+      "authors": [
+        "Han SK",
+        "Herbison AE"
+      ],
+      "year": 2008,
+      "title": "Norepinephrine suppresses gonadotropin-releasing hormone neuron excitability in the adult mouse",
+      "journal": "Endocrinology",
+      "volume": "149",
+      "issue": "3",
+      "pages": "1129–1135",
+      "doi": "10.1210/en.2007-1241",
+      "pmid": "18079196",
+      "access": "open (PubMed Central)",
+      "role": "background",
+      "models": [
+        "gnrh"
+      ],
+      "took": "GnRH neuron resting potentials by gramicidin perforated patch, by sex and cycle stage (−55.5 to −59.4 mV): evidence for the GABA opening's resting potential near −60 mV.",
+      "usedIn": [],
+      "notes": "notes/gnrh-rest.md",
+      "pmcid": "PMC6103434",
+      "quotes": [
+        {
+          "text": "Under perforated-patch, resting membrane potentials (RMP; mV) were -59.4±1.0 (males, N=39), -55.5±1.5 (diestrous females, N=11), -59.3±1.2 (proestrous females, N=14), -55.6±2.5 (estrous females, N=13) and -58.8±1.1 (OVX females, N=11).",
+          "where": "Results"
+        }
+      ]
+    },
+    {
+      "key": "liu2008",
+      "type": "article",
+      "authors": [
+        "Liu X",
+        "Lee K",
+        "Herbison AE"
+      ],
+      "year": 2008,
+      "title": "Kisspeptin excites gonadotropin-releasing hormone neurons through a phospholipase C/calcium-dependent pathway regulating multiple ion channels",
+      "journal": "Endocrinology",
+      "volume": "149",
+      "issue": "9",
+      "pages": "4605–4614",
+      "doi": "10.1210/en.2008-0321",
+      "pmid": "18483150",
+      "access": "open (PubMed Central)",
+      "role": "background",
+      "models": [
+        "gnrh"
+      ],
+      "took": "GnRH neuron resting potential by gramicidin perforated patch, −55 ± 1 mV (n = 188), junction potential not corrected (~−2 mV).",
+      "usedIn": [],
+      "notes": "notes/gnrh-rest.md",
+      "pmcid": "PMC6116891",
+      "quotes": [
+        {
+          "text": "The 188 GnRH neurons included in this report had an average resting membrane potential (RMP) of -55±1mV and Rin of 1478±35MOhms.",
+          "where": "Results"
+        }
+      ]
+    },
+    {
+      "key": "moenter2010",
+      "type": "article",
+      "authors": [
+        "Moenter SM"
+      ],
+      "year": 2010,
+      "title": "Identified GnRH neuron electrophysiology: a decade of study",
+      "journal": "Brain Res",
+      "volume": "1364",
+      "pages": "10–24",
+      "doi": "10.1016/j.brainres.2010.09.066",
+      "pmid": "20920482",
+      "access": "open (PubMed Central)",
+      "role": "background",
+      "models": [
+        "gnrh"
+      ],
+      "took": "The range of GnRH neuron interspike potentials (−65 to −50 mV, whole-cell or perforated patch) against the on-cell estimate (~−75 mV).",
+      "usedIn": [],
+      "notes": "notes/gnrh-rest.md",
+      "pmcid": "PMC2992586",
+      "quotes": [
+        {
+          "text": "The interspike potential of the majority of GnRH neurons is between −65 and −50 mV recorded in either whole-cell or perforated-patch configuration",
+          "where": "review text"
+        },
+        {
+          "text": "Measurements made using a non-invasive method suggested a more hyperpolarized membrane potential of ~−75 mV.",
+          "where": "review text"
         }
       ]
     }
