@@ -90,7 +90,7 @@ export const TOUR: TourPart[] = [
       "This is the protocol of [Adams et al. 2018](https://doi.org/10.1523/JNEUROSCI.2988-17.2017): 500 ms steps from 0 to 30 pA in 2 pA increments, on a −6 pA holding current that sits the cell at −70 mV. Small steps only depolarize the cell. The smallest current that makes it fire is its [[rheobase]]. With 2 pA steps, the first to fire here is 18 pA. The voltage where the spike takes off is its [[threshold]]. Both are measures of excitability, and they need not agree.",
     ],
     tryThis: "Switches to the step protocol, with the Adams et al. steps, and plays them one at a time.",
-    lookFor: "Each sweep a little bigger than the last, until one fires. Then the Rheobase and Threshold tiles, and how late the first spike comes on the smallest step that fires.",
+    lookFor: "Each sweep a little bigger than the last, until one fires. Then the Rheobase and Threshold readouts above the plot, and how late the first spike comes on the smallest step that fires.",
     settings: { model: "gnrh", mode: "steps", ihold: -6, presetId: "gnrh-fi", play: true },
     controls: ["play"],
   },
