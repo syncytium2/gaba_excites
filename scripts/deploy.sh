@@ -78,8 +78,13 @@ for u in "${URLS[@]}"; do
     echo "  try $i: $u serving ${live:-nothing} — retrying"; sleep 15
   done
   [[ $ok == 1 ]] || fail "$u never served $LOCAL_HASH"
-  curl -s --max-time 15 "$u/fall-2026/" | grep -qF "$CLASS_HASH" || fail "$u/fall-2026/ is not serving the classroom version"
-  echo "  $u/fall-2026/ serving the classroom version"
+  # polled like the bundle: right after an upload the edge can still hold a 404 for a new path
+  ok=0
+  for i in $(seq 1 12); do
+    curl -s --max-time 15 "$u/fall-2026/" | grep -qF "$CLASS_HASH" && { ok=1; echo "  $u/fall-2026/ serving the classroom version"; break; }
+    echo "  try $i: $u/fall-2026/ not serving the classroom version yet — retrying"; sleep 15
+  done
+  [[ $ok == 1 ]] || fail "$u/fall-2026/ never served the classroom version"
   UA='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
   for route in / /methods /lit /explainer; do
     n="$(curl -sL --max-time 15 -H "User-Agent: $UA" "$u$route" | grep -c cloudflareinsights || true)"

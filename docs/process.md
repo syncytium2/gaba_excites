@@ -851,3 +851,12 @@ so no test moved. `TOUR_IS_DRAFT` is off, which removes the on-screen draft note
 
 Noted for the owner, not changed: in the model, the gL dial is only the linear leak; voltage-gated channels open at
 rest count in the measured Rin but are not part of gL.
+
+## 2026-10-19 — deployed v0.2.1: the tour, the explainer, the amplifier, the classroom version
+
+The owner approved the tour text and said to finish the deploy. `gnrh-rest` was merged into main (one conflict, the
+header, where both sides carried the same new home link) and deployed as v0.2.1, worker version 065e7760. The
+script stopped at its new `/fall-2026/` check: right after the upload the edge still held a 404 for that new path,
+and unlike the bundle check it did not retry. Everything was checked by hand and live; DEPLOYED.md was written by
+hand, saying so, and the check now polls like the bundle check. The explainer went live as Tony's first draft, its
+suggested edits still in their box.
