@@ -31,9 +31,6 @@
   .draft { border-left: 3px solid #2a78d6; padding: 0.2rem 0 0.2rem 0.8rem; color: var(--ink-2); font-size: 0.92rem; margin: 0 0 1.4rem; }
   .footnotes { font-size: 0.9rem; color: var(--ink-2); border-top: 1px solid var(--grid); margin-top: 2rem; padding-top: 0.6rem; }
   .footnotes p { margin: 0.3rem 0; }
-  .suggest { background: var(--surface); border: 1px dashed #b9b7ad; border-radius: 8px; padding: 0.4rem 1rem 0.8rem; margin-top: 2.4rem; font-size: 0.92rem; }
-  .suggest h2 { font-size: 1rem; margin: 0.6rem 0 0.2rem; }
-  .suggest li { margin: 0.35rem 0; }
   .next { font-weight: 600; }
 </style>
 </head>
@@ -41,35 +38,19 @@
 <main>
 <h1>Action potentials</h1>
 <p class="sub">Tony DeFazio · 18 October 2026 · <a href="/">The simulator</a> · <a href="/methods">Methods &amp; models</a></p>
-<p class="draft">First draft, put on the page as written, for review. Suggested edits are listed at the end and are not applied.</p>
+<p class="draft">First draft.</p>
 
 <p>Action potentials are the fundamental unit of neuron activity.<sup><a href="#fn1" id="r1" aria-label="footnote 1">*</a></sup> Your brain is built from neurons, glia<sup><a href="#fn2" id="r2" aria-label="footnote 2">**</a></sup>, and the connections between them, plus the blood vessels that deliver oxygen and nutrients while taking away waste. When many neurons are active together, their combined electrical activity can be picked up by electrodes on the scalp: that is an EEG (electroencephalogram). Patterns among neurons are necessary for sleep, cognition, and also allow detection of abnormal activity during epileptic seizures and other neurological problems. All of these depend on action potentials.</p>
-<p>Neurons come in many flavors. Our simulator has pyramidal cells, interneurons, and GnRH neurons. Pyramidal cells are a source of excitation (turning things on) in the brain. Their activity can be associated with hearing a name of a person you know, seeing a bright object move across your field of view, pointing your finger. In each of these cases, excitation needs something to control it, otherwise it doesn’t stop or becomes unstable. Here’s were inhibitory neurons act (interneurons are one example). If there’s nothing to stop the excitation your pointing finger won’t stop moving, the bright object doesn’t go away even though it’s no longer visible. Inhibition controls excitation, limiting how long it stays on, keeping balance. The balance of excitation and inhibition allows us to focus on something, hold our finger steady, and hear a voice in crowded room.</p>
+<p>Neurons come in many flavors. Our simulator has pyramidal cells, interneurons, and GnRH neurons. Pyramidal cells are a source of excitation (turning things on) in the brain. Their activity can be associated with hearing a name of a person you know, seeing a bright object move across your field of view, pointing your finger. In each of these cases, excitation needs something to control it, otherwise it doesn’t stop or becomes unstable. Here’s where inhibitory neurons act (interneurons are one example). If there’s nothing to stop the excitation your pointing finger won’t stop moving, the bright object doesn’t go away even though it’s no longer visible. Inhibition controls excitation, limiting how long it stays on, keeping balance. The balance of excitation and inhibition allows us to focus on something, hold our finger steady, and hear a voice in crowded room.</p>
 <p>Action potentials are a change in voltage in the neuron. If you stick your finger in an electrical outlet, you get a very strong jolt of electricity. Wires carry electrons and the potential difference between the outlet wires is what powers your cell phone charger, your TV, your lights. In neurons, ions carry the charge. These are sodium, potassium, calcium, and chloride (plus many others, but these are the main ones). Neurons keep the concentration of ions different from the outside: sodium, calcium, and chloride are high outside the cell and low inside, the opposite is true for potassium [link to future or existing ion homeostasis explainers]. The channels in this story each allow only one type of ion to flow through: sodium channels, potassium channels, etc. The channels that make the action potential have gates that constantly open and close, but the probability of their opening or closing is dependent on the voltage of the cell. Neurons sit at a negative voltage at rest because of the ion gradients and the channels open at rest. When a sodium channel opens, sodium rushes into the cell. Sodium is positively charged, so the inside of the neuron becomes less negative, and briefly positive. Potassium channels open when the neuron becomes less negative. Potassium is also positively charged, but the electrical and concentration gradient drives the potassium out of the cell, making the inside negative again. This interaction between sodium and potassium is how action potentials work. Scientists call “less negative” depolarized and “more negative” hyperpolarized; you’ll see those words in the simulator.</p>
 
-<p class="next"><a href="/">Now try it: the simulator opens on a GnRH neuron, with a guided tour.</a></p>
+<p class="next"><a href="/">Click here to play with a neuron.</a></p>
 
 <div class="footnotes">
 <p id="fn1"><a href="#r1" aria-label="back to the text">*</a> future projects are planned to address action potential independent activity…</p>
 <p id="fn2"><a href="#r2" aria-label="back to the text">**</a> glia is a name for many other non-neuronal cell types in the brain. These cells have many roles and are crucial for normal brain activity. You can’t build a brain with just neurons.</p>
 </div>
 
-<section class="suggest" aria-labelledby="suggest-h">
-<h2 id="suggest-h">Suggested edits (Claude, for Tony; none applied)</h2>
-<ol>
-  <li>“Here’s were inhibitory neurons act” → “Here’s where inhibitory neurons act”.</li>
-  <li>“sodium, calcium, and chloride are high outside the cell and low inside”: true of most adult neurons, but GnRH
-  neurons keep chloride high inside, which is why GABA excites them (DeFazio et al. 2002) and what the tour is about.
-  Perhaps “in most neurons”, with a pointer to the tour.</li>
-  <li>The placeholder “[link to future or existing ion homeostasis explainers]” shows on the page as written. Remove it,
-  or name the link.</li>
-  <li>The EEG sentence: much of the EEG is thought to come from synaptic currents rather than from action potentials
-  themselves (Buzsáki, Anastassiou &amp; Koch 2012, a review the explainer plan read only in abstract). “All of these
-  depend on action potentials” still holds indirectly; worth a check before this goes out.</li>
-  <li>The note under the byline (“First draft, put on the page as written…”) and the line “Now try it…” are Claude’s,
-  not yours.</li>
-</ol>
-</section>
 
 <footer>gaba_excites · <a href="https://tonydefazio.com/">Tony DeFazio</a></footer>
 </main>
