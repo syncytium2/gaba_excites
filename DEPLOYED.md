@@ -4,10 +4,10 @@ Written by `npm run deploy`. Do not edit by hand.
 
 | | |
 |---|---|
-| **Deployed at** | 2026-10-19 02:48 UTC |
-| **Commit** | `5d72947` — Cite the 2 V/s threshold criterion: Wang, DeFazio & Moenter 2016 |
-| **Bundle** | `assets/index-D91-QgcP.js` |
-| **Worker version** | `a938342a-473e-4fbc-9d30-a780dc7bd8db` |
+| **Deployed at** | 2026-10-19 19:17 UTC |
+| **Commit** | `3949879` — Header: a visible link back to tonydefazio.com |
+| **Bundle** | `assets/index-CLObqLjQ.js` |
+| **Worker version** | `b8d7c5e8-6049-43cd-a855-c2d3bdf21c08` |
 | **Live** | https://gaba-excites.tonydefazio.workers.dev https://gaba.tonydefazio.com |
 
 Verified at deploy time: tests pass, CSP in the shipped HTML, Born stamp baked
