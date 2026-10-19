@@ -860,3 +860,14 @@ script stopped at its new `/fall-2026/` check: right after the upload the edge s
 and unlike the bundle check it did not retry. Everything was checked by hand and live; DEPLOYED.md was written by
 hand, saying so, and the check now polls like the bundle check. The explainer went live as Tony's first draft, its
 suggested edits still in their box.
+
+## 2026-10-19 — the explainer's outside links
+
+The owner's responses to the suggested edits: the typo fixed; chloride and the EEG sentence kept (chloride is raised
+in GnRH neurons but still far below its outside concentration; the EEG depends on action potential firing whether or
+not that is what it records). The ion-homeostasis placeholder now links OpenStax, *Anatomy and Physiology 2e*, 12.4
+(Na⁺/K⁺ concentrations, gradients, the pump; introductory). Bezanilla's *The Nerve Impulse*
+(nerve.bsd.uchicago.edu) was weighed for it: the classic on how gradients make a potential, with a browser-run
+Membrane simulator, but no pump. It gets its own note instead, in the owner's words: this site is not meant to
+replace the classic. The owner plans to write the site's own ion-homeostasis explainer, which would replace the
+OpenStax link.
