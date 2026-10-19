@@ -47,12 +47,14 @@ interface Readout {
 /** the siren stays on while anything tripped within this much simulated time */
 const SIREN_WINDOW = 1000;
 
-export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false, amp, ampLastRow, readoutSlot }: {
+export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false, amp, ampLastRow, ampControls, readoutSlot }: {
   cell: CellParams; inputs: StreamInputs; seed: number; limits: Limits; onExtremes: (reasons: string[]) => void; oldSchool?: boolean;
   /** the amplifier rows the app supplies (cell, synapses) */
   amp?: React.ReactNode;
   /** sections that open the amplifier's last row, before the audio monitor */
   ampLastRow?: React.ReactNode;
+  /** the mode switch and Old school, in the amplifier's name strip */
+  ampControls?: React.ReactNode;
   /** where the one-line readouts go: the mode bar, beside Step / Oscilloscope */
   readoutSlot?: HTMLElement | null;
 }) {
@@ -298,7 +300,7 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
         </p>
       </figure>
 
-      <AmpFront>
+      <AmpFront controls={ampControls}>
         {amp}
         <AmpRow>
         {ampLastRow}

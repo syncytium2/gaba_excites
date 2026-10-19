@@ -11,12 +11,13 @@ import { NumField } from "./NumField.tsx";
  * Its dials are the same Knob as Old school's, each with a number box to type
  * into, bound to the same state as the side panels.
  */
-export function AmpFront({ children }: { children: React.ReactNode }) {
+export function AmpFront({ children, controls }: { children: React.ReactNode; controls?: React.ReactNode }) {
   return (
     <section className="amp" aria-label="Amplifier front panel (fictional)">
-      <div className="amp-badge" aria-hidden="true">
-        <span className="amp-brand">GABA·EXCITES</span> <span className="amp-model">Model 578</span>
-        <span className="amp-note">current-clamp amplifier · fictional</span>
+      <div className="amp-badge">
+        <span className="amp-brand" aria-hidden="true">GABA·EXCITES</span> <span className="amp-model" aria-hidden="true">Model 578</span>
+        {controls && <span className="amp-badge-ctrls">{controls}</span>}
+        <span className="amp-note" aria-hidden="true">current-clamp amplifier · fictional</span>
       </div>
       <div className="amp-sections">{children}</div>
     </section>

@@ -805,3 +805,11 @@ changes: the amplifier in both modes with only the tour on the left, and the ste
   it.
 - The tour no longer folds panels (there are none). The check script drives both modes through the amplifier and
   fails if the left column shows more than the tour.
+
+## 2026-10-19 — the mode switch on the amplifier
+
+- **Step protocol / Oscilloscope, and Old school in scope mode, sit in the amplifier's name strip** (the owner),
+  between "GABA·EXCITES Model 578" and "fictional", where there was free space: no new row. The readouts get the
+  mode bar to themselves and fit one line.
+- **"N sweeps simulated in T ms" rides on the plot's title line;** only a failure message stays in the mode bar.
+- Step mode at 1555×972 now ends 30 px below the fold, from 90.

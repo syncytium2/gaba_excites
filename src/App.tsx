@@ -437,6 +437,26 @@ export function App() {
     </>
   );
 
+  // The mode switch, and Old school in scope mode: in the amplifier's name strip.
+  const ampControls = (
+    <>
+      <div className="seg" role="radiogroup" aria-label="Mode">
+        <button id="mode-steps" role="radio" aria-checked={mode === "steps"} className={mode === "steps" ? "on" : ""} onClick={() => setMode("steps")}>
+          Step protocol
+        </button>
+        <button id="mode-scope" role="radio" aria-checked={mode === "scope"} className={mode === "scope" ? "on" : ""} onClick={() => setMode("scope")}>
+          Oscilloscope
+        </button>
+      </div>
+      {mode === "scope" && (
+        <label className="check oldschool-toggle">
+          <input id="old-school" type="checkbox" checked={oldSchoolPref} onChange={(e) => setOldSchool(e.target.checked)} />
+          Old school
+        </label>
+      )}
+    </>
+  );
+
   // ------------------------------------------------------------ render
   return (
     <div className={"page" + (oldSchool ? " old-school" : "")}>
@@ -462,31 +482,15 @@ export function App() {
 
         <main className={"figures" + (mode === "scope" ? " pinned" : "")}>
           <div className="modebar">
-            <div className="seg" role="radiogroup" aria-label="Mode">
-              <button id="mode-steps" role="radio" aria-checked={mode === "steps"} className={mode === "steps" ? "on" : ""} onClick={() => setMode("steps")}>
-                Step protocol
-              </button>
-              <button id="mode-scope" role="radio" aria-checked={mode === "scope"} className={mode === "scope" ? "on" : ""} onClick={() => setMode("scope")}>
-                Oscilloscope
-              </button>
-            </div>
-            {mode === "scope" && (
-              <label className="check oldschool-toggle">
-                <input id="old-school" type="checkbox" checked={oldSchoolPref} onChange={(e) => setOldSchool(e.target.checked)} />
-                Old school
-              </label>
-            )}
             {mode === "scope" && <div className="readout-slot" ref={setReadoutSlot} />}
             {mode === "steps" && <StepReadouts summary={playing ? undefined : summary} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} />}
             <Siren reasons={mode === "scope" ? scopeReasons : stepReasons} />
-            <div className="status" aria-live="polite">
-              {error ? <span className="warn">Simulation failed: {error}</span> : mode === "scope" ? "" : busy ? "simulating…" : result ? `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms` : ""}
-            </div>
+            {error && <div className="warn" role="alert">Simulation failed: {error}</div>}
           </div>
 
           {mode === "scope" ? (
             <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} limits={limits} onExtremes={setScopeReasons} oldSchool={oldSchool}
-              amp={ampSections} ampLastRow={ampLastRow} readoutSlot={readoutSlot} />
+              amp={ampSections} ampLastRow={ampLastRow} ampControls={ampControls} readoutSlot={readoutSlot} />
           ) : (
             <>
 
@@ -494,7 +498,9 @@ export function App() {
               <>
                 <figure className="card">
                   <figcaption>
-                    <span>Recorded voltage{showVm ? ", with true Vm of the selected sweep dashed" : ""}</span>
+                    <span>Recorded voltage{showVm ? ", with true Vm of the selected sweep dashed" : ""}
+                      <span className="status" aria-live="polite">{busy ? "simulating…" : `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms`}</span>
+                    </span>
                     <span className="play-status" aria-live="polite">
                       {playing && shown ? `Sweep ${shown.sweeps.length} of ${sweeps.length}: ${shown.sweeps[shown.sweeps.length - 1].amp} pA` : ""}
                     </span>
@@ -525,7 +531,7 @@ export function App() {
               </>
             )}
 
-            <AmpFront>
+            <AmpFront controls={ampControls}>
               {ampSections}
               <AmpRow>{ampLastRow}</AmpRow>
             </AmpFront>
