@@ -64,3 +64,13 @@ The owner's words are quoted where the item came from them.
   amplifiers used in current clamp. A candidate to find and check first: Magistretti et al. on whether action
   potentials recorded with patch-clamp amplifiers are genuine (Trends Neurosci, mid-1990s), recalled, not
   verified. Each number taken goes into `lit/sources.json`. Not started; do not start it before the tour ships.
+- **Rig features, for eventually** (owner, 2026-10-19, relayed by another session: "not for today but features to
+  add eventually"). Not started.
+  - **Filter settings:** a recording filter on the displayed traces. Today the Recording noise "Bandwidth" dial
+    filters only the added noise (a Gaussian low-pass, `src/core/noise.ts`), not the signal itself.
+  - **Gain:** amplifier output gain. Overlaps with amplifier mode above.
+  - **Voltage clamp:** a second recording mode; the solver is current clamp only today.
+  - **Evoked responses:** stimulus-evoked synaptic input (a single timed PSC or train), beside the random
+    background input there is now.
+  - **Anodal break excitation:** a spike at the end of a hyperpolarizing step. It can be tried today with negative
+    steps in step mode; the feature would be a preset (per model) with a measured, test-pinned result.
