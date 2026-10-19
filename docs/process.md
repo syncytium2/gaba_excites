@@ -711,3 +711,20 @@ Asked by the owner after testing on a 16" laptop; checked at 1555×972, the size
   that is off), and the app opens with only Tour, Cell and GABA open. Any panel still opens by hand.
 - A hidden tooltip still takes layout space: the tile notes are `display: none` until shown, after the screenshot
   check caught the page scrolling sideways at 390 px.
+
+## 2026-10-19 — the fictional amplifier front
+
+The owner asked for the space above the scope to go to a row of tools below it, as "a fake amp front with dials and
+numeric entry boxes. fake because no amp i know of has gaba and glutamate pscs built in".
+
+- **The scope readouts are one line in the mode bar** (a portal from ScopeMode into a slot App renders), with their
+  notes in one hover. The scope card holds only the screen and its legend.
+- **Below the screen, "GABA·EXCITES Model 578"**, labeled on its face as fictional. Sections: CELL (Ihold, gL,
+  Cm), GABA PSC (switch with lamp; rate, peak g, E_GABA), GLUTAMATE PSC (switch; rate, peak g), SCOPE (time base,
+  speed, Pause, Store, true Vm), MONITOR (sound, volume), and in Old school the two analog meters. Each dial is the
+  existing Knob, whose amber box takes a typed value; all bound to the same state as the side panels.
+- **Dial ranges suit the cell:** the GnRH cell's PSC rate dial runs 0–50 Hz and peak g 0–10 nS, the cortical cells'
+  0–2000 Hz and 0–50 nS. The side panels keep their full ranges.
+- **On a phone the dials fall back to number fields** (`AmpDial`), as Old school's knobs already did; the
+  screenshot check enforces it.
+- This is not the realistic amplifier mode on the roadmap (an Axoclamp, Axopatch or EPC-7 face); that stays parked.

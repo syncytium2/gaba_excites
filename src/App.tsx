@@ -23,6 +23,7 @@ import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 import { Notebook } from "./ui/Notebook.tsx";
 import { Tour } from "./ui/Tour.tsx";
 import { Tile } from "./ui/Tile.tsx";
+import { AmpDial, AmpSection } from "./ui/AmpFront.tsx";
 import { TOUR, tourInputs, type TourControl, type TourSettings } from "./core/tour.ts";
 
 // The app opens on the tour's first part: the GnRH cell in the oscilloscope,
@@ -276,6 +277,7 @@ export function App() {
     return [...seen.values()].map((e) => `${e.text} (step${e.amps.length > 1 ? "s" : ""} ${e.amps.join(", ")} pA)`);
   }, [result, limits]);
   const [scopeReasons, setScopeReasons] = useState<string[]>([]);
+  const [readoutSlot, setReadoutSlot] = useState<HTMLElement | null>(null);
   const rinRest = built.rinRest;
   const tauM = (rinRest * cell.cm) / 1000;
   const preset = presets.find((p) => p.id === presetId);
@@ -327,6 +329,28 @@ export function App() {
         return mode === "steps" ? <button type="button" onClick={() => setPlay(1)} disabled={!result || busy}>Play the sweeps again</button> : null;
     }
   };
+
+  // The amplifier front's own sections: the cell and the two PSC generators.
+  // Dial ranges suit the cell: a GnRH neuron's GABA runs at a few Hz, not hundreds.
+  const synRange = cell.model === "gnrh" ? { rate: 50, rateStep: 1, g: 10, gStep: 0.1 } : { rate: 2000, rateStep: 10, g: 50, gStep: 0.5 };
+  const ampSections = (
+    <>
+      <AmpSection name="CELL">
+        <AmpDial label="Ihold" unit="pA" value={ihold} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 0.5 : model.ranges.ihold.step} digits={1} onChange={setIhold} />
+        <AmpDial label="gL (leak)" unit="nS" value={cell.gLeak} min={model.ranges.gLeak.min} max={model.ranges.gLeak.max} step={model.ranges.gLeak.step} digits={2} onChange={(gLeak) => setCell({ ...cell, gLeak })} />
+        <AmpDial label="Cm (size)" unit="pF" value={cell.cm} min={model.ranges.cm.min} max={model.ranges.cm.max} step={model.ranges.cm.step} digits={1} onChange={(cm) => setCell({ ...cell, cm })} />
+      </AmpSection>
+      <AmpSection name="GABA PSC" power={{ on: gaba.enabled, onChange: (on) => { setGaba({ ...gaba, enabled: on }); setPresetId("custom"); } }}>
+        <AmpDial label="Rate" unit="Hz" value={gaba.rate} min={0} max={synRange.rate} step={synRange.rateStep} digits={0} disabled={!gaba.enabled} onChange={(rate) => { setGaba({ ...gaba, rate }); setPresetId("custom"); }} />
+        <AmpDial label="Peak g" unit="nS" value={gaba.gPeak} min={0} max={synRange.g} step={synRange.gStep} digits={1} disabled={!gaba.enabled} onChange={(gPeak) => { setGaba({ ...gaba, gPeak }); setPresetId("custom"); }} />
+        <AmpDial label="E_GABA" unit="mV" value={gaba.erev} min={-100} max={0} step={0.5} digits={1} disabled={!gaba.enabled} onChange={(erev) => { setGaba({ ...gaba, erev }); setPresetId("custom"); }} />
+      </AmpSection>
+      <AmpSection name="GLUTAMATE PSC" power={{ on: glu.enabled, onChange: (on) => { setGlu({ ...glu, enabled: on }); setPresetId("custom"); } }}>
+        <AmpDial label="Rate" unit="Hz" value={glu.rate} min={0} max={synRange.rate} step={synRange.rateStep} digits={0} disabled={!glu.enabled} onChange={(rate) => { setGlu({ ...glu, rate }); setPresetId("custom"); }} />
+        <AmpDial label="Peak g" unit="nS" value={glu.gPeak} min={0} max={synRange.g} step={synRange.gStep} digits={1} disabled={!glu.enabled} onChange={(gPeak) => { setGlu({ ...glu, gPeak }); setPresetId("custom"); }} />
+      </AmpSection>
+    </>
+  );
 
   // ------------------------------------------------------------ render
   return (
@@ -492,6 +516,7 @@ export function App() {
                 Old school
               </label>
             )}
+            {mode === "scope" && <div className="readout-slot" ref={setReadoutSlot} />}
             <Siren reasons={mode === "scope" ? scopeReasons : stepReasons} />
             <div className="status" aria-live="polite">
               {error ? <span className="warn">Simulation failed: {error}</span> : mode === "scope" ? "" : busy ? "simulating…" : result ? `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms` : ""}
@@ -499,7 +524,8 @@ export function App() {
           </div>
 
           {mode === "scope" ? (
-            <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} limits={limits} onExtremes={setScopeReasons} oldSchool={oldSchool} />
+            <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} limits={limits} onExtremes={setScopeReasons} oldSchool={oldSchool}
+              amp={ampSections} readoutSlot={readoutSlot} />
           ) : (
             <>
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Tile } from "./Tile.tsx";
+import { createPortal } from "react-dom";
+import { AmpDial, AmpFront, AmpSection } from "./AmpFront.tsx";
 import type { CellParams } from "../core/cell.ts";
 import { MODELS } from "../core/models.ts";
 import { describe as describeTrip, ExtremeWatch, type Limits } from "../core/extremes.ts";
@@ -10,7 +11,6 @@ import { Tip } from "./Tip.tsx";
 import { MUTED, ORANGE } from "./palette.ts";
 import { Monitor } from "./audio.ts";
 import { Meter } from "./Meter.tsx";
-import { NumField } from "./NumField.tsx";
 import type { MonitorMode } from "../core/monitor.ts";
 
 const TIMEBASES = [10, 20, 50, 100, 200, 500, 1000, 2000];
@@ -48,8 +48,12 @@ interface Readout {
 /** the siren stays on while anything tripped within this much simulated time */
 const SIREN_WINDOW = 1000;
 
-export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false }: {
+export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false, amp, readoutSlot }: {
   cell: CellParams; inputs: StreamInputs; seed: number; limits: Limits; onExtremes: (reasons: string[]) => void; oldSchool?: boolean;
+  /** the amplifier sections the app supplies (cell, synapses), ahead of the scope's own */
+  amp?: React.ReactNode;
+  /** where the one-line readouts go: the mode bar, beside Step / Oscilloscope */
+  readoutSlot?: HTMLElement | null;
 }) {
   const scope = useRef<ScopeHandle>(null);
   const worker = useRef<Worker | null>(null);
@@ -203,93 +207,38 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
   const triggered = inputs.pulse.enabled;
 
   const lagging = readout && readout.achieved < 0.85 * readout.speed;
-  const speedText = readout ? `${fmt(readout.achieved, readout.achieved < 1 ? 2 : 1)}× real time` : "—";
   const rateScale = RATE_SCALE[cell.model];
+  const readouts = (
+    <span className="readline">
+      <span>Firing <b>{readout ? fmt(readout.rate, 1) : "—"}</b> Hz</span>
+      <span>Mean Vm <b>{readout ? fmt(readout.meanVm, 1) : "—"}</b> mV</span>
+      <span>Vm now <b>{readout ? fmt(readout.vNow, 1) : "—"}</b> mV</span>
+      <span className={lagging ? "warn" : undefined}><b>{readout ? `${fmt(readout.achieved, readout.achieved < 1 ? 2 : 1)}×` : "—"}</b> real time</span>
+      <Tip text={<>
+        <b>Firing</b>: spikes in the last 2 s. <b>Mean Vm</b>: over the last 1 s. <b>Vm now</b>: the true membrane potential.
+        All three are measured on true Vm, not the recorded trace. <b>Real time</b>: the speed reached
+        {lagging ? <>, which is this device's limit; asked for {readout!.speed}×</> : <>, asked for {speed}×</>}.
+      </>}>{""}</Tip>
+    </span>
+  );
   return (
     <>
-      {oldSchool ? (
-        <div className="meters">
-          <Meter label="FIRING RATE" unit="Hz" value={readout?.rate ?? NaN} min={rateScale[0]} max={rateScale[rateScale.length - 1]} major={rateScale}
-            sub="spikes in the last 2 s" />
-          <Meter label="MEMBRANE POTENTIAL" unit="mV" value={readout?.meanVm ?? NaN} min={-100} max={0} major={[-100, -80, -60, -40, -20, 0]}
-            sub="mean true Vm, last 1 s" />
-          <div className="meter-side">
-            <div className="m-speed">{speedText}</div>
-            <div className="small">{lagging ? <span className="warn">this device's limit; asked for {readout!.speed}×</span> : `asked for ${speed}×`}</div>
-          </div>
-        </div>
-      ) : (
-      <div className="stats">
-        <Tile label="Firing rate" value={readout ? fmt(readout.rate, 1) : "—"} unit="Hz" sub="spikes in the last 2 s" />
-        <Tile label="Mean Vm" value={readout ? fmt(readout.meanVm, 1) : "—"} unit="mV" sub="over the last 1 s" />
-        <Tile label="Vm now" value={readout ? fmt(readout.vNow, 1) : "—"} unit="mV" sub="true membrane potential" />
-        <Tile label="Speed" value={readout ? `${fmt(readout.achieved, readout.achieved < 1 ? 2 : 1)}×` : "—"} unit="real time"
-          sub={lagging ? <span className="warn">this device's limit; asked for {readout!.speed}×</span> : `asked for ${speed}×`} />
-      </div>
-      )}
+      {readoutSlot ? createPortal(readouts, readoutSlot) : readouts}
 
-      <figure className="card">
-        <figcaption>
-          <span>Oscilloscope{paused ? ", paused" : ""}</span>
-          <span className="scope-ctrls">
-            <label className="select inline">
-              <span>Time base</span>
-              <select id="timebase-select" value={msPerDiv} onChange={(e) => setMsPerDiv(Number(e.target.value))}>
-                {TIMEBASES.map((t) => <option key={t} value={t}>{fmtDiv(t)}/div</option>)}
-              </select>
-            </label>
-            <span className="seg small" role="radiogroup" aria-label="Simulation speed">
-              {SPEEDS.map((s) => (
-                <button key={s} role="radio" aria-checked={speed === s} className={speed === s ? "on" : ""} onClick={() => changeSpeed(s)}>
-                  {s}×
-                </button>
-              ))}
-            </span>
-            <button id="scope-pause" className="fixed-w" onClick={togglePause}>{paused ? "Run" : "Pause"}</button>
-            <button id="scope-store" onClick={store} title="Keep what is on screen as a faint reference trace">Store</button>
-            {stored.length > 0 && <button className="linkish" onClick={() => setStored([])}>clear stored</button>}
-            <span className="check">
-              <input id="scope-show-vm" type="checkbox" checked={showVm} onChange={(e) => setShowVm(e.target.checked)} />
-              <label htmlFor="scope-show-vm">show</label>
-              <Tip text={<>
-                <b>True Vm</b> is the membrane potential itself. The <b>recorded</b> trace is what the amplifier reports: Vm, plus
-                I·Rs from series resistance (less what bridge balance removes), smoothed by pipette capacitance, plus recording noise.
-                The readouts above are measured on true Vm.
-              </>}>true Vm</Tip>
-            </span>
-          </span>
-        </figcaption>
-        <div className="scope-row">
-          <span className="seg small" role="radiogroup" aria-label="Audio monitor">
-            {([["off", "Sound off"], ["pop", "Hiss & pop"], ["tone", "Tone (Vm)"]] as const).map(([m, name]) => (
-              <button key={m} id={`sound-${m}`} role="radio" aria-checked={sound === m} className={sound === m ? "on" : ""} onClick={() => changeSound(m)}>
-                {name}
-              </button>
-            ))}
-          </span>
-          {sound !== "off" && (
-            <>
-              <span className="volume"><NumField label="Volume" unit="%" value={volume} min={0} max={100} step={5} slider onChange={setVolume} /></span>
-              {(speed !== 1 || paused) && <span className="small">Sound plays at 1× while running.</span>}
-              <Tip text={sound === "pop"
-                ? <>An audio monitor, as on a rig: the recording noise is the <b>hiss</b>, each spike a <b>pop</b>. Raise the noise RMS for more hiss.</>
-                : <>A tone whose <b>pitch follows true Vm</b>: four octaves from −90 to +40 mV. Drift glides, PSPs blip, spikes chirp.</>}>
-                what you hear
-              </Tip>
-            </>
-          )}
-        </div>
+      <figure className="card scope-card">
+        <figcaption className="sr-only">Oscilloscope{paused ? ", paused" : ""}</figcaption>
         {error && <p className="warn">Simulation failed: {error}</p>}
         <Scope ref={scope} msPerDiv={msPerDiv} vRange={[-100, 60]} iRange={iRange} showVm={showVm} triggered={triggered} stored={stored} phosphor={oldSchool} />
         <p className="legendline">
           <Tip text={<>
-            The cell runs continuously, and every control on the left acts on it as you move it. Nothing resets it: change the
+            The cell runs continuously, and every control acts on it as you move it. Nothing resets it: change the
             leak or the holding current and watch it relax, slow currents included. Only switching models starts it again.
             Unlike the step protocol, a scope run cannot be replayed.{" "}
             {triggered
               ? "With pulses on, each sweep starts at a pulse onset, so stored traces line up with the live one."
               : "Store keeps the screen as a reference; with pulses on, sweeps are triggered and line up."}
           </>}>How the scope works</Tip>
+          {paused && <> · <b>paused</b></>}
           {showVm && <> · <span style={{ color: ORANGE }}>- -</span> true Vm</>}
           {stored.map((sn, n) => (
             <span key={n} className="pinlabel"><br />
@@ -300,6 +249,67 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
           ))}
         </p>
       </figure>
+
+      <AmpFront>
+        {amp}
+        <AmpSection name="SCOPE">
+          <label className="select amp-select">
+            <span>Time base</span>
+            <select id="timebase-select" value={msPerDiv} onChange={(e) => setMsPerDiv(Number(e.target.value))}>
+              {TIMEBASES.map((t) => <option key={t} value={t}>{fmtDiv(t)}/div</option>)}
+            </select>
+          </label>
+          <span className="seg small" role="radiogroup" aria-label="Simulation speed">
+            {SPEEDS.map((s) => (
+              <button key={s} role="radio" aria-checked={speed === s} className={speed === s ? "on" : ""} onClick={() => changeSpeed(s)}>
+                {s}×
+              </button>
+            ))}
+          </span>
+          <span className="amp-buttons">
+            <button id="scope-pause" className="fixed-w" onClick={togglePause}>{paused ? "Run" : "Pause"}</button>
+            <button id="scope-store" onClick={store} title="Keep what is on screen as a faint reference trace">Store</button>
+            {stored.length > 0 && <button className="linkish" onClick={() => setStored([])}>clear</button>}
+          </span>
+          <span className="check">
+            <input id="scope-show-vm" type="checkbox" checked={showVm} onChange={(e) => setShowVm(e.target.checked)} />
+            <label htmlFor="scope-show-vm">show</label>
+            <Tip text={<>
+              <b>True Vm</b> is the membrane potential itself. The <b>recorded</b> trace is what the amplifier reports: Vm, plus
+              I·Rs from series resistance (less what bridge balance removes), smoothed by pipette capacitance, plus recording noise.
+              The readouts are measured on true Vm.
+            </>}>true Vm</Tip>
+          </span>
+        </AmpSection>
+        <AmpSection name="MONITOR">
+          <span className="seg small" role="radiogroup" aria-label="Audio monitor">
+            {([["off", "Off"], ["pop", "Hiss & pop"], ["tone", "Tone (Vm)"]] as const).map(([m, name]) => (
+              <button key={m} id={`sound-${m}`} role="radio" aria-checked={sound === m} className={sound === m ? "on" : ""} onClick={() => changeSound(m)}>
+                {name}
+              </button>
+            ))}
+          </span>
+          {sound !== "off" && (
+            <>
+              <AmpDial label="Volume" unit="%" value={volume} min={0} max={100} step={5} digits={0} onChange={setVolume} />
+              {(speed !== 1 || paused) && <span className="small">Sound plays at 1× while running.</span>}
+              <Tip text={sound === "pop"
+                ? <>An audio monitor, as on a rig: the recording noise is the <b>hiss</b>, each spike a <b>pop</b>. Raise the noise RMS for more hiss.</>
+                : <>A tone whose <b>pitch follows true Vm</b>: four octaves from −90 to +40 mV. Drift glides, PSPs blip, spikes chirp.</>}>
+                what you hear
+              </Tip>
+            </>
+          )}
+        </AmpSection>
+        {oldSchool && (
+          <div className="amp-meters">
+            <Meter label="FIRING RATE" unit="Hz" value={readout?.rate ?? NaN} min={rateScale[0]} max={rateScale[rateScale.length - 1]} major={rateScale}
+              sub="spikes in the last 2 s" />
+            <Meter label="MEMBRANE POTENTIAL" unit="mV" value={readout?.meanVm ?? NaN} min={-100} max={0} major={[-100, -80, -60, -40, -20, 0]}
+              sub="mean true Vm, last 1 s" />
+          </div>
+        )}
+      </AmpFront>
     </>
   );
 }

@@ -338,3 +338,52 @@ body:has(.page.old-school) { background: #1a1b19; }
   .figures.pinned { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
 }
 .legendline .tip-body { left: 0; right: auto; }
+
+/* ---- one-line scope readouts, in the mode bar ---- */
+.readout-slot { flex: 1 1 auto; min-width: 0; }
+.readline { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 16px; font-size: 13px; color: var(--ink-2); }
+.readline b { font-size: 17px; color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 650; }
+.readline .warn b { color: inherit; }
+.scope-card { padding-top: 8px; }
+
+/* ---- the amplifier front (fictional) ---- */
+.amp {
+  background: linear-gradient(180deg, #34352f 0%, #2a2b27 55%, #24251f 100%);
+  border: 1px solid #151613; border-radius: 8px; padding: 8px 12px 10px; color: #dedbd2;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.amp-badge { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; letter-spacing: 0.08em; }
+.amp-brand { font-weight: 800; font-size: 13px; color: #f2efe6; }
+.amp-model { font-size: 12px; color: #c9c5b9; }
+.amp-note { font-size: 11px; color: #a9a597; letter-spacing: 0.02em; font-style: italic; margin-left: auto; }
+.amp-sections { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; }
+.amp-section { padding: 0 14px; border-left: 1px solid #191a17; box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.06); }
+.amp-section:first-child { padding-left: 0; border-left: 0; box-shadow: none; }
+.amp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.amp-name { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: #e9e5da; }
+.amp-ctrls { display: flex; align-items: flex-end; gap: 4px 10px; flex-wrap: wrap; font-size: 12px; }
+.amp .kf-label { color: #dedbd2; min-height: 1.4em; }
+.amp .knobfield { width: 72px; }
+.amp .kf-value { white-space: nowrap; min-width: 66px; }
+.amp-off .knobfield { opacity: 0.45; }
+.amp .check, .amp label, .amp .tip { color: #dedbd2; }
+.amp .tip { border-bottom-color: #8d897d; }
+.amp button:not(.kf-value), .amp select {
+  background: #44463f; color: #f2efe6; border: 1px solid #191a17; border-radius: 4px;
+}
+.amp .seg { border-color: #191a17; }
+.amp .seg button { border: 0; border-radius: 0; }
+.amp .seg button + button { border-left: 1px solid #191a17; }
+.amp .seg button.on { background: #e8a33c; color: #1b1c19; }
+.amp button.linkish { background: none; border: 0; color: #f0bd62; }
+.amp-select { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+.amp-buttons { display: inline-flex; gap: 6px; }
+.amp-switch { position: relative; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 10px; letter-spacing: 0.08em; }
+.amp-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.amp-lamp { width: 10px; height: 10px; border-radius: 50%; background: #3b3d36; border: 1px solid #151613; }
+.amp-switch input:checked + .amp-lamp { background: #6fe08a; box-shadow: 0 0 6px #6fe08a; }
+.amp-switch input:focus-visible + .amp-lamp { outline: 2px solid var(--accent); outline-offset: 2px; }
+.amp-switch-text { color: #dedbd2; min-width: 2.2em; }
+.amp-meters { display: flex; gap: 10px; margin-left: auto; padding-left: 14px; }
+.amp-meters .meter { flex: 0 0 132px; padding: 5px; }
+.amp-meters .meter figcaption, .amp-meters .meter .m-sub { font-size: 10px; }

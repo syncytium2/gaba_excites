@@ -71,8 +71,8 @@ await page.selectOption("#model-select", "rs");
 await page.click("#mode-scope");
 await page.click("#pulse-on");
 await page.waitForTimeout(2500);
-const live = await page.evaluate(() => [...document.querySelectorAll(".tile")].map((t) => t.textContent ?? ""));
-if (!live.some((t) => /Firing rate\s*[0-9]/.test(t))) problems.push("scope: no live firing rate after 2.5 s: " + live.join(" | "));
+const live = await page.evaluate(() => [...document.querySelectorAll(".readline")].map((t) => t.textContent ?? ""));
+if (!live.some((t) => /Firing\s*[0-9]/.test(t))) problems.push("scope: no live firing rate after 2.5 s: " + live.join(" | "));
 // store a screen, cut the leak, and look at the live trace over the stored one
 await page.waitForTimeout(2000);
 await page.click("#scope-store");
@@ -101,7 +101,7 @@ const knobCount = await page.locator(".knob").count();
 if (knobCount < 15) problems.push(`old school: only ${knobCount} knobs`);
 if (await page.locator(".meter").count() !== 2) problems.push("old school: the two meters are missing");
 if (await page.locator(".panel.closed .pb:visible").count()) problems.push("old school: a collapsed panel shows its contents");
-const glKnob = page.getByRole("slider", { name: "gL (leak)" });
+const glKnob = page.locator(".tools").getByRole("slider", { name: "gL (leak)" }); // the side panel's, not the amplifier's
 await glKnob.focus();
 await page.keyboard.press("End");
 if ((await glKnob.getAttribute("aria-valuenow")) !== "5") problems.push("old school: End did not take the GnRH leak knob to its maximum (5 nS)");
