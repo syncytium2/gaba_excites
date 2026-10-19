@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type uPlot from "uplot";
 import { buildCell, cellRinAt, publishedParams, type CellParams } from "./core/cell.ts";
 import { MODELS, MODEL_LIST, type ModelId } from "./core/models.ts";
@@ -275,6 +275,25 @@ export function App() {
   }, [result, limits]);
   const [scopeReasons, setScopeReasons] = useState<string[]>([]);
   const [readoutSlot, setReadoutSlot] = useState<HTMLElement | null>(null);
+  // One screen height for both modes, so the amplifier below the screen stays in
+  // place when the mode switches. It depends on the window alone, with a fixed
+  // allowance for the amplifier: a mode whose amplifier is taller (its stimulus
+  // row wraps on a narrow window) extends further down, and its top never moves.
+  const AMP_ALLOWANCE = 400;
+  const [screenH, setScreenH] = useState(460);
+  useLayoutEffect(() => {
+    const fig = document.querySelector(".figures");
+    const bar = fig?.querySelector(".modebar");
+    if (!fig || !bar) return;
+    const fit = () => {
+      const top = fig.getBoundingClientRect().top + window.scrollY;
+      const h = window.innerHeight - top - bar.getBoundingClientRect().height - AMP_ALLOWANCE - 2 * 14;
+      setScreenH(Math.round(Math.max(380, Math.min(560, h))));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
   const rinRest = built.rinRest;
   const tauM = (rinRest * cell.cm) / 1000;
   const preset = presets.find((p) => p.id === presetId);
@@ -480,7 +499,7 @@ export function App() {
 
         </aside>
 
-        <main className={"figures" + (mode === "scope" ? " pinned" : "")}>
+        <main className={"figures" + (mode === "scope" ? " pinned" : "")} style={{ "--screen-h": `${screenH}px` } as React.CSSProperties}>
           <div className="modebar">
             {mode === "scope" && <div className="readout-slot" ref={setReadoutSlot} />}
             {mode === "steps" && <StepReadouts summary={playing ? undefined : summary} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} />}
@@ -490,13 +509,18 @@ export function App() {
 
           {mode === "scope" ? (
             <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} limits={limits} onExtremes={setScopeReasons} oldSchool={oldSchool}
-              amp={ampSections} ampLastRow={ampLastRow} ampControls={ampControls} readoutSlot={readoutSlot} />
+              amp={ampSections} ampLastRow={ampLastRow} ampControls={ampControls} readoutSlot={readoutSlot} screenH={screenH} />
           ) : (
             <>
 
+            {!(result && sweeps.length > 0) && (
+              <figure className="card screen-card">
+                <figcaption><span>Recorded voltage <span className="status" aria-live="polite">{busy ? "simulating…" : ""}</span></span></figcaption>
+              </figure>
+            )}
             {result && sweeps.length > 0 && (
               <>
-                <figure className="card">
+                <figure className="card screen-card">
                   <figcaption>
                     <span>Recorded voltage{showVm ? ", with true Vm of the selected sweep dashed" : ""}
                       <span className="status" aria-live="polite">{busy ? "simulating…" : `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms`}</span>
@@ -517,9 +541,9 @@ export function App() {
                     </span>
                   </figcaption>
                   {playing && shown ? (
-                    <TracePlots result={shown} rank={shown.sweeps.map((_, k) => k)} sel={shown.sweeps.length - 1} showVm={showVm} synOn={synOn} onSelect={() => {}} ranges={playRanges} />
+                    <TracePlots result={shown} rank={shown.sweeps.map((_, k) => k)} sel={shown.sweeps.length - 1} showVm={showVm} synOn={synOn} onSelect={() => {}} ranges={playRanges} screenH={screenH} />
                   ) : (
-                    <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} />
+                    <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} screenH={screenH} />
                   )}
                   <p className="legendline">
                     Sweeps shade light → dark with step amplitude; {playing && shown
@@ -622,11 +646,17 @@ function axisOpts(label: string, size = 50): uPlot.Axis {
   };
 }
 
-function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges }: {
+function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screenH = 460 }: {
   result: Result; rank: number[]; sel: number; showVm: boolean; synOn: boolean; onSelect: (k: number) => void;
   /** fixed axes, so a family drawn one sweep at a time does not rescale as it grows */
   ranges?: { v: [number, number]; i: [number, number] };
+  /** the screen card's height: the voltage plot takes what the others leave */
+  screenH?: number;
 }) {
+  const iH = synOn ? 60 : 100;
+  const gH = synOn ? 84 : 0;
+  // the card's title, legend and padding, and the time label when there is no g plot
+  const vH = Math.max(100, screenH - 102 - iH - gH - (synOn ? 0 : 22));
   const sw = result.sweeps;
   const n = sw[0].vRec.length;
   const dt = sw[0].sampleMs;
@@ -692,16 +722,16 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges }: {
     });
   };
 
-  const structKey = `${sw.length}|${sel}|${showVm}|${colors.join()}|${n}`;
+  const structKey = `${sw.length}|${sel}|${showVm}|${colors.join()}|${n}|${vH}`;
   return (
     <div className="traces">
       <Plot className="plot" data={vData} deps={[structKey]}
-        options={(w) => base(w, 240, "V recorded (mV)", vSeries, { hooks: { init: [clickHook], setSeries: [focusHook] }, ...(ranges && { scales: { x: { time: false }, y: { range: ranges.v } } }) }, false)} />
+        options={(w) => base(w, vH, "V recorded (mV)", vSeries, { hooks: { init: [clickHook], setSeries: [focusHook] }, ...(ranges && { scales: { x: { time: false }, y: { range: ranges.v } } }) }, false)} />
       <Plot className="plot" data={iData} deps={[structKey]}
-        options={(w) => base(w, synOn ? 70 : 100, "I (pA)", order.map((k) => ({ label: `${sw[k].amp} pA`, stroke: colors[k], width: k === sel ? 2 : 1 })), ranges && { scales: { x: { time: false }, y: { range: ranges.i } } }, !synOn)} />
+        options={(w) => base(w, iH, "I (pA)", order.map((k) => ({ label: `${sw[k].amp} pA`, stroke: colors[k], width: k === sel ? 2 : 1 })), ranges && { scales: { x: { time: false }, y: { range: ranges.i } } }, !synOn)} />
       {synOn && (
         <Plot className="plot" data={gData} deps={[structKey, synOn]}
-          options={(w) => base(w, 100, "g syn (nS)", [
+          options={(w) => base(w, gH, "g syn (nS)", [
             { label: "g glutamate", stroke: ORANGE, width: 1 },
             { label: "g GABA", stroke: AQUA, width: 1 },
           ], { axes: [axisOpts("time (ms)", 40), axisOpts("g syn (nS)", 56)] })} />

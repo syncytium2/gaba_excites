@@ -813,3 +813,12 @@ changes: the amplifier in both modes with only the tour on the left, and the ste
   mode bar to themselves and fit one line.
 - **"N sweeps simulated in T ms" rides on the plot's title line;** only a failure message stays in the mode bar.
 - Step mode at 1555×972 now ends 30 px below the fold, from 90.
+
+## 2026-10-19 — the amplifier stays put on a mode switch
+
+The owner asked that the amplifier not move when the mode switches. Both modes now give their screen card one
+height, set from the window alone (what is left after the readout line and a fixed 400 px allowance for the
+amplifier, between 380 and 560 px); the scope's canvas and the step plots each fit inside it, and the readout line
+has a fixed height tall enough for Old school's meters. A first version subtracted the amplifier's measured height,
+and the screenshot check caught it moving 71 px at 1440 px wide, where the Steps row wraps and the amplifier grows.
+The check now fails if the amplifier's top moves more than 2 px on a mode switch.

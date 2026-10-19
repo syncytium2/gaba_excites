@@ -65,6 +65,8 @@ interface Props {
   stored: Snapshot[];
   /** draw as a green-phosphor tube, with persistence, instead of the flat screen */
   phosphor?: boolean;
+  /** the canvas's whole height, px: the app sizes the screen, the same in both modes */
+  height?: number;
 }
 
 const DIVS_X = 10;
@@ -72,7 +74,7 @@ const DIVS_V = 8;
 const DIVS_I = 2;
 /** the voltage screen's height, px: as tall as this, shrinking to fit a short window */
 const V_H_MAX = 300;
-const V_H_MIN = 180;
+const V_H_MIN = 140;
 const I_H = 48;
 const GAP = 14;
 const LEFT = 52;
@@ -115,13 +117,19 @@ function columns(w: number): Columns {
   };
 }
 
-export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, vRange, iRange, showVm, triggered, stored, phosphor = false }, ref) {
+export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, vRange, iRange, showVm, triggered, stored, phosphor = false, height }, ref) {
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const width = useRef(600);
   const vH = useRef(V_H_MAX);
   const cols = useRef<Columns>(columns(600));
   const dirty = useRef(true);
+  // the screen's height comes from the app; a change redraws at the new size
+  const wantVH = height === undefined ? V_H_MAX : Math.round(Math.max(V_H_MIN, Math.min(V_H_MAX, height - (TOP + GAP + I_H + BOTTOM))));
+  if (wantVH !== vH.current) {
+    vH.current = wantVH;
+    dirty.current = true;
+  }
   const props = useRef({ msPerDiv, vRange, iRange, showVm, triggered, stored, phosphor });
   props.current = { msPerDiv, vRange, iRange, showVm, triggered, stored, phosphor };
   // the phosphor: an offscreen layer that the beam writes on and that fades with time
@@ -219,25 +227,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
     const el = box.current!;
     // Fit the screen to the window: the scope and its controls on one screen.
     // Measured from the plot column's top, which is pinned in scope mode.
-    const fit = () => {
-      const fig = el.closest(".figures");
-      if (!fig) return;
-      // from the top of the page, so the instrument fits the first screen, header included
-      const rel = el.getBoundingClientRect().top + window.scrollY;
-      // leave room for the amplifier front below, so the whole instrument shows at once
-      const amp = fig.querySelector(".amp");
-      const below = amp ? amp.getBoundingClientRect().height + 14 : 0;
-      // 80: the control bar and legend under the screen, and the card's padding
-      const room = window.innerHeight - 24 - rel - (TOP + GAP + I_H + BOTTOM) - 80 - below;
-      const h = Math.round(Math.max(V_H_MIN, Math.min(V_H_MAX, room)));
-      if (h !== vH.current) {
-        vH.current = h;
-        reset();
-      }
-    };
-    window.addEventListener("resize", fit);
     const ro = new ResizeObserver(() => {
-      fit();
       const w = Math.round(el.clientWidth);
       if (w > 0 && w !== width.current) {
         width.current = w;
@@ -245,10 +235,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
       }
     });
     ro.observe(el);
-    const ampEl = el.closest(".figures")?.querySelector(".amp");
-    if (ampEl) ro.observe(ampEl);
     width.current = Math.round(el.clientWidth) || 600;
-    fit();
     reset();
     let raf = 0;
     const frame = (now: number) => {
@@ -269,7 +256,6 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
-      window.removeEventListener("resize", fit);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

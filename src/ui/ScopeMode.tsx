@@ -47,7 +47,7 @@ interface Readout {
 /** the siren stays on while anything tripped within this much simulated time */
 const SIREN_WINDOW = 1000;
 
-export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false, amp, ampLastRow, ampControls, readoutSlot }: {
+export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false, amp, ampLastRow, ampControls, readoutSlot, screenH = 460 }: {
   cell: CellParams; inputs: StreamInputs; seed: number; limits: Limits; onExtremes: (reasons: string[]) => void; oldSchool?: boolean;
   /** the amplifier rows the app supplies (cell, synapses) */
   amp?: React.ReactNode;
@@ -55,6 +55,8 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
   ampLastRow?: React.ReactNode;
   /** the mode switch and Old school, in the amplifier's name strip */
   ampControls?: React.ReactNode;
+  /** the screen card's height, px: the same in both modes, so the amplifier below stays put */
+  screenH?: number;
   /** where the one-line readouts go: the mode bar, beside Step / Oscilloscope */
   readoutSlot?: HTMLElement | null;
 }) {
@@ -240,10 +242,11 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
     <>
       {readoutSlot ? createPortal(readouts, readoutSlot) : readouts}
 
-      <figure className="card scope-card">
+      <figure className="card scope-card screen-card">
         <figcaption className="sr-only">Oscilloscope{paused ? ", paused" : ""}</figcaption>
         {error && <p className="warn">Simulation failed: {error}</p>}
-        <Scope ref={scope} msPerDiv={msPerDiv} vRange={[-100, 60]} iRange={iRange} showVm={showVm} triggered={triggered} stored={stored} phosphor={oldSchool} />
+        <Scope ref={scope} msPerDiv={msPerDiv} vRange={[-100, 60]} iRange={iRange} showVm={showVm} triggered={triggered} stored={stored} phosphor={oldSchool}
+          height={screenH - (oldSchool ? 104 : 82)} />
         <div className="scope-bar">
           <label className="select inline">
             <span>Time base</span>

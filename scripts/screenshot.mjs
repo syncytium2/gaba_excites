@@ -31,8 +31,13 @@ const setDial = async (name, v) => {
 // The app opens on the guided tour's first part: the GnRH cell in the scope.
 await page.waitForTimeout(2500);
 await page.screenshot({ path: `${out}/opening.png`, fullPage: true });
+// The amplifier stays where it is when the mode switches (the owner, 2026-10-19).
+const ampTop = () => page.evaluate(() => Math.round(document.querySelector(".amp").getBoundingClientRect().top));
+const ampInScope = await ampTop();
 // The rest of this script starts where the app used to open: the pyramidal cell, step mode.
 await page.click("#mode-steps");
+await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
+if (Math.abs((await ampTop()) - ampInScope) > 2) problems.push(`layout: the amplifier moved on a mode switch (${ampInScope} → ${await ampTop()} px)`);
 if (await page.locator(".tools .panel").count() !== 1) problems.push("steps: the left column shows more than the tour");
 await page.selectOption("#model-select", "rs");
 await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });

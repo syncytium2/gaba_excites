@@ -466,3 +466,9 @@ body:has(.page.old-school) { background: #1a1b19; }
 .amp-badge .amp-note { margin-left: 0; }
 /* the run status rides on the plot's title line */
 .card figcaption .status { margin-left: 10px; font-weight: 400; font-size: 11.5px; color: var(--muted); }
+
+/* One screen height in both modes, and a readout line of fixed height (tall
+   enough for Old school's meters), so the amplifier never moves on a mode switch. */
+.screen-card { min-height: var(--screen-h, 460px); }
+.modebar { min-height: 50px; }
+.hmeter { width: 210px; }
