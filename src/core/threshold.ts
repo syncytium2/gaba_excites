@@ -17,13 +17,12 @@ export interface Criterion {
 }
 
 /**
- * The criteria a report tabulates. 1 V/s for GnRH and 2 V/s for KNDy neurons are
- * the owner's own conventions from his papers (the KNDy citation is still to be
- * added to lit/sources.json).
+ * The criteria a report tabulates. 1 V/s (GnRH) and 2 V/s (kisspeptin neurons)
+ * are the owner's lab's conventions. The three taken from papers are in lit/sources.json.
  */
 export const CRITERIA: readonly Criterion[] = [
   { vps: 1, source: "GnRH neurons: DeFazio & Moenter 2002, Mol Endocrinol 16:2255" },
-  { vps: 2, source: "KNDy neurons: the DeFazio lab's convention" },
+  { vps: 2, source: "AVPV kisspeptin neurons: Wang, DeFazio & Moenter 2016, eNeuro 3:ENEURO.0094-16.2016" },
   { vps: 10, source: "Kress et al. 2010, Hippocampus 20:558" },
   { vps: 20, source: "this app's readout" },
 ];

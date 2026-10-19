@@ -175,6 +175,19 @@ Kress GJ, Dowling MJ, Eisenman LN, Mennerick S (2010). Axonal sodium channel dis
 
 **Used in:** [`src/core/threshold.ts`](../src/core/threshold.ts), [`src/core/report.ts`](../src/core/report.ts), [`tools/experiments/threshold_criteria.ts`](../tools/experiments/threshold_criteria.ts), [`tools/experiments/na_shift.ts`](../tools/experiments/na_shift.ts)
 
+### `wang2016`
+
+Wang L, DeFazio RA, Moenter SM (2016). Excitability and burst generation of AVPV kisspeptin neurons are regulated by the estrous cycle via multiple conductances modulated by estradiol action. eNeuro 3(3):ENEURO.0094-16.2016.
+
+[doi:10.1523/ENEURO.0094-16.2016](https://doi.org/10.1523/ENEURO.0094-16.2016) · [PMID 27280155](https://pubmed.ncbi.nlm.nih.gov/27280155/) · [PMC4895127](https://pmc.ncbi.nlm.nih.gov/articles/PMC4895127/) · *open (PubMed Central)* · models: 
+
+**Took:** The 2 V/s dV/dt criterion for action-potential threshold, which the notebook's report tabulates alongside 1, 10 and 20 V/s. The owner remembered it as the lab's KNDy convention, from Luhong Wang's recordings; the paper's cells are AVPV kisspeptin neurons, and it measures threshold at rheobase from −70 mV, as the app does.
+
+> The action potential threshold was defined as the membrane potential at which the derivative exceeded 2 V/s.
+> — Materials and Methods
+
+**Used in:** [`src/core/threshold.ts`](../src/core/threshold.ts), [`src/core/report.ts`](../src/core/report.ts)
+
 ## Background
 
 What the models were built on, credited but not read for any number here.

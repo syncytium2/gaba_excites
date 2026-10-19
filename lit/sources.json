@@ -510,6 +510,38 @@
           "where": "Results"
         }
       ]
+    },
+    {
+      "key": "wang2016",
+      "type": "article",
+      "authors": [
+        "Wang L",
+        "DeFazio RA",
+        "Moenter SM"
+      ],
+      "year": 2016,
+      "title": "Excitability and burst generation of AVPV kisspeptin neurons are regulated by the estrous cycle via multiple conductances modulated by estradiol action",
+      "journal": "eNeuro",
+      "volume": "3",
+      "issue": "3",
+      "pages": "ENEURO.0094-16.2016",
+      "doi": "10.1523/ENEURO.0094-16.2016",
+      "pmid": "27280155",
+      "pmcid": "PMC4895127",
+      "access": "open (PubMed Central)",
+      "role": "method",
+      "models": [],
+      "took": "The 2 V/s dV/dt criterion for action-potential threshold, which the notebook's report tabulates alongside 1, 10 and 20 V/s. The owner remembered it as the lab's KNDy convention, from Luhong Wang's recordings; the paper's cells are AVPV kisspeptin neurons, and it measures threshold at rheobase from −70 mV, as the app does.",
+      "usedIn": [
+        "src/core/threshold.ts",
+        "src/core/report.ts"
+      ],
+      "quotes": [
+        {
+          "text": "The action potential threshold was defined as the membrane potential at which the derivative exceeded 2 V/s.",
+          "where": "Materials and Methods"
+        }
+      ]
     }
   ]
 }
