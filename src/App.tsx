@@ -21,6 +21,8 @@ import { describe as describeTrip, ExtremeWatch, limitsFor, type ExtremeKind } f
 import { AQUA, AXIS, BLUE, GRID, INK2, MUTED, ORANGE, rampColor } from "./ui/palette.ts";
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 import { Notebook } from "./ui/Notebook.tsx";
+import { Tour } from "./ui/Tour.tsx";
+import { tourInputs, type TourSettings } from "./core/tour.ts";
 import type { RunSettings } from "./core/report.ts";
 
 interface Result {
@@ -84,7 +86,7 @@ export function App() {
 
   const protocol = useMemo(() => toProtocol(form), [form]);
   // The left panels collapse. The ones you reach for first start open.
-  const panels = usePanels({ model: true, cell: true, electrode: false, protocol: true, stimulus: true, glu: false, gaba: false, noise: false });
+  const panels = usePanels({ tour: true, model: true, cell: true, electrode: false, protocol: true, stimulus: true, glu: false, gaba: false, noise: false });
 
   // ------------------------------------------------------------ worker
   const worker = useRef<Worker | null>(null);
@@ -166,6 +168,26 @@ export function App() {
     if (p.glu.enabled) panels.set("glu", true);
     if (p.gaba.enabled) panels.set("gaba", true);
     setSelected(null);
+  };
+
+  // A tour part sets the controls to exactly what tour.test.ts measured.
+  const applyTour = (s: TourSettings) => {
+    const t = tourInputs(s);
+    if (t.cell.model !== cell.model) setPins([]);
+    setCell(t.cell);
+    setIhold(t.ihold);
+    setPresetId(t.presetId);
+    setForm(t.form);
+    setGlu(t.glu);
+    setGaba(t.gaba);
+    setPulse({ ...SCOPE_PULSE[s.model], enabled: false });
+    setNoise({ ...noise, memSigma: 0 });
+    setMode(s.mode);
+    panels.set("cell", true);
+    if (t.glu.enabled) panels.set("glu", true);
+    if (t.gaba.enabled) panels.set("gaba", true);
+    setSelected(null);
+    setRefined(null);
   };
 
   // ------------------------------------------------------------ derived
@@ -260,6 +282,11 @@ export function App() {
       <KnobContext.Provider value={oldSchool}>
       <div className="layout">
         <aside className="tools">
+          <Panel title="Guided tour" open={panels.open.tour} onToggle={() => panels.toggle("tour")} className="tour-panel"
+            summary="Why does GABA excite GnRH neurons? Open to start.">
+            <Tour onApply={applyTour} />
+          </Panel>
+
           <Panel title="Model" open={panels.open.model} onToggle={() => panels.toggle("model")}
             summary={model.label}>
             <label className="select">

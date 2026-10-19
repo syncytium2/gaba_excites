@@ -132,7 +132,8 @@
       "usedIn": [
         "src/core/models.ts",
         "src/core/channels.ts",
-        "src/core/gnrh.test.ts"
+        "src/core/gnrh.test.ts",
+        "src/core/tour.ts"
       ],
       "quotes": [
         {
@@ -226,7 +227,8 @@
       "took": "The GnRH cell's default E_GABA, −36.5 mV: measured by gramicidin perforated patch, which leaves intracellular chloride undisturbed.",
       "usedIn": [
         "src/core/models.ts",
-        "src/core/protocol.ts"
+        "src/core/protocol.ts",
+        "src/core/tour.ts"
       ],
       "quotes": [
         {
@@ -572,7 +574,9 @@
         "gnrh"
       ],
       "took": "GnRH neuron resting potentials by gramicidin perforated patch, by sex and cycle stage (−55.5 to −59.4 mV): evidence for the GABA opening's resting potential near −60 mV.",
-      "usedIn": [],
+      "usedIn": [
+        "src/core/tour.ts"
+      ],
       "notes": "notes/gnrh-rest.md",
       "pmcid": "PMC6103434",
       "quotes": [
@@ -604,7 +608,9 @@
         "gnrh"
       ],
       "took": "GnRH neuron resting potential by gramicidin perforated patch, −55 ± 1 mV (n = 188), junction potential not corrected (~−2 mV).",
-      "usedIn": [],
+      "usedIn": [
+        "src/core/tour.ts"
+      ],
       "notes": "notes/gnrh-rest.md",
       "pmcid": "PMC6116891",
       "quotes": [

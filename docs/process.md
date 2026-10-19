@@ -648,3 +648,18 @@ some PSPs fire a spike. The question was where the cell should sit.
 - **The owner chose about −60 mV** ("much more fun and possibly more realistic"), set by a holding current shown as
   such. −60 mV is the edge of firing in this model (+8.5 pA fires on its own), so the opening's settings need care, and
   their numbers must be pinned by a test before any text quotes them. Not yet built.
+
+## 2026-10-19 — the guided tour, first draft
+
+The owner asked for a guided tour of the GnRH cell, drafted by Claude for his approval, and a local build to test.
+
+- **"Parts", not "steps".** A step already means a current step in this app; the owner pointed out the clash.
+- **A panel inside the app,** first in the sidebar. Each part's "Try this" sets the controls; the text says what the
+  button will change before it is pressed, and a polite live region says what it did. Native buttons and a select,
+  so the tour works from the keyboard.
+- **One function, `tourInputs`, turns a part into inputs.** The app applies it and `tour.test.ts` measures it, so
+  the text and the screen cannot drift. Every number the text quotes is pinned there.
+- **The opening holds the cell at −61.4 mV (+7.5 pA), not −60.3 mV (+8 pA).** At +8 pA the cell fires on its own
+  within 20 s, which would mix its own spikes with GABA's. At +7.5 pA it stays silent for a minute.
+- **The text is a draft,** flagged in the file (`TOUR_IS_DRAFT`) and on screen. Not for deploy until the owner
+  approves it.

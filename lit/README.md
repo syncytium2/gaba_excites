@@ -61,7 +61,7 @@ Adams C, Stroberg W, DeFazio RA, Schnell S, Moenter SM (2018). Gonadotropin-rele
 > Current injections were initiated from a mean membrane potential of −69 ± 2 mV, near the value determined in the above experiments.
 > — Results; the earlier experiments are on-cell measurements of Vm
 
-**Used in:** [`src/core/models.ts`](../src/core/models.ts), [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/gnrh.test.ts`](../src/core/gnrh.test.ts)
+**Used in:** [`src/core/models.ts`](../src/core/models.ts), [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/gnrh.test.ts`](../src/core/gnrh.test.ts), [`src/core/tour.ts`](../src/core/tour.ts)
 
 **Notes:** [`notes/adams2018.md`](notes/adams2018.md)
 
@@ -83,7 +83,7 @@ DeFazio RA, Heger S, Ojeda SR, Moenter SM (2002). Activation of A-type γ-aminob
 > This was positive relative to the resting potential (−50.7 ± 1.7 mV, from current-clamp measurements)
 > — Results, gramicidin perforated patch; read through a summarizing web fetch, 2026-10-19 (Table 2 gives the on-cell rest, −72.7 ± 2.3 mV, n = 18); check against the PDF
 
-**Used in:** [`src/core/models.ts`](../src/core/models.ts), [`src/core/protocol.ts`](../src/core/protocol.ts)
+**Used in:** [`src/core/models.ts`](../src/core/models.ts), [`src/core/protocol.ts`](../src/core/protocol.ts), [`src/core/tour.ts`](../src/core/tour.ts)
 
 **Notes:** [`notes/defazio2002.md`](notes/defazio2002.md)
 
@@ -241,6 +241,8 @@ Han SK, Herbison AE (2008). Norepinephrine suppresses gonadotropin-releasing hor
 > Under perforated-patch, resting membrane potentials (RMP; mV) were -59.4±1.0 (males, N=39), -55.5±1.5 (diestrous females, N=11), -59.3±1.2 (proestrous females, N=14), -55.6±2.5 (estrous females, N=13) and -58.8±1.1 (OVX females, N=11).
 > — Results
 
+**Used in:** [`src/core/tour.ts`](../src/core/tour.ts)
+
 **Notes:** [`notes/gnrh-rest.md`](notes/gnrh-rest.md)
 
 ### `liu2008`
@@ -253,6 +255,8 @@ Liu X, Lee K, Herbison AE (2008). Kisspeptin excites gonadotropin-releasing horm
 
 > The 188 GnRH neurons included in this report had an average resting membrane potential (RMP) of -55±1mV and Rin of 1478±35MOhms.
 > — Results
+
+**Used in:** [`src/core/tour.ts`](../src/core/tour.ts)
 
 **Notes:** [`notes/gnrh-rest.md`](notes/gnrh-rest.md)
 
