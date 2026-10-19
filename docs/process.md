@@ -784,3 +784,24 @@ round joins on the live trace and the phosphor beam, which also thins the noise 
 - **The firing rate and mean Vm average over one window the user picks:** 0.1, 0.2, 0.5, 1 or 2 s ("Readouts over",
   under the screen), default 1 s. It was 2 s for the rate and 1 s for Vm. The readouts now publish every 0.1 s, so
   a short window shows what it catches. A rate is reported once half a window has run.
+
+## 2026-10-19 — one instrument in both modes
+
+The owner found the switch from the scope to the step protocol jarring, and chose the first two of five proposed
+changes: the amplifier in both modes with only the tour on the left, and the step readouts on one line.
+
+- **The side panels are gone in both modes;** every control is on the amplifier. Rows: MODEL, CELL (with
+  Rin and τm at rest as amber readouts; rest and Rin at Ihold on hover), ELECTRODE, MEMBRANE NOISE; then the two
+  PSC generators and the random draw; then the stimulus and RECORDING NOISE, with MONITOR added on the scope.
+- **The stimulus is the one section that changes with the mode,** in the same place: PULSES on the scope, STEPS in
+  step mode (preset, family or list, first, increment, sweeps, step at, duration, sweep length). Steps did not fit
+  the top row, so the stimulus moved to the bottom row in both modes.
+- **Step readouts are one line in the mode bar,** as the scope's are, each name with its note on hover; Rheobase
+  keeps "refine" and the refined value. The readout tiles and the shared `Tile` are gone.
+- **The step plots share one time axis:** only the bottom plot labels time, which gives the voltage plot its room
+  back while the current and conductance plots shrink.
+- **Known gap:** at 1555×972 in step mode the amplifier's bottom row (Steps) is about 90 px below the fold. The
+  remaining proposals (the scope's screen style for the sweeps, and nothing moving between modes) are where to fix
+  it.
+- The tour no longer folds panels (there are none). The check script drives both modes through the amplifier and
+  fails if the left column shows more than the tour.

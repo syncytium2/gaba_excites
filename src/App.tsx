@@ -22,8 +22,7 @@ import { AQUA, AXIS, BLUE, GRID, INK2, MUTED, ORANGE, rampColor } from "./ui/pal
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 import { Notebook } from "./ui/Notebook.tsx";
 import { Tour } from "./ui/Tour.tsx";
-import { Tile } from "./ui/Tile.tsx";
-import { AmpChoice, AmpDial, AmpRow, AmpSection, AmpSlot } from "./ui/AmpFront.tsx";
+import { AmpChoice, AmpDial, AmpFront, AmpRow, AmpSection, AmpSlot } from "./ui/AmpFront.tsx";
 import { TOUR, tourInputs, type TourControl, type TourSettings } from "./core/tour.ts";
 
 // The app opens on the tour's first part: the GnRH cell in the oscilloscope,
@@ -98,7 +97,7 @@ export function App() {
 
   const protocol = useMemo(() => toProtocol(form), [form]);
   // The left panels collapse. The ones you reach for first start open.
-  const panels = usePanels({ tour: true, model: false, cell: true, electrode: false, protocol: true, stimulus: false, glu: false, gaba: true, noise: false });
+  const panels = usePanels({ tour: true });
 
   // ------------------------------------------------------------ worker
   const worker = useRef<Worker | null>(null);
@@ -166,8 +165,6 @@ export function App() {
     setForm(p.protocol);
     setGlu(p.glu);
     setGaba(p.gaba);
-    if (p.glu.enabled) panels.set("glu", true);
-    if (p.gaba.enabled) panels.set("gaba", true);
     setNoise({ ...noise, memSigma: 0 }); // membrane noise is in pA, and the right scale differs by ~10× between cells
     setPins([]);
     setSelected(null);
@@ -191,9 +188,6 @@ export function App() {
     setForm(p.protocol);
     setGlu(p.glu);
     setGaba(p.gaba);
-    // a preset that switches an input on opens its panel, so the change is visible
-    if (p.glu.enabled) panels.set("glu", true);
-    if (p.gaba.enabled) panels.set("gaba", true);
     setSelected(null);
   };
 
@@ -210,13 +204,6 @@ export function App() {
     setPulse({ ...SCOPE_PULSE[s.model], enabled: false });
     setNoise({ ...noise, memSigma: 0 });
     setMode(s.mode);
-    // Only the panels this part uses stay open, so the plot and its controls
-    // share one screen. Any panel still opens by hand.
-    panels.set("cell", true);
-    panels.set("protocol", s.mode === "steps");
-    panels.set("glu", t.glu.enabled);
-    panels.set("gaba", t.gaba.enabled);
-    for (const k of ["model", "electrode", "stimulus", "noise"]) panels.set(k, false);
     setSelected(null);
     setRefined(null);
     if (s.play) {
@@ -263,7 +250,6 @@ export function App() {
   const sel = selected !== null && selected < sweeps.length ? selected : defaultSelection(summary);
   const synOn = glu.enabled || gaba.enabled;
   const model = MODELS[cell.model];
-  const noiseOn = noise.recSigma > 0 || noise.humAmp > 0 || noise.memSigma > 0;
   const presets = presetsFor(cell.model);
   // Rin is measured from the cell the leak and channels make, so τm is too.
   // Computed here rather than taken from the last run, so it is right in either mode.
@@ -324,7 +310,7 @@ export function App() {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
 
-  // The controls a tour part shows in its own card: the same state as the panels.
+  // The controls a tour part shows in its own card: the same state as the amplifier.
   const tourControl = (c: TourControl) => {
     const r = model.ranges;
     switch (c) {
@@ -345,6 +331,7 @@ export function App() {
   // Dial ranges suit the cell: a GnRH neuron's GABA runs at a few Hz, not hundreds.
   const synRange = cell.model === "gnrh" ? { rate: 50, rateStep: 1, g: 10, gStep: 0.1 } : { rate: 2000, rateStep: 10, g: 50, gStep: 0.5 };
   const PATTERNS = [["poisson", "Poisson"], ["regular", "Regular"]] as const;
+  const putForm = (patch: Partial<ProtocolForm>) => { setForm({ ...form, ...patch }); setPresetId("custom"); };
   const synDials = (name: string, syn: SynInput, set: (s: SynInput) => void, withErev: boolean) => {
     const put = (patch: Partial<SynInput>) => { set({ ...syn, ...patch }); setPresetId("custom"); };
     return (
@@ -363,7 +350,7 @@ export function App() {
       <AmpRow>
         <AmpSection name="MODEL">
           <AmpSlot label="Cell">
-            <select id="amp-model-select" aria-label="Cell model" value={cell.model} onChange={(e) => switchModel(e.target.value as ModelId)}>
+            <select id="model-select" aria-label="Cell model" value={cell.model} onChange={(e) => switchModel(e.target.value as ModelId)}>
               {MODEL_LIST.map((m) => <option key={m.id} value={m.id}>{m.short}</option>)}
             </select>
           </AmpSlot>
@@ -375,16 +362,25 @@ export function App() {
           <AmpDial label="Ihold" unit="pA" value={ihold} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 0.5 : model.ranges.ihold.step} digits={1} onChange={setIhold} />
           <AmpDial label="gL (leak)" unit="nS" value={cell.gLeak} min={model.ranges.gLeak.min} max={model.ranges.gLeak.max} step={model.ranges.gLeak.step} digits={2} onChange={(gLeak) => setCell({ ...cell, gLeak })} />
           <AmpDial label="Cm (size)" unit="pF" value={cell.cm} min={model.ranges.cm.min} max={model.ranges.cm.max} step={model.ranges.cm.step} digits={1} onChange={(cm) => setCell({ ...cell, cm })} />
+          <AmpSlot label="Rin · τm at rest">
+            <Tip text={<>
+              Measured, never set: <b>Rin at rest</b> comes from the leak plus the channels open at rest, and <b>τm = Rin·Cm</b>.
+              Rest {fmt(built.vRest, 1)} mV; Rin at the holding current {fmt(built.rinAtHold, 1)} MΩ; area {Math.round(built.areaUm2).toLocaleString()} µm².
+              {!Number.isFinite(built.vRest) && <> No stable rest: with this leak the channels keep the cell depolarized, so rest and Rin are undefined.</>}
+            </>}>
+              <span className="amp-readout">{fmt(rinRest, 0)} <small>MΩ</small></span>
+              <span className="amp-readout">{fmt(tauM, 1)} <small>ms</small></span>
+            </Tip>
+          </AmpSlot>
         </AmpSection>
         <AmpSection name="ELECTRODE">
           <AmpDial label="Rs" unit="MΩ" value={electrode.rs} min={0} max={100} step={1} digits={0} onChange={(rs) => setElectrode({ ...electrode, rs })} />
           <AmpDial label="Bridge" unit="%" value={Math.round(electrode.bridge * 100)} min={0} max={100} step={5} digits={0} onChange={(b) => setElectrode({ ...electrode, bridge: b / 100 })} />
           <AmpDial label="Pipette C" unit="pF" value={electrode.cp} min={0} max={20} step={0.5} digits={1} onChange={(cp) => setElectrode({ ...electrode, cp })} />
         </AmpSection>
-        <AmpSection name="PULSES" power={{ on: pulse.enabled, onChange: (on) => setPulse({ ...pulse, enabled: on }) }}>
-          <AmpDial label="Amplitude" unit="pA" value={pulse.amp} min={-3 * limits.iBound} max={3 * limits.iBound} step={cell.model === "gnrh" ? 1 : 10} digits={0} disabled={!pulse.enabled} onChange={(amp) => setPulse({ ...pulse, amp })} />
-          <AmpDial label="Width" unit="ms" value={pulse.width} min={1} max={2000} step={10} digits={0} disabled={!pulse.enabled} onChange={(width) => setPulse({ ...pulse, width })} />
-          <AmpDial label="Period" unit="ms" value={pulse.period} min={10} max={10000} step={50} digits={0} disabled={!pulse.enabled} onChange={(period) => setPulse({ ...pulse, period })} />
+        <AmpSection name="MEMBRANE NOISE">
+          <AmpDial label="σ" unit="pA" value={noise.memSigma} min={model.ranges.memNoise.min} max={model.ranges.memNoise.max} step={model.ranges.memNoise.step} digits={1} onChange={(memSigma) => setNoise({ ...noise, memSigma })} />
+          <AmpDial label="τ" unit="ms" value={noise.memTau} min={0.5} max={100} step={0.5} digits={1} onChange={(memTau) => setNoise({ ...noise, memTau })} />
         </AmpSection>
       </AmpRow>
       <AmpRow>
@@ -399,18 +395,44 @@ export function App() {
       </AmpRow>
     </>
   );
-  // the last row starts with the noise; the scope adds its audio monitor (and meters) after it
+  // The last row starts with the stimulus (pulses on the scope, steps in step mode) and the
+  // recording noise; the scope adds its audio monitor after them.
   const ampLastRow = (
     <>
+        {mode === "steps" ? (
+        <AmpSection name="STEPS">
+          <AmpSlot label="Protocol">
+            <select id="preset-select" aria-label="Step protocol preset" value={presetId} onChange={(e) => applyPreset(e.target.value)}>
+              {presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              {!preset && <option value={presetId}>Custom</option>}
+            </select>
+          </AmpSlot>
+          <AmpChoice label="Steps as" value={form.mode} options={[["family", "Family"], ["list", "List"]] as const} onChange={(m) => putForm({ mode: m })} />
+          {form.mode === "family" ? <>
+            <AmpDial label="First" unit="pA" value={form.first} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 1 : 10} digits={cell.model === "gnrh" ? 1 : 0} onChange={(first) => putForm({ first })} />
+            <AmpDial label="Increment" unit="pA" value={form.delta} min={cell.model === "gnrh" ? 0.5 : 5} max={cell.model === "gnrh" ? 10 : 200} step={cell.model === "gnrh" ? 0.5 : 5} digits={cell.model === "gnrh" ? 1 : 0} onChange={(delta) => putForm({ delta })} />
+            <AmpDial label="Sweeps" unit="" value={form.count} min={1} max={MAX_SWEEPS} step={1} digits={0} onChange={(count) => putForm({ count })} />
+          </> : (
+            <AmpSlot label="Steps, pA">
+              <input className="amp-list" aria-label="Steps, pA, comma or space separated" value={form.list} onChange={(e) => putForm({ list: e.target.value })} />
+            </AmpSlot>
+          )}
+          <AmpDial label="Step at" unit="ms" value={form.stepStart} min={0} max={2000} step={10} digits={0} onChange={(stepStart) => putForm({ stepStart })} />
+          <AmpDial label="Duration" unit="ms" value={form.stepDur} min={0} max={5000} step={50} digits={0} onChange={(stepDur) => putForm({ stepDur })} />
+          <AmpDial label="Sweep" unit="ms" value={form.sweepMs} min={100} max={10000} step={100} digits={0} onChange={(sweepMs) => putForm({ sweepMs })} />
+        </AmpSection>
+        ) : (
+        <AmpSection name="PULSES" power={{ on: pulse.enabled, onChange: (on) => setPulse({ ...pulse, enabled: on }) }}>
+          <AmpDial label="Amplitude" unit="pA" value={pulse.amp} min={-3 * limits.iBound} max={3 * limits.iBound} step={cell.model === "gnrh" ? 1 : 10} digits={0} disabled={!pulse.enabled} onChange={(amp) => setPulse({ ...pulse, amp })} />
+          <AmpDial label="Width" unit="ms" value={pulse.width} min={1} max={2000} step={10} digits={0} disabled={!pulse.enabled} onChange={(width) => setPulse({ ...pulse, width })} />
+          <AmpDial label="Period" unit="ms" value={pulse.period} min={10} max={10000} step={50} digits={0} disabled={!pulse.enabled} onChange={(period) => setPulse({ ...pulse, period })} />
+        </AmpSection>
+        )}
         <AmpSection name="RECORDING NOISE">
           <AmpDial label="RMS" unit="mV" value={noise.recSigma} min={0} max={3} step={0.05} digits={2} onChange={(recSigma) => setNoise({ ...noise, recSigma })} />
           <AmpDial label="Bandwidth" unit="kHz" value={noise.recBandwidth} min={0.2} max={20} step={0.5} digits={1} onChange={(recBandwidth) => setNoise({ ...noise, recBandwidth })} />
           <AmpDial label="Line hum" unit="mV" value={noise.humAmp} min={0} max={3} step={0.05} digits={2} onChange={(humAmp) => setNoise({ ...noise, humAmp })} />
           <AmpChoice label="Mains" value={noise.humHz} options={[[50, "50 Hz"], [60, "60 Hz"]] as const} onChange={(humHz) => setNoise({ ...noise, humHz })} />
-        </AmpSection>
-        <AmpSection name="MEMBRANE NOISE">
-          <AmpDial label="σ" unit="pA" value={noise.memSigma} min={model.ranges.memNoise.min} max={model.ranges.memNoise.max} step={model.ranges.memNoise.step} digits={1} onChange={(memSigma) => setNoise({ ...noise, memSigma })} />
-          <AmpDial label="τ" unit="ms" value={noise.memTau} min={0.5} max={100} step={0.5} digits={1} onChange={(memTau) => setNoise({ ...noise, memTau })} />
         </AmpSection>
     </>
   );
@@ -436,133 +458,6 @@ export function App() {
             <Tour onApply={applyTour} control={tourControl} />
           </Panel>
 
-          {mode === "steps" && <>
-          <Panel title="Model" open={panels.open.model} onToggle={() => panels.toggle("model")}
-            summary={model.label}>
-            <label className="select">
-              <span className="sr-only">Cell model</span>
-              <select id="model-select" value={cell.model} onChange={(e) => switchModel(e.target.value as ModelId)}>
-                {MODEL_LIST.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-              </select>
-            </label>
-            <p className="note">{model.blurb}</p>
-            <p className="small">
-              {model.validation} <a href={`https://doi.org/${model.doi}`}>{model.citation}</a>.
-            </p>
-          </Panel>
-
-          <Panel title="Cell" open={panels.open.cell} onToggle={() => panels.toggle("cell")}
-            summary={`gL ${fmt(cell.gLeak, 2)} nS · Rin ${fmt(rinRest, 0)} MΩ · Cm ${fmt(cell.cm, 1)} pF · Ihold ${ihold} pA`}>
-            <NumField label="gL (leak)" unit="nS" value={cell.gLeak} min={model.ranges.gLeak.min} max={model.ranges.gLeak.max} step={model.ranges.gLeak.step} slider digits={2}
-              onChange={(gLeak) => setCell({ ...cell, gLeak })} />
-            <NumField label="Cm" unit="pF" value={cell.cm} min={model.ranges.cm.min} max={model.ranges.cm.max} step={model.ranges.cm.step} slider digits={1}
-              onChange={(cm) => setCell({ ...cell, cm })} />
-            <NumField label="Ihold" unit="pA" value={ihold} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={model.ranges.ihold.step} slider
-              onChange={setIhold} />
-            <div className="derived">
-              <div>Rin at rest = <b>{fmt(rinRest, 1)} MΩ</b>, measured: leak plus the channels open at rest</div>
-              <div>τm = Rin·Cm = <b>{fmt(tauM, 1)} ms</b></div>
-              <div>rest {fmt(built.vRest, 1)} mV · Rin at Ihold {fmt(built.rinAtHold, 1)} MΩ</div>
-              <div>area {Math.round(built.areaUm2).toLocaleString()} µm²</div>
-              {!Number.isFinite(built.vRest) && (
-                <div className="warn">No stable rest: with this leak the channels keep the cell depolarized, so rest and Rin are undefined.</div>
-              )}
-            </div>
-            <button className="linkish" onClick={resetCell}>
-              Reset to the published cell and PSCs
-            </button>
-          </Panel>
-
-          <Panel title="Electrode" open={panels.open.electrode} onToggle={() => panels.toggle("electrode")}
-            summary={`Rs ${electrode.rs} MΩ · bridge ${Math.round(electrode.bridge * 100)}% · pipette ${electrode.cp} pF`}>
-            <NumField label="Rs" unit="MΩ" value={electrode.rs} min={0} max={100} step={1} slider
-              onChange={(rs) => setElectrode({ ...electrode, rs })} />
-            <NumField label="Bridge balance" unit="%" value={Math.round(electrode.bridge * 100)} min={0} max={100} step={5} slider
-              onChange={(b) => setElectrode({ ...electrode, bridge: b / 100 })} />
-            <NumField label="Pipette C" unit="pF" value={electrode.cp} min={0} max={20} step={0.5} slider
-              hint="Left over after capacitance neutralization. With 0 pF, Rs only offsets the record."
-              onChange={(cp) => setElectrode({ ...electrode, cp })} />
-          </Panel>
-
-          {mode === "steps" ? (
-          <Panel title="Protocol" open={panels.open.protocol} onToggle={() => panels.toggle("protocol")}
-            summary={`${preset ? preset.label : "Custom"} · ${protocol.amps.length} sweep${protocol.amps.length === 1 ? "" : "s"}, ${protocol.stepDur} ms steps`}>
-            <label className="select">
-              <span>Preset</span>
-              <select id="preset-select" value={presetId} onChange={(e) => applyPreset(e.target.value)}>
-                {presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-                {!preset && <option value={presetId}>Custom</option>}
-              </select>
-            </label>
-            {preset && <p className="note">{preset.note}</p>}
-            <div className="seg" role="radiogroup" aria-label="How to specify the steps">
-              {(["family", "list"] as const).map((m) => (
-                <button key={m} role="radio" aria-checked={form.mode === m} className={form.mode === m ? "on" : ""}
-                  onClick={() => { setForm({ ...form, mode: m }); setPresetId("custom"); }}>
-                  {m === "family" ? "Family" : "List"}
-                </button>
-              ))}
-            </div>
-            {form.mode === "family" ? (
-              <div className="row3">
-                <NumField label="First" unit="pA" value={form.first} step={10} onChange={(first) => { setForm({ ...form, first }); setPresetId("custom"); }} />
-                <NumField label="Increment" unit="pA" value={form.delta} step={5} onChange={(delta) => { setForm({ ...form, delta }); setPresetId("custom"); }} />
-                <NumField label="Sweeps" value={form.count} min={1} max={MAX_SWEEPS} step={1} onChange={(count) => { setForm({ ...form, count }); setPresetId("custom"); }} />
-              </div>
-            ) : (
-              <label className="listfield">
-                <span>Steps, pA (comma or space separated)</span>
-                <textarea rows={2} value={form.list} onChange={(e) => { setForm({ ...form, list: e.target.value }); setPresetId("custom"); }} />
-              </label>
-            )}
-            <div className="row3">
-              <NumField label="Step at" unit="ms" value={form.stepStart} min={0} step={10} onChange={(stepStart) => { setForm({ ...form, stepStart }); setPresetId("custom"); }} />
-              <NumField label="Duration" unit="ms" value={form.stepDur} min={0} step={50} onChange={(stepDur) => { setForm({ ...form, stepDur }); setPresetId("custom"); }} />
-              <NumField label="Sweep" unit="ms" value={form.sweepMs} min={10} max={10000} step={100} onChange={(sweepMs) => { setForm({ ...form, sweepMs }); setPresetId("custom"); }} />
-            </div>
-            <div className="small">{protocol.amps.length} sweep{protocol.amps.length === 1 ? "" : "s"}: {protocol.amps.slice(0, 12).join(", ")}{protocol.amps.length > 12 ? ", …" : ""} pA</div>
-          </Panel>
-          ) : (
-          <Panel title="Stimulus" open={panels.open.stimulus} onToggle={() => panels.toggle("stimulus")}
-            summary={`Ihold ${ihold} pA` + (pulse.enabled ? ` · pulses ${pulse.amp} pA, ${pulse.width} ms every ${pulse.period} ms` : " · pulses off")}>
-            <p className="note">
-              The holding current in the Cell panel is the DC knob: turn it and watch the cell start to fire. Pulses repeat on top of it.
-            </p>
-            <label className="check">
-              <input id="pulse-on" type="checkbox" checked={pulse.enabled} onChange={(e) => setPulse({ ...pulse, enabled: e.target.checked })} />
-              Repeating pulses
-            </label>
-            <div className="row3">
-              <NumField label="Amplitude" unit="pA" value={pulse.amp} step={cell.model === "gnrh" ? 2 : 50} disabled={!pulse.enabled}
-                min={-3 * limits.iBound} max={3 * limits.iBound}
-                onChange={(amp) => setPulse({ ...pulse, amp })} />
-              <NumField label="Width" unit="ms" value={pulse.width} min={0.1} max={10000} step={10} disabled={!pulse.enabled}
-                onChange={(width) => setPulse({ ...pulse, width })} />
-              <NumField label="Period" unit="ms" value={pulse.period} min={1} max={20000} step={50} disabled={!pulse.enabled}
-                onChange={(period) => setPulse({ ...pulse, period })} />
-            </div>
-          </Panel>
-          )}
-
-          <SynPanel title="Glutamate" color={ORANGE} syn={glu} erevEditable={false}
-            open={panels.open.glu} onToggle={() => panels.toggle("glu")} onEnable={() => panels.set("glu", true)}
-            onChange={(g) => { setGlu(g); setPresetId("custom"); }} />
-          <SynPanel title="GABA" color={AQUA} syn={gaba} erevEditable
-            erevHint={`Default for this cell: ${model.eGabaSource}.`}
-            kineticsHint={model.gabaKineticsSource ? `Kinetics for this cell: ${model.gabaKineticsSource}.` : undefined}
-            open={panels.open.gaba} onToggle={() => panels.toggle("gaba")} onEnable={() => panels.set("gaba", true)}
-            onChange={(g) => { setGaba(g); setPresetId("custom"); }} />
-          <NoisePanel noise={noise} memRange={model.ranges.memNoise} onChange={setNoise}
-            open={panels.open.noise} onToggle={() => panels.toggle("noise")} />
-          {(synOn || noiseOn) && (
-            <section className="panel compact">
-              <div className="seedrow">
-                <span className="small">Random draw #{seed} — PSC timing and noise. The same draw replays whatever you change about the cell; each sweep gets its own.</span>
-                <button onClick={() => setSeed(seed + 1)}>New draw</button>
-              </div>
-            </section>
-          )}
-          </>}
         </aside>
 
         <main className={"figures" + (mode === "scope" ? " pinned" : "")}>
@@ -582,6 +477,7 @@ export function App() {
               </label>
             )}
             {mode === "scope" && <div className="readout-slot" ref={setReadoutSlot} />}
+            {mode === "steps" && <StepReadouts summary={playing ? undefined : summary} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} />}
             <Siren reasons={mode === "scope" ? scopeReasons : stepReasons} />
             <div className="status" aria-live="polite">
               {error ? <span className="warn">Simulation failed: {error}</span> : mode === "scope" ? "" : busy ? "simulating…" : result ? `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms` : ""}
@@ -593,8 +489,6 @@ export function App() {
               amp={ampSections} ampLastRow={ampLastRow} readoutSlot={readoutSlot} />
           ) : (
             <>
-
-            <Stats summary={playing ? undefined : summary} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} />
 
             {result && sweeps.length > 0 && (
               <>
@@ -628,6 +522,16 @@ export function App() {
                     {synOn && <> Conductances are the selected sweep's: <span style={{ color: ORANGE }}>■</span> glutamate, <span style={{ color: AQUA }}>■</span> GABA.</>}
                   </p>
                 </figure>
+              </>
+            )}
+
+            <AmpFront>
+              {ampSections}
+              <AmpRow>{ampLastRow}</AmpRow>
+            </AmpFront>
+
+            {result && sweeps.length > 0 && (
+              <>
 
                 <div className="twoup">
                   <figure className="card">
@@ -688,109 +592,9 @@ function defaultSelection(s?: FamilySummary): number {
 
 // ------------------------------------------------------------------ synapses
 
-function SynPanel({ title, color, syn, erevEditable, erevHint, kineticsHint, onChange, open, onToggle, onEnable }: {
-  title: string; color: string; syn: SynInput; erevEditable: boolean; erevHint?: string; kineticsHint?: string; onChange: (s: SynInput) => void;
-  open: boolean; onToggle: () => void; onEnable: () => void;
-}) {
-  const summary = syn.enabled
-    ? `${syn.rate} Hz · ${syn.gPeak} nS · ${syn.tauRise}/${syn.tauDecay} ms · E ${syn.erev} mV · ${syn.pattern}`
-    : `off · E ${syn.erev} mV`;
-  return (
-    <Panel className={"syn" + (syn.enabled ? "" : " off")} open={open} onToggle={onToggle} summary={summary}
-      title={<><span className="swatch" style={{ background: color }} /> {title} PSCs</>}
-      extra={
-        <input type="checkbox" className="ph-check" aria-label={`${title} PSCs on`} checked={syn.enabled}
-          onChange={(e) => { onChange({ ...syn, enabled: e.target.checked }); if (e.target.checked) onEnable(); }} />
-      }>
-      <div className="row2">
-        <NumField label="Rate" unit="Hz" value={syn.rate} min={0} max={2000} step={10} disabled={!syn.enabled} onChange={(rate) => onChange({ ...syn, rate })} />
-        <NumField label="Peak g" unit="nS" value={syn.gPeak} min={0} max={100} step={0.5} disabled={!syn.enabled} onChange={(gPeak) => onChange({ ...syn, gPeak })} />
-        <NumField label="τ rise" unit="ms" value={syn.tauRise} min={0} max={50} step={0.1} disabled={!syn.enabled} onChange={(tauRise) => onChange({ ...syn, tauRise })} />
-        <NumField label="τ decay" unit="ms" value={syn.tauDecay} min={0.1} max={500} step={0.5} disabled={!syn.enabled} onChange={(tauDecay) => onChange({ ...syn, tauDecay })} />
-      </div>
-      {kineticsHint && <div className="nf-hint">{kineticsHint}</div>}
-      {erevEditable ? (
-        <NumField label="E_GABA" unit="mV" value={syn.erev} min={-100} max={0} step={0.5} slider disabled={!syn.enabled}
-          hint={erevHint} onChange={(erev) => onChange({ ...syn, erev })} />
-      ) : (
-        <div className="small">E_glu = {syn.erev} mV (AMPA-like, fixed)</div>
-      )}
-      <div className="seg small" role="radiogroup" aria-label={`${title} timing`}>
-        {(["poisson", "regular"] as const).map((p) => (
-          <button key={p} role="radio" aria-checked={syn.pattern === p} disabled={!syn.enabled} className={syn.pattern === p ? "on" : ""}
-            onClick={() => onChange({ ...syn, pattern: p })}>
-            {p === "poisson" ? "Poisson" : "Regular"}
-          </button>
-        ))}
-      </div>
-    </Panel>
-  );
-}
-
 // ------------------------------------------------------------------ noise
 
-function NoisePanel({ noise, memRange, onChange, open, onToggle }: {
-  noise: NoiseParams; memRange: { min: number; max: number; step: number }; onChange: (n: NoiseParams) => void;
-  open: boolean; onToggle: () => void;
-}) {
-  const rec = noise.recSigma > 0 || noise.humAmp > 0
-    ? `recording ${noise.recSigma} mV${noise.humAmp > 0 ? ` + ${noise.humAmp} mV hum` : ""}`
-    : "recording off";
-  const mem = noise.memSigma > 0 ? `membrane ${noise.memSigma} pA, τ ${noise.memTau} ms` : "membrane off";
-  return (
-    <Panel title="Noise" open={open} onToggle={onToggle} summary={`${rec} · ${mem}`}>
-      <div className="subhead">Recording — on the trace only</div>
-      <div className="row2">
-        <NumField label="RMS" unit="mV" value={noise.recSigma} min={0} max={3} step={0.05} onChange={(recSigma) => onChange({ ...noise, recSigma })} />
-        <NumField label="Bandwidth" unit="kHz" value={noise.recBandwidth} min={0.2} max={20} step={0.5} onChange={(recBandwidth) => onChange({ ...noise, recBandwidth })} />
-        <NumField label="Line hum" unit="mV" value={noise.humAmp} min={0} max={3} step={0.05} onChange={(humAmp) => onChange({ ...noise, humAmp })} />
-        <div className="numfield">
-          <span className="nf-label small">Mains</span>
-          <div className="seg small" role="radiogroup" aria-label="Mains frequency">
-            {[50, 60].map((hz) => (
-              <button key={hz} role="radio" aria-checked={noise.humHz === hz} className={noise.humHz === hz ? "on" : ""}
-                onClick={() => onChange({ ...noise, humHz: hz })}>{hz} Hz</button>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="subhead">Membrane — the cell feels it</div>
-      <NumField label="σ" unit="pA" value={noise.memSigma} min={memRange.min} max={memRange.max} step={memRange.step} slider
-        onChange={(memSigma) => onChange({ ...noise, memSigma })} />
-      <NumField label="τ" unit="ms" value={noise.memTau} min={0.5} max={100} step={0.5}
-        onChange={(memTau) => onChange({ ...noise, memTau })} />
-      <div className="nf-hint">A fluctuating current (Ornstein–Uhlenbeck) injected at the membrane: no added conductance, so Rin is unchanged. Near rheobase, whether a step fires becomes a matter of chance.</div>
-    </Panel>
-  );
-}
-
 // ------------------------------------------------------------------ stats
-
-function Stats({ summary, rinRest, rinHold, refined, onRefine, tol }: {
-  summary?: FamilySummary; rinRest: number; rinHold: number; refined: { value: number; tol: number } | null; onRefine: () => void; tol: number;
-}) {
-  const s = summary;
-  const d = tol < 1 ? 1 : 0; // decimals that the refinement actually resolves
-  const amp = (v: number) => fmt(v, Number.isInteger(v) ? 0 : 1);
-  return (
-    <div className="stats">
-      <Tile label="Rheobase" value={s ? amp(s.rheobase) : "—"} unit="pA"
-        sub={s && !Number.isFinite(s.rheobase) ? "no step fired" : "the smallest step that fired"}
-        action={refined ? (Number.isFinite(refined.value) ? `refined: ${fmt(refined.value, d)} ± ${fmt(refined.tol, d)} pA` : "refining…")
-          : s && Number.isFinite(s.rheobase) ? <button className="linkish" onClick={onRefine}>refine to {tol} pA</button> : undefined} />
-      <Tile label="Threshold" value={s ? fmt(s.threshold, 1) : "—"} unit="mV" sub="first spike, dV/dt ≥ 20 V/s" />
-      <Tile label="AP peak" value={s ? fmt(s.apPeak, 0) : "—"} unit="mV" sub="first spike at rheobase" />
-      <Tile label="AP half-width" value={s ? fmt(s.apHalfWidth, 2) : "—"} unit="ms" sub="at half the threshold-to-peak height" />
-      <Tile label="Rin, measured" value={s ? fmt(s.rinMeasured, 1) : "—"} unit="MΩ"
-        sub={s && Number.isFinite(s.rinMeasured)
-          ? `from steps ≤ 0 pA at the holding Vm. Steady-state slope: ${fmt(rinRest, 0)} at rest${Math.abs(rinHold - rinRest) > 0.02 * rinRest ? `, ${fmt(rinHold, 0)} at Ihold` : ""}`
-          : "needs two steps ≤ 0 pA"} />
-      <Tile label="Holding Vm" value={s ? fmt(s.vHold, 1) : "—"} unit="mV" sub="before the step" />
-      <Tile label="F–I gain" value={s ? fmt(s.fiGain, 0) : "—"} unit="Hz/nA" sub="slope over sweeps that fired" />
-    </div>
-  );
-}
-
 
 // ------------------------------------------------------------------ traces
 
@@ -847,14 +651,15 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges }: {
   const orderRef = useRef(order);
   orderRef.current = order;
 
-  const base = (w: number, h: number, yLabel: string, series: uPlot.Series[], extra?: Partial<uPlot.Options>): uPlot.Options => ({
+  // The plots share one time axis, so only the bottom one labels it.
+  const base = (w: number, h: number, yLabel: string, series: uPlot.Series[], extra?: Partial<uPlot.Options>, showX = true): uPlot.Options => ({
     width: w,
     height: h,
     legend: { show: false },
     cursor: { sync: { key: SYNC }, drag: { x: true, y: false }, focus: { prox: 12 } },
     focus: { alpha: 0.35 },
     scales: { x: { time: false } },
-    axes: [axisOpts("", 30), axisOpts(yLabel, 56)],
+    axes: [showX ? axisOpts("", 30) : { ...axisOpts("", 0), show: false }, axisOpts(yLabel, 56)],
     series: [{ label: "t (ms)" }, ...series],
     ...extra,
   });
@@ -885,12 +690,12 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges }: {
   return (
     <div className="traces">
       <Plot className="plot" data={vData} deps={[structKey]}
-        options={(w) => base(w, 320, "V recorded (mV)", vSeries, { hooks: { init: [clickHook], setSeries: [focusHook] }, ...(ranges && { scales: { x: { time: false }, y: { range: ranges.v } } }) })} />
+        options={(w) => base(w, 240, "V recorded (mV)", vSeries, { hooks: { init: [clickHook], setSeries: [focusHook] }, ...(ranges && { scales: { x: { time: false }, y: { range: ranges.v } } }) }, false)} />
       <Plot className="plot" data={iData} deps={[structKey]}
-        options={(w) => base(w, 110, "I (pA)", order.map((k) => ({ label: `${sw[k].amp} pA`, stroke: colors[k], width: k === sel ? 2 : 1 })), ranges && { scales: { x: { time: false }, y: { range: ranges.i } } })} />
+        options={(w) => base(w, synOn ? 70 : 100, "I (pA)", order.map((k) => ({ label: `${sw[k].amp} pA`, stroke: colors[k], width: k === sel ? 2 : 1 })), ranges && { scales: { x: { time: false }, y: { range: ranges.i } } }, !synOn)} />
       {synOn && (
         <Plot className="plot" data={gData} deps={[structKey, synOn]}
-          options={(w) => base(w, 110, "g syn (nS)", [
+          options={(w) => base(w, 100, "g syn (nS)", [
             { label: "g glutamate", stroke: ORANGE, width: 1 },
             { label: "g GABA", stroke: AQUA, width: 1 },
           ], { axes: [axisOpts("time (ms)", 40), axisOpts("g syn (nS)", 56)] })} />
@@ -964,5 +769,40 @@ function SweepTable({ summary, sel, onSelect }: { summary: FamilySummary; sel: n
         </table>
       </div>
     </figure>
+  );
+}
+
+/**
+ * The step protocol's readouts on one line, in the mode bar, as the scope's are.
+ * Each name carries its explanation on hover and focus. Rheobase keeps its
+ * "refine" link and the refined value, a result someone asked for.
+ */
+function StepReadouts({ summary, rinRest, rinHold, refined, onRefine, tol }: {
+  summary?: FamilySummary; rinRest: number; rinHold: number; refined: { value: number; tol: number } | null; onRefine: () => void; tol: number;
+}) {
+  const s = summary;
+  const d = tol < 1 ? 1 : 0; // decimals that the refinement actually resolves
+  const amp = (v: number) => fmt(v, Number.isInteger(v) ? 0 : 1);
+  const item = (name: string, note: React.ReactNode, value: string, unit: string) => (
+    <span><Tip text={note}>{name}</Tip> <b>{value}</b> {unit}</span>
+  );
+  return (
+    <span className="readline">
+      <span>
+        <Tip text={s && !Number.isFinite(s.rheobase) ? "No step fired." : "The smallest step that fired."}>Rheobase</Tip> <b>{s ? amp(s.rheobase) : "—"}</b> pA{" "}
+        <small>
+          {refined ? (Number.isFinite(refined.value) ? `(refined ${fmt(refined.value, d)} ± ${fmt(refined.tol, d)})` : "(refining…)")
+            : s && Number.isFinite(s.rheobase) ? <button className="linkish" onClick={onRefine}>refine to {tol} pA</button> : null}
+        </small>
+      </span>
+      {item("Threshold", "First spike, where dV/dt reaches 20 V/s.", s ? fmt(s.threshold, 1) : "—", "mV")}
+      {item("AP peak", "First spike at rheobase.", s ? fmt(s.apPeak, 0) : "—", "mV")}
+      {item("Half-width", "At half the threshold-to-peak height.", s ? fmt(s.apHalfWidth, 2) : "—", "ms")}
+      {item("Rin", s && Number.isFinite(s.rinMeasured)
+        ? `Measured from steps ≤ 0 pA at the holding Vm. Steady-state slope: ${fmt(rinRest, 0)} MΩ at rest${Math.abs(rinHold - rinRest) > 0.02 * rinRest ? `, ${fmt(rinHold, 0)} MΩ at Ihold` : ""}.`
+        : "Needs two steps ≤ 0 pA.", s ? fmt(s.rinMeasured, 0) : "—", "MΩ")}
+      {item("Holding Vm", "Before the step.", s ? fmt(s.vHold, 1) : "—", "mV")}
+      {item("F–I gain", "Slope over the sweeps that fired.", s ? fmt(s.fiGain, 0) : "—", "Hz/nA")}
+    </span>
   );
 }

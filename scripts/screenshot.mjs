@@ -19,16 +19,21 @@ page.on("pageerror", (e) => problems.push("pageerror: " + e.message));
 page.on("request", (r) => { const u = r.url(); if (!u.startsWith(origin) && !u.startsWith("data:") && !u.startsWith("blob:")) problems.push("third-party request: " + u); });
 
 await page.goto(url);
+// Both modes are driven from the amplifier front; the left column holds only the tour.
+const amp = page.locator(".amp");
+const setDial = async (name, v) => {
+  const k = amp.getByRole("slider", { name });
+  await k.dblclick();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type(String(v));
+  await page.keyboard.press("Enter");
+};
 // The app opens on the guided tour's first part: the GnRH cell in the scope.
 await page.waitForTimeout(2500);
 await page.screenshot({ path: `${out}/opening.png`, fullPage: true });
-// The rest of this script starts where the app used to open: every panel open,
-// the pyramidal cell, step mode. (The tour folds the panels it does not use.)
-await page.evaluate(() => localStorage.setItem("gaba_excites.panels", JSON.stringify(
-  { tour: true, model: true, cell: true, electrode: true, protocol: true, stimulus: true, glu: true, gaba: true, noise: true })));
-await page.reload();
-await page.waitForTimeout(1000);
+// The rest of this script starts where the app used to open: the pyramidal cell, step mode.
 await page.click("#mode-steps");
+if (await page.locator(".tools .panel").count() !== 1) problems.push("steps: the left column shows more than the tour");
 await page.selectOption("#model-select", "rs");
 await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
 await page.screenshot({ path: `${out}/app.png`, fullPage: true });
@@ -44,8 +49,7 @@ for (const preset of ["shunt", "barrage"]) {
 // the siren: silent on every ordinary page so far, then driven past a real cell
 if (await page.locator(".siren").count()) problems.push("siren: showing on an ordinary preset");
 await page.click(".seg button:has-text('List')");
-await page.fill(".listfield textarea", "0, 25600");
-await page.locator(".listfield textarea").blur();
+await page.fill(".amp-list", "0, 25600");
 await page.waitForTimeout(400);
 await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
 if (!(await page.locator(".siren").count())) problems.push("siren: not showing at 25.6 nA");
@@ -68,14 +72,6 @@ await page.screenshot({ path: `${out}/gnrh.png`, fullPage: true });
 
 // the oscilloscope: running live on both cells, with pulses on the pyramidal cell.
 // In scope mode every control is on the amplifier front; the side panels are gone.
-const amp = page.locator(".amp");
-const setDial = async (name, v) => {
-  const k = amp.getByRole("slider", { name });
-  await k.dblclick();
-  await page.keyboard.press("ControlOrMeta+a");
-  await page.keyboard.type(String(v));
-  await page.keyboard.press("Enter");
-};
 await page.selectOption("#model-select", "rs");
 await page.click("#mode-scope");
 if (await page.locator(".tools .panel").count() !== 1) problems.push("scope: the left column shows more than the tour");
@@ -97,7 +93,7 @@ await setDial("Amplitude", 30000);
 await page.waitForTimeout(2500);
 if (!(await page.locator(".siren").count())) problems.push("siren: not showing in scope mode at 30 nA");
 await setDial("Amplitude", 700);
-await page.selectOption("#amp-model-select", "gnrh");
+await page.selectOption("#model-select", "gnrh");
 await page.waitForTimeout(3000);
 await page.screenshot({ path: `${out}/scope-gnrh.png`, fullPage: true });
 
@@ -141,8 +137,7 @@ await settled();
 await page.getByRole("textbox", { name: "Run title" }).fill("Published pyramidal cell");
 await page.getByRole("textbox", { name: "Run notes" }).fill("Baseline.");
 await page.click("button:has-text('Record this run')");
-await page.getByRole("textbox", { name: "gL (leak)" }).fill("15");
-await page.keyboard.press("Enter");
+await setDial("gL (leak)", 15);
 await page.waitForTimeout(300);
 await settled();
 await page.getByRole("textbox", { name: "Run title" }).fill("Half the leak");

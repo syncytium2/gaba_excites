@@ -448,3 +448,12 @@ body:has(.page.old-school) { background: #1a1b19; }
 .hm-label { font: 700 6.5px system-ui, sans-serif; letter-spacing: 0.12em; fill: #2a2620; }
 .hm-unit { font: italic 7.5px Georgia, serif; fill: #2a2620; text-anchor: end; }
 .page.old-school .readline { gap: 4px 12px; }
+.amp-list { width: 190px; height: 24px; font: 12px ui-monospace, Menlo, Consolas, monospace; background: #0e0f0d; color: #ffb547; border: 1px solid #3e3f39; border-radius: 3px; padding: 0 6px; }
+.amp-readout small { font-size: 9.5px; color: #c28a3c; }
+.amp-slot .tip { border-bottom: 0; gap: 4px; }
+.readline small { font-size: 11.5px; }
+.modebar .readline { flex: 1 1 auto; }
+/* the readout lines: names explain themselves on hover; no "?" marks in a line of numbers */
+.readline .tip-mark { display: none; }
+.readline .tip { border-bottom-style: dotted; }
+.modebar .status { font-size: 11px; }
