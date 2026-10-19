@@ -30,7 +30,12 @@ export interface TourSettings {
   /** on when given, off when left out; the model's own GABA kinetics apply */
   glu?: Partial<SynInput>;
   gaba?: Partial<SynInput>;
+  /** step mode: draw the sweeps one at a time */
+  play?: boolean;
 }
+
+/** controls a part shows in its own card, the same ones as in the panels */
+export type TourControl = "ihold" | "gLeak" | "cm" | "eGaba" | "play";
 
 export interface TourPart {
   id: string;
@@ -41,6 +46,7 @@ export interface TourPart {
   tryThis: string;
   lookFor: string;
   settings: TourSettings;
+  controls: TourControl[];
 }
 
 /**
@@ -61,6 +67,7 @@ export const TOUR: TourPart[] = [
     tryThis: "Opens the oscilloscope on the GnRH cell, held near −61 mV by a small steady current, with GABA arriving about three times a second.",
     lookFor: "Most PSPs push the voltage up a few millivolts and fade. Now and then one sets off an action potential, the tall spike. The rest of this tour is about why.",
     settings: { model: "gnrh", mode: "scope", ihold: OPENING_IHOLD, gaba: { rate: 3 } },
+    controls: ["ihold"],
   },
   {
     id: "rest",
@@ -72,6 +79,7 @@ export const TOUR: TourPart[] = [
     tryThis: "Turns GABA off and the holding current to zero.",
     lookFor: "A flat line at −67.5 mV. Nothing happens until something pushes the cell.",
     settings: { model: "gnrh", mode: "scope", ihold: 0 },
+    controls: ["ihold"],
   },
   {
     id: "threshold",
@@ -80,9 +88,10 @@ export const TOUR: TourPart[] = [
       "In [[current clamp]] you inject current through the electrode and watch the voltage. Current is measured in picoamperes (pA); a GnRH neuron needs only tens of them. A [[current step]] switches the current on for a while and off again, and each run of the protocol is one [[sweep]].",
       "This is Adams et al.'s (2018) protocol: 500 ms steps from 0 to 30 pA in 2 pA increments, on a −6 pA holding current that sits the cell at −70 mV. Small steps only depolarize the cell. The smallest current that makes it fire is its [[rheobase]]. With 2 pA steps, the first to fire here is 18 pA. The voltage where the spike takes off is its [[threshold]]. Both are measures of excitability, and they need not agree.",
     ],
-    tryThis: "Switches to the step protocol, with the Adams et al. steps.",
-    lookFor: "The Rheobase and Threshold tiles, and how late the first spike comes on the smallest step that fires.",
-    settings: { model: "gnrh", mode: "steps", ihold: -6, presetId: "gnrh-fi" },
+    tryThis: "Switches to the step protocol, with the Adams et al. steps, and plays them one at a time.",
+    lookFor: "Each sweep a little bigger than the last, until one fires. Then the Rheobase and Threshold tiles, and how late the first spike comes on the smallest step that fires.",
+    settings: { model: "gnrh", mode: "steps", ihold: -6, presetId: "gnrh-fi", play: true },
+    controls: ["play"],
   },
   {
     id: "leak",
@@ -93,6 +102,7 @@ export const TOUR: TourPart[] = [
     tryThis: "Doubles the leak, from 1 to 2 nS. Same steps as before.",
     lookFor: "Smaller responses to the same steps, and rheobase up from 18 to 28 pA. Drag gL in the Cell panel to see it move both ways.",
     settings: { model: "gnrh", mode: "steps", ihold: -6, presetId: "gnrh-fi", gLeak: 2 },
+    controls: ["gLeak"],
   },
   {
     id: "size",
@@ -104,6 +114,7 @@ export const TOUR: TourPart[] = [
     tryThis: "Doubles Cm, from 20 to 40 pF, with the leak back at 1 nS. Same steps.",
     lookFor: "Slower charging at the start of each step, and rheobase up from 18 to 26 pA.",
     settings: { model: "gnrh", mode: "steps", ihold: -6, presetId: "gnrh-fi", cm: 40 },
+    controls: ["cm"],
   },
   {
     id: "synapses",
@@ -115,6 +126,7 @@ export const TOUR: TourPart[] = [
     tryThis: "Turns on glutamate, about three arrivals a second, with GABA off.",
     lookFor: "Upward PSPs, with a spike now and then, much as in the puzzle. GABA did the same job glutamate does here.",
     settings: { model: "gnrh", mode: "scope", ihold: OPENING_IHOLD, glu: { rate: 3, gPeak: 1 } },
+    controls: ["ihold"],
   },
   {
     id: "slide",
@@ -126,6 +138,7 @@ export const TOUR: TourPart[] = [
     tryThis: "Sets E_GABA to −70 mV, as in a typical adult neuron, with GABA about five times a second. Then drag E_GABA up in the GABA panel.",
     lookFor: "The PSPs flip from down to up as E_GABA passes the cell's voltage, near −61 mV. Up is not yet exciting: below about −55 mV they never reach threshold. Spikes appear between about −50 and −45 mV, and at −36.5 mV roughly one PSP in six fires the cell.",
     settings: { model: "gnrh", mode: "scope", ihold: OPENING_IHOLD, gaba: { rate: 5, erev: -70 } },
+    controls: ["eGaba"],
   },
   {
     id: "where-rest",
@@ -136,6 +149,7 @@ export const TOUR: TourPart[] = [
     tryThis: "Holds the cell at −70 mV (−6 pA), with GABA as GnRH neurons have it: E_GABA −36.5 mV, about five times a second.",
     lookFor: "Every GABA PSP still pushes the voltage up, yet none reaches threshold. Whether GABA fires a GnRH neuron depends on two voltages: E_GABA, and where the cell rests.",
     settings: { model: "gnrh", mode: "scope", ihold: -6, gaba: { rate: 5 } },
+    controls: ["ihold", "eGaba"],
   },
 ];
 

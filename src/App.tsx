@@ -22,7 +22,7 @@ import { AQUA, AXIS, BLUE, GRID, INK2, MUTED, ORANGE, rampColor } from "./ui/pal
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 import { Notebook } from "./ui/Notebook.tsx";
 import { Tour } from "./ui/Tour.tsx";
-import { tourInputs, type TourSettings } from "./core/tour.ts";
+import { tourInputs, type TourControl, type TourSettings } from "./core/tour.ts";
 import type { RunSettings } from "./core/report.ts";
 
 interface Result {
@@ -62,6 +62,12 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refined, setRefined] = useState<{ value: number; tol: number; key: string } | null>(null);
+  // Playback: sweeps drawn one at a time, in amplitude order, 0.5 s apart.
+  // null when not playing; otherwise how many are shown so far.
+  const [play, setPlay] = useState<number | null>(null);
+  const playAfterRun = useRef(false);
+  // bumped to re-run an unchanged protocol, so a tour part can always play it
+  const [runNonce, setRunNonce] = useState(0);
   // Step protocol, or the oscilloscope: the cell running continuously, every control live
   const [mode, setMode] = useState<"steps" | "scope">("steps");
   const [pulse, setPulse] = useState<Pulse>(SCOPE_PULSE.rs);
@@ -101,6 +107,10 @@ export function App() {
       if (r.kind === "run") {
         setResult({ sweeps: r.sweeps, summary: r.summary, cell: r.cell, ms: r.ms, protocol: pendingProto.current, settings: pendingSettings.current! });
         setBusy(false);
+        if (playAfterRun.current) {
+          playAfterRun.current = false;
+          setPlay(1);
+        } else setPlay(null);
         setError(null);
       } else if (r.kind === "rheobase") {
         setRefined((prev) => (prev ? { ...prev, value: r.rheobase, tol: r.tolerance } : prev));
@@ -113,7 +123,7 @@ export function App() {
     return () => w.terminate();
   }, []);
 
-  const runKey = JSON.stringify({ cell, ihold, electrode, protocol, glu, gaba, seed, noise });
+  const runKey = JSON.stringify({ cell, ihold, electrode, protocol, glu, gaba, seed, noise, runNonce });
   useEffect(() => {
     if (mode === "scope" || protocol.amps.length === 0) return;
     setBusy(true);
@@ -188,9 +198,39 @@ export function App() {
     if (t.gaba.enabled) panels.set("gaba", true);
     setSelected(null);
     setRefined(null);
+    if (s.play) {
+      playAfterRun.current = true;
+      setRunNonce((n) => n + 1);
+    }
   };
 
+  useEffect(() => {
+    if (play === null || !result) return;
+    if (play >= result.sweeps.length) {
+      const h = setTimeout(() => setPlay(null), 500);
+      return () => clearTimeout(h);
+    }
+    const h = setTimeout(() => setPlay(play + 1), 500);
+    return () => clearTimeout(h);
+  }, [play, result]);
+
   // ------------------------------------------------------------ derived
+  const playing = play !== null && result !== null;
+  const shown = useMemo(() => {
+    if (!result || play === null) return result;
+    const order = [...result.sweeps].sort((a, b) => a.amp - b.amp);
+    return { ...result, sweeps: order.slice(0, Math.max(1, play)) };
+  }, [result, play]);
+  const playRanges = useMemo(() => {
+    if (!result) return undefined;
+    let vLo = Infinity, vHi = -Infinity, iLo = Infinity, iHi = -Infinity;
+    for (const s of result.sweeps) {
+      for (const v of s.vRec) { if (v < vLo) vLo = v; if (v > vHi) vHi = v; }
+      for (const i of s.iCmd) { if (i < iLo) iLo = i; if (i > iHi) iHi = i; }
+    }
+    const pad = (lo: number, hi: number): [number, number] => [lo - 0.05 * (hi - lo || 1), hi + 0.05 * (hi - lo || 1)];
+    return { v: pad(vLo, vHi), i: pad(iLo, iHi) };
+  }, [result]);
   const sweeps = result?.sweeps ?? [];
   const summary = result?.summary;
   const rank = useMemo(() => {
@@ -262,21 +302,34 @@ export function App() {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
 
+  // The controls a tour part shows in its own card: the same state as the panels.
+  const tourControl = (c: TourControl) => {
+    const r = model.ranges;
+    switch (c) {
+      case "ihold":
+        return <NumField label="Ihold (holding current)" unit="pA" value={ihold} min={r.ihold.min} max={r.ihold.max} step={0.5} slider digits={1} onChange={setIhold} />;
+      case "gLeak":
+        return <NumField label="gL (leak)" unit="nS" value={cell.gLeak} min={r.gLeak.min} max={r.gLeak.max} step={r.gLeak.step} slider digits={2} onChange={(gLeak) => setCell({ ...cell, gLeak })} />;
+      case "cm":
+        return <NumField label="Cm (cell size)" unit="pF" value={cell.cm} min={r.cm.min} max={r.cm.max} step={r.cm.step} slider digits={1} onChange={(cm) => setCell({ ...cell, cm })} />;
+      case "eGaba":
+        return <NumField label="E_GABA" unit="mV" value={gaba.erev} min={-100} max={0} step={0.5} slider digits={1} onChange={(erev) => { setGaba({ ...gaba, erev }); setPresetId("custom"); }} />;
+      case "play":
+        return mode === "steps" ? <button type="button" onClick={() => setPlay(1)} disabled={!result || busy}>Play the sweeps again</button> : null;
+    }
+  };
+
   // ------------------------------------------------------------ render
   return (
     <div className={"page" + (oldSchool ? " old-school" : "")}>
-      <header>
-        <h1>
-          gaba_excites
-          <span className="stamp" title={`Born ${BORN} · last commit ${UPDATED}`}>
-            v{VERSION} · born {fmtStamp(BORN)}
-          </span>
-        </h1>
-        <div className="tagline">Current-clamp excitability, simulated in your browser</div>
-        <p className="privacy">
-          {model.label} · runs entirely on your machine, nothing is sent anywhere ·{" "}
-          <a href="/methods">Methods &amp; models</a> · <a href="/lit">Sources</a> · <a href="https://github.com/syncytium2/gaba_excites">code</a>
-        </p>
+      <header className="topbar">
+        <h1>gaba_excites</h1>
+        <span className="tagline">Current-clamp excitability, simulated in your browser. Nothing leaves your machine.</span>
+        <nav className="toplinks">
+          <a href="/methods">Methods &amp; models</a> · <a href="/lit">Sources</a> · <a href="https://github.com/syncytium2/gaba_excites">code</a> ·{" "}
+          <a href="/fall-2026/" title="The site as UM Physiol 578 used it for the excitability homework, fall 2026, kept unchanged">Fall 2026 classroom version</a>
+        </nav>
+        <span className="stamp" title={`Born ${fmtStamp(BORN)}`}>v{VERSION} · updated {fmtStamp(UPDATED)}</span>
       </header>
 
       <KnobContext.Provider value={oldSchool}>
@@ -284,7 +337,7 @@ export function App() {
         <aside className="tools">
           <Panel title="Guided tour" open={panels.open.tour} onToggle={() => panels.toggle("tour")} className="tour-panel"
             summary="Why does GABA excite GnRH neurons? Open to start.">
-            <Tour onApply={applyTour} />
+            <Tour onApply={applyTour} control={tourControl} />
           </Panel>
 
           <Panel title="Model" open={panels.open.model} onToggle={() => panels.toggle("model")}
@@ -414,7 +467,7 @@ export function App() {
           )}
         </aside>
 
-        <main className="figures">
+        <main className={"figures" + (mode === "scope" ? " pinned" : "")}>
           <div className="modebar">
             <div className="seg" role="radiogroup" aria-label="Mode">
               <button id="mode-steps" role="radio" aria-checked={mode === "steps"} className={mode === "steps" ? "on" : ""} onClick={() => setMode("steps")}>
@@ -441,13 +494,17 @@ export function App() {
           ) : (
             <>
 
-            <Stats summary={summary} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} />
+            <Stats summary={playing ? undefined : summary} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} />
 
             {result && sweeps.length > 0 && (
               <>
                 <figure className="card">
                   <figcaption>
                     <span>Recorded voltage{showVm ? ", with true Vm of the selected sweep dashed" : ""}</span>
+                    <span className="play-status" aria-live="polite">
+                      {playing && shown ? `Sweep ${shown.sweeps.length} of ${sweeps.length}: ${shown.sweeps[shown.sweeps.length - 1].amp} pA` : ""}
+                    </span>
+                    <button type="button" onClick={() => (playing ? setPlay(null) : setPlay(1))}>{playing ? "Show all" : "Play sweeps"}</button>
                     <span className="check">
                       <input id="show-vm" type="checkbox" checked={showVm} onChange={(e) => setShowVm(e.target.checked)} />
                       <label htmlFor="show-vm">show</label>
@@ -459,9 +516,15 @@ export function App() {
                       </>}>true Vm</Tip>
                     </span>
                   </figcaption>
-                  <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} />
+                  {playing && shown ? (
+                    <TracePlots result={shown} rank={shown.sweeps.map((_, k) => k)} sel={shown.sweeps.length - 1} showVm={showVm} synOn={synOn} onSelect={() => {}} ranges={playRanges} />
+                  ) : (
+                    <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} />
+                  )}
                   <p className="legendline">
-                    Sweeps shade light → dark with step amplitude; <span style={{ color: ORANGE }}>■</span> the selected sweep ({sweeps[sel]?.amp} pA). Hover to read values, click a trace to select it.
+                    Sweeps shade light → dark with step amplitude; {playing && shown
+                      ? <><span style={{ color: ORANGE }}>■</span> the newest sweep ({shown.sweeps[shown.sweeps.length - 1].amp} pA).</>
+                      : <><span style={{ color: ORANGE }}>■</span> the selected sweep ({sweeps[sel]?.amp} pA). Hover to read values, click a trace to select it.</>}
                     {synOn && <> Conductances are the selected sweep's: <span style={{ color: ORANGE }}>■</span> glutamate, <span style={{ color: AQUA }}>■</span> GABA.</>}
                   </p>
                 </figure>
@@ -657,8 +720,10 @@ function axisOpts(label: string, size = 50): uPlot.Axis {
   };
 }
 
-function TracePlots({ result, rank, sel, showVm, synOn, onSelect }: {
+function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges }: {
   result: Result; rank: number[]; sel: number; showVm: boolean; synOn: boolean; onSelect: (k: number) => void;
+  /** fixed axes, so a family drawn one sweep at a time does not rescale as it grows */
+  ranges?: { v: [number, number]; i: [number, number] };
 }) {
   const sw = result.sweeps;
   const n = sw[0].vRec.length;
@@ -728,9 +793,9 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect }: {
   return (
     <div className="traces">
       <Plot className="plot" data={vData} deps={[structKey]}
-        options={(w) => base(w, 320, "V recorded (mV)", vSeries, { hooks: { init: [clickHook], setSeries: [focusHook] } })} />
+        options={(w) => base(w, 320, "V recorded (mV)", vSeries, { hooks: { init: [clickHook], setSeries: [focusHook] }, ...(ranges && { scales: { x: { time: false }, y: { range: ranges.v } } }) })} />
       <Plot className="plot" data={iData} deps={[structKey]}
-        options={(w) => base(w, 110, "I (pA)", order.map((k) => ({ label: `${sw[k].amp} pA`, stroke: colors[k], width: k === sel ? 2 : 1 })))} />
+        options={(w) => base(w, 110, "I (pA)", order.map((k) => ({ label: `${sw[k].amp} pA`, stroke: colors[k], width: k === sel ? 2 : 1 })), ranges && { scales: { x: { time: false }, y: { range: ranges.i } } })} />
       {synOn && (
         <Plot className="plot" data={gData} deps={[structKey, synOn]}
           options={(w) => base(w, 110, "g syn (nS)", [

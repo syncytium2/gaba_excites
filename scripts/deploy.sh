@@ -23,8 +23,18 @@ step "Preflight"
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 [[ "$BRANCH" != "main" ]] && fail "on '$BRANCH', not main"
 [[ -n "$(git status --porcelain)" ]] && fail "working tree dirty — commit first, so DEPLOYED.md names a real commit"
+# Each deploy is a new version (the owner, 2026-10-19). The bump is committed
+# before the build, so the bundle's version and DEPLOYED.md's commit agree.
+# A dry run builds the current version and commits nothing.
+if [[ $DRY_RUN == 0 ]]; then
+  npm version patch --no-git-tag-version >/dev/null
+  APP_VERSION="$(node -p 'require("./package.json").version')"
+  git add package.json package-lock.json
+  git commit -q -m "Release v$APP_VERSION"
+fi
+APP_VERSION="$(node -p 'require("./package.json").version')"
 COMMIT="$(git rev-parse --short HEAD)"
-echo "  $BRANCH @ $COMMIT"
+echo "  $BRANCH @ $COMMIT, v$APP_VERSION"
 
 step "Tests"
 npx vitest run 2>&1 | tail -4
@@ -32,6 +42,7 @@ npx vitest run 2>&1 | tail -4
 step "Clean build"
 rm -rf dist
 npm run --silent build 2>&1 | tail -4
+bash scripts/classroom.sh
 
 step "Gates"
 # Vite writes the attribute's quotes as &#39; — browsers decode it; accept either spelling.
@@ -41,8 +52,14 @@ BORN="$(git log --max-parents=0 --format=%cI | tail -1)"
 grep -rqF "$BORN" dist/assets/ || fail "root-commit time $BORN not baked into the bundle"
 echo "  Born stamp baked: $BORN"
 [[ -f dist/methods.html && -f dist/lit.html && -f dist/_headers && -f dist/llms.txt ]] || fail "static pages missing from dist/"
-LOCAL_HASH="$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' dist/index.html)"
+LOCAL_HASH="$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' dist/index.html | head -1)"
 echo "  bundle: $LOCAL_HASH"
+grep -qF "$APP_VERSION" dist/assets/*.js || fail "version $APP_VERSION not baked into the bundle"
+CLASS_HASH="$(grep -o '/fall-2026/assets/index-[A-Za-z0-9_-]*\.js' dist/fall-2026/index.html || true)"
+[[ -n "$CLASS_HASH" ]] || fail "classroom version missing or not built under /fall-2026/"
+grep -q "UM Physiol 578 used it in fall 2026" dist/fall-2026/index.html || fail "classroom banner missing"
+grep -Eq "connect-src ('|&#39;)none('|&#39;)" dist/fall-2026/index.html || fail "CSP missing from the classroom version"
+echo "  classroom version: $CLASS_HASH, banner and CSP present"
 
 if [[ $DRY_RUN == 1 ]]; then step "Dry run — stopping before upload"; exit 0; fi
 
@@ -61,6 +78,8 @@ for u in "${URLS[@]}"; do
     echo "  try $i: $u serving ${live:-nothing} — retrying"; sleep 15
   done
   [[ $ok == 1 ]] || fail "$u never served $LOCAL_HASH"
+  curl -s --max-time 15 "$u/fall-2026/" | grep -qF "$CLASS_HASH" || fail "$u/fall-2026/ is not serving the classroom version"
+  echo "  $u/fall-2026/ serving the classroom version"
   UA='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
   for route in / /methods /lit; do
     n="$(curl -sL --max-time 15 -H "User-Agent: $UA" "$u$route" | grep -c cloudflareinsights || true)"
@@ -78,10 +97,12 @@ Written by \`npm run deploy\`. Do not edit by hand.
 | | |
 |---|---|
 | **Deployed at** | $(date -u '+%Y-%m-%d %H:%M UTC') |
+| **Version** | v$APP_VERSION |
 | **Commit** | \`$COMMIT\` — $(git log -1 --format=%s | cut -c1-72) |
 | **Bundle** | \`$LOCAL_HASH\` |
 | **Worker version** | \`${VERSION_ID:-unknown}\` |
 | **Live** | ${URLS[*]} |
+| **Classroom version** | \`/fall-2026/\`, built from tag \`classroom-fall-2026\` (\`$CLASS_HASH\`) |
 
 Verified at deploy time: tests pass, CSP in the shipped HTML, Born stamp baked
 from the true root commit, every URL above serving this bundle, and no

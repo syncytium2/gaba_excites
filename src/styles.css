@@ -315,3 +315,18 @@ body:has(.page.old-school) { background: #1a1b19; }
 .tour-try { color: var(--ink-2); font-size: 13px; }
 .tour-button { font-weight: 650; margin-bottom: 8px; }
 .tour-look { border-top: 1px solid var(--ring); padding-top: 8px; }
+.tour-controls { border-top: 1px solid var(--ring); padding-top: 8px; margin-bottom: 8px; }
+.tour-more { display: block; margin: 0 0 8px; }
+
+/* One-line header */
+.topbar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin-bottom: 14px; }
+.topbar h1 { font-size: 22px; margin: 0; }
+.topbar .tagline { font-size: 13px; color: var(--ink-2); flex: 1 1 320px; }
+.topbar .toplinks { font-size: 13px; color: var(--muted); }
+.topbar .stamp { margin-left: 0; }
+.play-status { font-size: 12px; color: var(--ink-2); margin-left: auto; margin-right: 8px; font-variant-numeric: tabular-nums; }
+
+/* The scope stays in view while the controls scroll (wide screens, scope mode). */
+@media (min-width: 901px) {
+  .figures.pinned { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+}

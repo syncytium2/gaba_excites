@@ -663,3 +663,25 @@ The owner asked for a guided tour of the GnRH cell, drafted by Claude for his ap
   within 20 s, which would mix its own spikes with GABA's. At +7.5 pA it stays silent for a minute.
 - **The text is a draft,** flagged in the file (`TOUR_IS_DRAFT`) and on screen. Not for deploy until the owner
   approves it.
+
+## 2026-10-19 — layout for the tour, sweep playback, version stamp, classroom version
+
+The owner tested the tour on a 16" laptop: the scope and the controls did not fit on one screen.
+
+- **Each tour part shows its own controls in its card** (Ihold, gL, Cm, E_GABA), bound to the same state as the
+  panels. After "Try this" the explanation folds behind "Show text", leaving the controls and "Look for".
+- **In scope mode the plot column is pinned** (sticky) on wide screens, so it stays in view while the controls
+  scroll. Not in step mode, whose long results column would scroll inside a scroll.
+- **The header is one line.**
+- **"Play sweeps"** draws a step family one sweep at a time, in amplitude order, 0.5 s apart (the owner's choice),
+  on axes fixed to the whole family's range so nothing rescales as it grows. The tiles stay blank until the end.
+  "Find threshold" plays automatically; it re-runs an unchanged protocol (`runNonce`) so the playback always
+  happens. No sound yet: the owner was asked and has not said.
+- **The stamp shows the last commit's time** ("updated"), the owner's choice over deploy time; Born moves to the
+  tooltip. **Each deploy raises the patch version**: `deploy.sh` commits "Release vX.Y.Z" before building, so the
+  bundle and DEPLOYED.md agree. A dry run bumps nothing.
+- **The classroom version is served at `/fall-2026/`**, linked from the header. `scripts/classroom.sh` builds the
+  `classroom-fall-2026` tag (the site as deployed 2026-09-23, live when the 578 homework was due on 2026-09-28)
+  with base `/fall-2026/`, and injects only a banner into its HTML; its code is never edited. Its Methods and
+  Sources links open the current pages, and the banner says so. `deploy.sh` gates on its CSP and banner and checks
+  that it is live.
