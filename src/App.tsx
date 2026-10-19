@@ -483,7 +483,7 @@ export function App() {
         <h1>gaba_excites</h1>
         <span className="tagline">Current-clamp excitability, simulated in your browser. Nothing leaves your machine.</span>
         <nav className="toplinks">
-          <a href="/methods">Methods &amp; models</a> · <a href="/lit">Sources</a> · <a href="https://github.com/syncytium2/gaba_excites">code</a> ·{" "}
+          <a href="https://tonydefazio.com/">← tonydefazio.com</a> · <a href="/methods">Methods &amp; models</a> · <a href="/lit">Sources</a> · <a href="https://github.com/syncytium2/gaba_excites">code</a> ·{" "}
           <a href="/fall-2026/" title="The site as UM Physiol 578 used it for the excitability homework, fall 2026, kept unchanged">Fall 2026 classroom version</a>
         </nav>
         <span className="stamp" title={`Born ${fmtStamp(BORN)}`}>v{VERSION} · updated {fmtStamp(UPDATED)}</span>
