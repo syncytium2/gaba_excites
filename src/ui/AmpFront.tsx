@@ -3,10 +3,10 @@ import { Knob, useNarrow } from "./Knob.tsx";
 import { NumField } from "./NumField.tsx";
 
 /**
- * The oscilloscope's front panel: an amplifier that does not exist. Real
- * current-clamp amplifiers (Axoclamp, Axopatch, EPC-7) have no synapses built
- * in; this one has GABA and glutamate PSC generators beside the holding
- * current, so it says on its face that it is fictional.
+ * The oscilloscope's front panel: a made-up amplifier, with GABA and
+ * glutamate PSC generators beside the holding current. It makes no claim
+ * about what real amplifiers can do: some (Sutter's dPatch, the owner found)
+ * have dynamic clamp built in.
  *
  * Its dials are the same Knob as Old school's, each with a number box to type
  * into, bound to the same state as the side panels.
@@ -16,7 +16,7 @@ export function AmpFront({ children }: { children: React.ReactNode }) {
     <section className="amp" aria-label="Amplifier front panel (fictional)">
       <div className="amp-badge" aria-hidden="true">
         <span className="amp-brand">GABA·EXCITES</span> <span className="amp-model">Model 578</span>
-        <span className="amp-note">current-clamp amplifier · fictional: no real amplifier has synapses built in</span>
+        <span className="amp-note">current-clamp amplifier · fictional</span>
       </div>
       <div className="amp-sections">{children}</div>
     </section>

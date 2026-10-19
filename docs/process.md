@@ -746,3 +746,10 @@ rows, and the controls in each row aligned along the bottom.
   plot column is pinned). Dials on the amplifier are 36 px.
 - The side panels are unchanged and still hold the same controls; whether to hide them in scope mode is the
   owner's call.
+
+## 2026-10-19 — correction: real amplifiers can generate synaptic input
+
+The amplifier's face said "no real amplifier has synapses built in", and the entries above repeat it. The owner found
+Sutter's dPatch, which appears to have dynamic clamp built in, so the claim is withdrawn. The face now says only
+"current-clamp amplifier · fictional": the brand and model are made up. Nothing here was checked against Sutter's
+documentation; the site makes no claim either way about which amplifiers can do this.
