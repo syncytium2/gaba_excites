@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type uPlot from "uplot";
-import { buildCell, cellRinAt, PUBLISHED_RS, publishedParams, type CellParams } from "./core/cell.ts";
+import { buildCell, cellRinAt, publishedParams, type CellParams } from "./core/cell.ts";
 import { MODELS, MODEL_LIST, type ModelId } from "./core/models.ts";
 import { DEFAULT_NOISE, type NoiseParams } from "./core/noise.ts";
 import { DEFAULT_ELECTRODE, type Electrode, type Sweep } from "./core/simulate.ts";
@@ -22,7 +22,12 @@ import { AQUA, AXIS, BLUE, GRID, INK2, MUTED, ORANGE, rampColor } from "./ui/pal
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 import { Notebook } from "./ui/Notebook.tsx";
 import { Tour } from "./ui/Tour.tsx";
-import { tourInputs, type TourControl, type TourSettings } from "./core/tour.ts";
+import { TOUR, tourInputs, type TourControl, type TourSettings } from "./core/tour.ts";
+
+// The app opens on the tour's first part: the GnRH cell in the oscilloscope,
+// held near −61 mV, with GABA PSCs on (the owner, 2026-10-19).
+const OPENING = TOUR[0].settings;
+const opening = tourInputs(OPENING);
 import type { RunSettings } from "./core/report.ts";
 
 interface Result {
@@ -43,14 +48,13 @@ interface Pin {
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 
 export function App() {
-  const [cell, setCell] = useState<CellParams>(PUBLISHED_RS);
-  const [ihold, setIhold] = useState(0);
+  const [cell, setCell] = useState<CellParams>(opening.cell);
+  const [ihold, setIhold] = useState(opening.ihold);
   const [electrode, setElectrode] = useState<Electrode>(DEFAULT_ELECTRODE);
-  const [presetId, setPresetId] = useState("fi");
-  const preset0 = PRESETS[0];
-  const [form, setForm] = useState<ProtocolForm>(preset0.protocol);
-  const [glu, setGlu] = useState<SynInput>(preset0.glu);
-  const [gaba, setGaba] = useState<SynInput>(preset0.gaba);
+  const [presetId, setPresetId] = useState(opening.presetId);
+  const [form, setForm] = useState<ProtocolForm>(opening.form);
+  const [glu, setGlu] = useState<SynInput>(opening.glu);
+  const [gaba, setGaba] = useState<SynInput>(opening.gaba);
   const [seed, setSeed] = useState(1);
   // Recording noise on by default at a typical whole-cell level: it touches the
   // trace only, so no measurement moves. Membrane noise starts off.
@@ -69,8 +73,8 @@ export function App() {
   // bumped to re-run an unchanged protocol, so a tour part can always play it
   const [runNonce, setRunNonce] = useState(0);
   // Step protocol, or the oscilloscope: the cell running continuously, every control live
-  const [mode, setMode] = useState<"steps" | "scope">("steps");
-  const [pulse, setPulse] = useState<Pulse>(SCOPE_PULSE.rs);
+  const [mode, setMode] = useState<"steps" | "scope">(OPENING.mode);
+  const [pulse, setPulse] = useState<Pulse>(SCOPE_PULSE[OPENING.model]);
   // Old school: the oscilloscope as a green-phosphor instrument, with knobs and meters.
   // Remembered in this browser as a convenience only; every access is guarded.
   const [oldSchoolPref, setOldSchoolPref] = useState<boolean>(() => {
@@ -92,7 +96,7 @@ export function App() {
 
   const protocol = useMemo(() => toProtocol(form), [form]);
   // The left panels collapse. The ones you reach for first start open.
-  const panels = usePanels({ tour: true, model: true, cell: true, electrode: false, protocol: true, stimulus: true, glu: false, gaba: false, noise: false });
+  const panels = usePanels({ tour: true, model: true, cell: true, electrode: false, protocol: true, stimulus: true, glu: false, gaba: true, noise: false });
 
   // ------------------------------------------------------------ worker
   const worker = useRef<Worker | null>(null);

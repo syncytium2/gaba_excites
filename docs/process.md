@@ -685,3 +685,12 @@ The owner tested the tour on a 16" laptop: the scope and the controls did not fi
   with base `/fall-2026/`, and injects only a banner into its HTML; its code is never edited. Its Methods and
   Sources links open the current pages, and the banner says so. `deploy.sh` gates on its CSP and banner and checks
   that it is live.
+
+## 2026-10-19 — the app opens on the GABA puzzle
+
+The owner asked for the app to open on the GnRH cell in the oscilloscope, near −60 mV, with GABA PSCs on: the
+tour's first part. The initial state is `tourInputs(TOUR[0].settings)`, so the opening and the tour's "Try this"
+cannot differ. Its holding current stays +7.5 pA (−61.4 mV once settled): +8 pA would fire on its own. The tour's
+citations are now links (`[label](https://…)` in `tour.ts`), the 2002 paper's to its DOI, which a test checks.
+`scripts/screenshot.mjs` captures the opening, then switches to the pyramidal cell in step mode, where it used to
+start. Two sentences in `public/methods.html` that called the pyramidal cell "the default" now name it.

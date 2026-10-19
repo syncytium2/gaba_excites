@@ -6,8 +6,8 @@
  * DRAFT. All text below is Claude's, written 2026-10-19 for the owner to
  * approve or rewrite line by line. Do not deploy it as his words.
  *
- * In the text, [[term]] marks the place a term is first defined; the panel
- * renders it as <dfn>.
+ * In the text, [[term]] marks the place a term is first defined (the panel
+ * renders it as <dfn>), and [label](https://…) is a link.
  */
 
 import { publishedParams, type CellParams } from "./cell.ts";
@@ -61,7 +61,7 @@ export const TOUR: TourPart[] = [
     id: "puzzle",
     title: "The puzzle",
     body: [
-      "GABA is called the brain's inhibitory transmitter: released onto a neuron, it usually makes that neuron less likely to fire. In 2002 we recorded from GnRH neurons, the cells that drive reproduction, and found the opposite. GABA excited them (DeFazio, Heger, Ojeda & Moenter 2002).",
+      "GABA is called the brain's inhibitory transmitter: released onto a neuron, it usually makes that neuron less likely to fire. In 2002 we recorded from GnRH neurons, the cells that drive reproduction, and found the opposite. GABA excited them ([DeFazio, Heger, Ojeda & Moenter 2002](https://doi.org/10.1210/me.2002-0163)).",
       "This is a model GnRH neuron. GABA arrives at random, about three times a second. Each arrival makes a [[postsynaptic potential]] (PSP): a small, brief change in the cell's voltage caused by one synapse.",
     ],
     tryThis: "Opens the oscilloscope on the GnRH cell, held near −61 mV by a small steady current, with GABA arriving about three times a second.",
@@ -86,7 +86,7 @@ export const TOUR: TourPart[] = [
     title: "Find threshold",
     body: [
       "In [[current clamp]] you inject current through the electrode and watch the voltage. Current is measured in picoamperes (pA); a GnRH neuron needs only tens of them. A [[current step]] switches the current on for a while and off again, and each run of the protocol is one [[sweep]].",
-      "This is Adams et al.'s (2018) protocol: 500 ms steps from 0 to 30 pA in 2 pA increments, on a −6 pA holding current that sits the cell at −70 mV. Small steps only depolarize the cell. The smallest current that makes it fire is its [[rheobase]]. With 2 pA steps, the first to fire here is 18 pA. The voltage where the spike takes off is its [[threshold]]. Both are measures of excitability, and they need not agree.",
+      "This is the protocol of [Adams et al. 2018](https://doi.org/10.1523/JNEUROSCI.2988-17.2017): 500 ms steps from 0 to 30 pA in 2 pA increments, on a −6 pA holding current that sits the cell at −70 mV. Small steps only depolarize the cell. The smallest current that makes it fire is its [[rheobase]]. With 2 pA steps, the first to fire here is 18 pA. The voltage where the spike takes off is its [[threshold]]. Both are measures of excitability, and they need not agree.",
     ],
     tryThis: "Switches to the step protocol, with the Adams et al. steps, and plays them one at a time.",
     lookFor: "Each sweep a little bigger than the last, until one fires. Then the Rheobase and Threshold tiles, and how late the first spike comes on the smallest step that fires.",
@@ -133,7 +133,7 @@ export const TOUR: TourPart[] = [
     title: "Slide GABA's reversal potential",
     body: [
       "GABA's channels pass mostly chloride, so GABA's reversal potential, [[E_GABA]], depends on how much chloride the cell keeps inside. Most adult neurons keep little, which puts E_GABA below rest. Their GABA PSPs go down, away from threshold: that is inhibition.",
-      "GnRH neurons keep more. Measured without disturbing the cell's chloride, their E_GABA is −36.5 mV, above rest (DeFazio et al. 2002).",
+      "GnRH neurons keep more. Measured without disturbing the cell's chloride, their E_GABA is −36.5 mV, above rest ([DeFazio et al. 2002](https://doi.org/10.1210/me.2002-0163)).",
     ],
     tryThis: "Sets E_GABA to −70 mV, as in a typical adult neuron, with GABA about five times a second. Then drag E_GABA up in the GABA panel.",
     lookFor: "The PSPs flip from down to up as E_GABA passes the cell's voltage, near −61 mV. Up is not yet exciting: below about −55 mV they never reach threshold. Spikes appear between about −50 and −45 mV, and at −36.5 mV roughly one PSP in six fires the cell.",
@@ -172,7 +172,17 @@ export function tourInputs(s: TourSettings): { cell: CellParams; ihold: number; 
   };
 }
 
-/** Split a paragraph on [[term]] marks: even indexes are plain text, odd ones terms. */
-export function splitTerms(text: string): string[] {
-  return text.split(/\[\[([^\]]+)\]\]/);
+export type Inline = { kind: "text" | "term"; text: string } | { kind: "link"; text: string; href: string };
+
+/** A paragraph as plain text, [[term]]s and [label](https://…) links, in order. */
+export function parseInline(text: string): Inline[] {
+  const out: Inline[] = [];
+  const re = /\[\[([^\]]+)\]\]|\[([^\]]+)\]\((https:\/\/[^)\s]+)\)/g;
+  let at = 0;
+  for (let m; (m = re.exec(text)); at = re.lastIndex) {
+    if (m.index > at) out.push({ kind: "text", text: text.slice(at, m.index) });
+    out.push(m[1] !== undefined ? { kind: "term", text: m[1] } : { kind: "link", text: m[2], href: m[3] });
+  }
+  if (at < text.length) out.push({ kind: "text", text: text.slice(at) });
+  return out;
 }

@@ -20,7 +20,7 @@ import { runSweep, settle, DEFAULT_SIM, DEFAULT_ELECTRODE } from "./simulate.ts"
 import { sweepStats } from "./analysis.ts";
 import { toProtocol } from "./protocol.ts";
 import { MODELS } from "./models.ts";
-import { OPENING_IHOLD, TOUR, splitTerms, tourInputs, type TourSettings } from "./tour.ts";
+import { OPENING_IHOLD, TOUR, parseInline, tourInputs, type TourSettings } from "./tour.ts";
 
 const part = (id: string) => TOUR.find((p) => p.id === id)!.settings;
 
@@ -45,11 +45,19 @@ function familyRheobase(s: TourSettings): number {
 }
 
 describe("the guided tour's text matches the model", () => {
-  it("every part runs on the GnRH cell, and every term mark is closed", () => {
+  it("every part runs on the GnRH cell, and every term and link mark parses", () => {
     for (const p of TOUR) {
       expect(p.settings.model, p.id).toBe("gnrh");
-      for (const para of p.body) expect(para.includes("[[") || para.includes("]]"), `${p.id}: ${para}`).toBe(splitTerms(para).length > 1);
+      for (const para of p.body) {
+        const plain = parseInline(para).filter((x) => x.kind === "text").map((x) => x.text).join("");
+        expect(/[[\]]/.test(plain), `${p.id}: unparsed mark in "${para}"`).toBe(false);
+      }
     }
+  });
+
+  it("the 2002 citation is a link to its DOI", () => {
+    const links = TOUR.flatMap((p) => p.body.flatMap(parseInline)).filter((x) => x.kind === "link");
+    expect(links.some((l) => "href" in l && l.href === "https://doi.org/10.1210/me.2002-0163")).toBe(true);
   });
 
   it("the opening's holding current sits near −61 mV and is silent without input", () => {

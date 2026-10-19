@@ -19,6 +19,12 @@ page.on("pageerror", (e) => problems.push("pageerror: " + e.message));
 page.on("request", (r) => { const u = r.url(); if (!u.startsWith(origin) && !u.startsWith("data:") && !u.startsWith("blob:")) problems.push("third-party request: " + u); });
 
 await page.goto(url);
+// The app opens on the guided tour's first part: the GnRH cell in the scope.
+await page.waitForTimeout(2500);
+await page.screenshot({ path: `${out}/opening.png`, fullPage: true });
+// The rest of this script starts where the app used to open: the pyramidal cell, step mode.
+await page.click("#mode-steps");
+await page.selectOption("#model-select", "rs");
 await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
 await page.screenshot({ path: `${out}/app.png`, fullPage: true });
 

@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { TOUR, TOUR_IS_DRAFT, splitTerms, type TourControl, type TourSettings } from "../core/tour.ts";
+import { TOUR, TOUR_IS_DRAFT, parseInline, type TourControl, type TourSettings } from "../core/tour.ts";
 
 /**
  * The guided tour: one part at a time, each with a "Try this" that sets the
@@ -46,7 +46,8 @@ export function Tour({ onApply, control }: { onApply: (s: TourSettings) => void;
       <h3 className="tour-title">{part.title}</h3>
       <div id={`${id}-text`} hidden={!textOpen}>
         {part.body.map((para, i) => (
-          <p key={i}>{splitTerms(para).map((s, j) => (j % 2 ? <dfn key={j}>{s}</dfn> : s))}</p>
+          <p key={i}>{parseInline(para).map((x, j) =>
+            x.kind === "term" ? <dfn key={j}>{x.text}</dfn> : x.kind === "link" ? <a key={j} href={x.href}>{x.text}</a> : x.text)}</p>
         ))}
         <p className="tour-try" id={`${id}-try`}>{part.tryThis}</p>
       </div>
