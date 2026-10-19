@@ -766,3 +766,12 @@ documentation; the site makes no claim either way about which amplifiers can do 
   top and bottom on the row's bottom line; buttons, the cell picker and the timing switches sit in `AmpSlot`s so
   they align with the dials; each section takes a share of its row, so rows run edge to edge; section names are
   centered. Below 900 px the controls may wrap, which keeps the page from scrolling sideways on a phone.
+
+## 2026-10-19 — false spikes on the scope at fast edges
+
+The owner saw a sharp tick, down and up, at the onset of every GABA PSP at 200 ms/div. The simulation has none:
+Vm and the recorded trace rise smoothly from the event (checked sample by sample, in the step protocol and in the
+live stream, with recording noise off and on). It was the drawing. The scope strokes each pixel column as a zigzag
+from its max to its min, and the canvas's default miter join extends the sharp corners at a fast edge into spikes up
+to 10 line widths long. The time base mattered because it sets how much of the rise falls in one column. Fixed with
+round joins on the live trace and the phosphor beam, which also thins the noise band the miters had been fattening.

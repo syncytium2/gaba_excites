@@ -344,6 +344,9 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
       g.clip();
       g.strokeStyle = color;
       g.lineWidth = lw;
+      // Round joins: a trace is a zigzag between each column's min and max, and at a
+      // fast edge the default miter join extends sharp corners into false spikes.
+      g.lineJoin = "round";
       g.setLineDash(dash);
       g.beginPath();
       let pen = false;
@@ -436,6 +439,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
       pg.rect(LEFT, top, pw, h);
       pg.clip();
       pg.lineWidth = 1.3;
+      pg.lineJoin = "round"; // as for the live trace: no miter spikes at fast edges
       pg.shadowColor = `rgba(${rgb}, 0.9)`;
       pg.shadowBlur = 5;
       for (const x of c.fresh) {
