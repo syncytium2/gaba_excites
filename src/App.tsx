@@ -23,7 +23,7 @@ import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 import { Notebook } from "./ui/Notebook.tsx";
 import { Tour } from "./ui/Tour.tsx";
 import { Tile } from "./ui/Tile.tsx";
-import { AmpDial, AmpSection } from "./ui/AmpFront.tsx";
+import { AmpChoice, AmpDial, AmpRow, AmpSection } from "./ui/AmpFront.tsx";
 import { TOUR, tourInputs, type TourControl, type TourSettings } from "./core/tour.ts";
 
 // The app opens on the tour's first part: the GnRH cell in the oscilloscope,
@@ -333,22 +333,71 @@ export function App() {
   // The amplifier front's own sections: the cell and the two PSC generators.
   // Dial ranges suit the cell: a GnRH neuron's GABA runs at a few Hz, not hundreds.
   const synRange = cell.model === "gnrh" ? { rate: 50, rateStep: 1, g: 10, gStep: 0.1 } : { rate: 2000, rateStep: 10, g: 50, gStep: 0.5 };
+  const PATTERNS = [["poisson", "Poisson"], ["regular", "Regular"]] as const;
+  const synDials = (name: string, syn: SynInput, set: (s: SynInput) => void, withErev: boolean) => {
+    const put = (patch: Partial<SynInput>) => { set({ ...syn, ...patch }); setPresetId("custom"); };
+    return (
+      <AmpSection name={name} power={{ on: syn.enabled, onChange: (on) => put({ enabled: on }) }}>
+        <AmpDial label="Rate" unit="Hz" value={syn.rate} min={0} max={synRange.rate} step={synRange.rateStep} digits={0} disabled={!syn.enabled} onChange={(rate) => put({ rate })} />
+        <AmpDial label="Peak g" unit="nS" value={syn.gPeak} min={0} max={synRange.g} step={synRange.gStep} digits={1} disabled={!syn.enabled} onChange={(gPeak) => put({ gPeak })} />
+        <AmpDial label="τ rise" unit="ms" value={syn.tauRise} min={0} max={10} step={0.1} digits={1} disabled={!syn.enabled} onChange={(tauRise) => put({ tauRise })} />
+        <AmpDial label="τ decay" unit="ms" value={syn.tauDecay} min={0.5} max={100} step={0.5} digits={1} disabled={!syn.enabled} onChange={(tauDecay) => put({ tauDecay })} />
+        {withErev && <AmpDial label="E_GABA" unit="mV" value={syn.erev} min={-100} max={0} step={0.5} digits={1} disabled={!syn.enabled} onChange={(erev) => put({ erev })} />}
+        <AmpChoice label="Timing" value={syn.pattern} options={PATTERNS} disabled={!syn.enabled} onChange={(pattern) => put({ pattern })} />
+      </AmpSection>
+    );
+  };
   const ampSections = (
     <>
-      <AmpSection name="CELL">
-        <AmpDial label="Ihold" unit="pA" value={ihold} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 0.5 : model.ranges.ihold.step} digits={1} onChange={setIhold} />
-        <AmpDial label="gL (leak)" unit="nS" value={cell.gLeak} min={model.ranges.gLeak.min} max={model.ranges.gLeak.max} step={model.ranges.gLeak.step} digits={2} onChange={(gLeak) => setCell({ ...cell, gLeak })} />
-        <AmpDial label="Cm (size)" unit="pF" value={cell.cm} min={model.ranges.cm.min} max={model.ranges.cm.max} step={model.ranges.cm.step} digits={1} onChange={(cm) => setCell({ ...cell, cm })} />
-      </AmpSection>
-      <AmpSection name="GABA PSC" power={{ on: gaba.enabled, onChange: (on) => { setGaba({ ...gaba, enabled: on }); setPresetId("custom"); } }}>
-        <AmpDial label="Rate" unit="Hz" value={gaba.rate} min={0} max={synRange.rate} step={synRange.rateStep} digits={0} disabled={!gaba.enabled} onChange={(rate) => { setGaba({ ...gaba, rate }); setPresetId("custom"); }} />
-        <AmpDial label="Peak g" unit="nS" value={gaba.gPeak} min={0} max={synRange.g} step={synRange.gStep} digits={1} disabled={!gaba.enabled} onChange={(gPeak) => { setGaba({ ...gaba, gPeak }); setPresetId("custom"); }} />
-        <AmpDial label="E_GABA" unit="mV" value={gaba.erev} min={-100} max={0} step={0.5} digits={1} disabled={!gaba.enabled} onChange={(erev) => { setGaba({ ...gaba, erev }); setPresetId("custom"); }} />
-      </AmpSection>
-      <AmpSection name="GLUTAMATE PSC" power={{ on: glu.enabled, onChange: (on) => { setGlu({ ...glu, enabled: on }); setPresetId("custom"); } }}>
-        <AmpDial label="Rate" unit="Hz" value={glu.rate} min={0} max={synRange.rate} step={synRange.rateStep} digits={0} disabled={!glu.enabled} onChange={(rate) => { setGlu({ ...glu, rate }); setPresetId("custom"); }} />
-        <AmpDial label="Peak g" unit="nS" value={glu.gPeak} min={0} max={synRange.g} step={synRange.gStep} digits={1} disabled={!glu.enabled} onChange={(gPeak) => { setGlu({ ...glu, gPeak }); setPresetId("custom"); }} />
-      </AmpSection>
+      <AmpRow>
+        <AmpSection name="MODEL">
+          <label className="select amp-select">
+            <span>Cell</span>
+            <select id="amp-model-select" value={cell.model} onChange={(e) => switchModel(e.target.value as ModelId)}>
+              {MODEL_LIST.map((m) => <option key={m.id} value={m.id}>{m.short}</option>)}
+            </select>
+          </label>
+          <button type="button" className="amp-small" onClick={() => { setCell(publishedParams(cell.model)); setIhold(model.defaults.ihold); }}>Reset cell</button>
+        </AmpSection>
+        <AmpSection name="CELL">
+          <AmpDial label="Ihold" unit="pA" value={ihold} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 0.5 : model.ranges.ihold.step} digits={1} onChange={setIhold} />
+          <AmpDial label="gL (leak)" unit="nS" value={cell.gLeak} min={model.ranges.gLeak.min} max={model.ranges.gLeak.max} step={model.ranges.gLeak.step} digits={2} onChange={(gLeak) => setCell({ ...cell, gLeak })} />
+          <AmpDial label="Cm (size)" unit="pF" value={cell.cm} min={model.ranges.cm.min} max={model.ranges.cm.max} step={model.ranges.cm.step} digits={1} onChange={(cm) => setCell({ ...cell, cm })} />
+        </AmpSection>
+        <AmpSection name="ELECTRODE">
+          <AmpDial label="Rs" unit="MΩ" value={electrode.rs} min={0} max={100} step={1} digits={0} onChange={(rs) => setElectrode({ ...electrode, rs })} />
+          <AmpDial label="Bridge" unit="%" value={Math.round(electrode.bridge * 100)} min={0} max={100} step={5} digits={0} onChange={(b) => setElectrode({ ...electrode, bridge: b / 100 })} />
+          <AmpDial label="Pipette C" unit="pF" value={electrode.cp} min={0} max={20} step={0.5} digits={1} onChange={(cp) => setElectrode({ ...electrode, cp })} />
+        </AmpSection>
+        <AmpSection name="PULSES" power={{ on: pulse.enabled, onChange: (on) => setPulse({ ...pulse, enabled: on }) }}>
+          <AmpDial label="Amplitude" unit="pA" value={pulse.amp} min={-3 * limits.iBound} max={3 * limits.iBound} step={cell.model === "gnrh" ? 1 : 10} digits={0} disabled={!pulse.enabled} onChange={(amp) => setPulse({ ...pulse, amp })} />
+          <AmpDial label="Width" unit="ms" value={pulse.width} min={1} max={2000} step={10} digits={0} disabled={!pulse.enabled} onChange={(width) => setPulse({ ...pulse, width })} />
+          <AmpDial label="Period" unit="ms" value={pulse.period} min={10} max={10000} step={50} digits={0} disabled={!pulse.enabled} onChange={(period) => setPulse({ ...pulse, period })} />
+        </AmpSection>
+      </AmpRow>
+      <AmpRow>
+        {synDials("GABA PSC", gaba, setGaba, true)}
+        {synDials("GLUTAMATE PSC", glu, setGlu, false)}
+        <AmpSection name="RANDOM DRAW">
+          <span className="amp-readout" aria-live="polite">#{seed}</span>
+          <button type="button" className="amp-small" onClick={() => setSeed(seed + 1)} title="New PSC timing and noise; the cell is unchanged">New draw</button>
+        </AmpSection>
+      </AmpRow>
+    </>
+  );
+  // the last row starts with the noise; the scope adds its audio monitor (and meters) after it
+  const ampLastRow = (
+    <>
+        <AmpSection name="RECORDING NOISE">
+          <AmpDial label="RMS" unit="mV" value={noise.recSigma} min={0} max={3} step={0.05} digits={2} onChange={(recSigma) => setNoise({ ...noise, recSigma })} />
+          <AmpDial label="Bandwidth" unit="kHz" value={noise.recBandwidth} min={0.2} max={20} step={0.5} digits={1} onChange={(recBandwidth) => setNoise({ ...noise, recBandwidth })} />
+          <AmpDial label="Line hum" unit="mV" value={noise.humAmp} min={0} max={3} step={0.05} digits={2} onChange={(humAmp) => setNoise({ ...noise, humAmp })} />
+          <AmpChoice label="Mains" value={noise.humHz} options={[[50, "50 Hz"], [60, "60 Hz"]] as const} onChange={(humHz) => setNoise({ ...noise, humHz })} />
+        </AmpSection>
+        <AmpSection name="MEMBRANE NOISE">
+          <AmpDial label="σ" unit="pA" value={noise.memSigma} min={model.ranges.memNoise.min} max={model.ranges.memNoise.max} step={model.ranges.memNoise.step} digits={1} onChange={(memSigma) => setNoise({ ...noise, memSigma })} />
+          <AmpDial label="τ" unit="ms" value={noise.memTau} min={0.5} max={100} step={0.5} digits={1} onChange={(memTau) => setNoise({ ...noise, memTau })} />
+        </AmpSection>
     </>
   );
 
@@ -525,7 +574,7 @@ export function App() {
 
           {mode === "scope" ? (
             <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} limits={limits} onExtremes={setScopeReasons} oldSchool={oldSchool}
-              amp={ampSections} readoutSlot={readoutSlot} />
+              amp={ampSections} ampLastRow={ampLastRow} readoutSlot={readoutSlot} />
           ) : (
             <>
 

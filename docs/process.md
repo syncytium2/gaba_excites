@@ -728,3 +728,21 @@ numeric entry boxes. fake because no amp i know of has gaba and glutamate pscs b
 - **On a phone the dials fall back to number fields** (`AmpDial`), as Old school's knobs already did; the
   screenshot check enforces it.
 - This is not the realistic amplifier mode on the roadmap (an Axoclamp, Axopatch or EPC-7 face); that stays parked.
+
+## 2026-10-19 — every control on the amplifier front
+
+The owner asked for the remaining side-panel controls (all but the tour) on the amplifier, a separator between its
+rows, and the controls in each row aligned along the bottom.
+
+- **Three rows, divided by an engraved groove:** MODEL (cell select, reset), CELL, ELECTRODE (Rs, bridge, pipette C),
+  PULSES (switch; amplitude, width, period); then GABA PSC and GLUTAMATE PSC (switch; rate, peak g, τ rise,
+  τ decay, E_GABA for GABA; Poisson or regular timing) and RANDOM DRAW; then RECORDING NOISE, MEMBRANE NOISE and
+  MONITOR, with Old school's meters at the right. Each row's sections stretch to the row's height and push their
+  controls to the bottom, so the dials and buttons share one bottom line.
+- **The scope's own controls** (time base, speed, Pause, Store, true Vm) are a slim bar under the screen rather than
+  an amplifier row: they belong to the scope, and a fourth row did not fit a laptop screen.
+- **The scope sizes itself from the top of the page and leaves room for the amplifier,** so the whole instrument
+  fits the first screen at 1555×972, plain and Old school. At 1491×810 it fits once the header scrolls away (the
+  plot column is pinned). Dials on the amplifier are 36 px.
+- The side panels are unchanged and still hold the same controls; whether to hide them in scope mode is the
+  owner's call.

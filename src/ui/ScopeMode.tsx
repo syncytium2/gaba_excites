@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AmpDial, AmpFront, AmpSection } from "./AmpFront.tsx";
+import { AmpDial, AmpFront, AmpRow, AmpSection } from "./AmpFront.tsx";
 import type { CellParams } from "../core/cell.ts";
 import { MODELS } from "../core/models.ts";
 import { describe as describeTrip, ExtremeWatch, type Limits } from "../core/extremes.ts";
@@ -48,10 +48,12 @@ interface Readout {
 /** the siren stays on while anything tripped within this much simulated time */
 const SIREN_WINDOW = 1000;
 
-export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false, amp, readoutSlot }: {
+export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false, amp, ampLastRow, readoutSlot }: {
   cell: CellParams; inputs: StreamInputs; seed: number; limits: Limits; onExtremes: (reasons: string[]) => void; oldSchool?: boolean;
-  /** the amplifier sections the app supplies (cell, synapses), ahead of the scope's own */
+  /** the amplifier rows the app supplies (cell, synapses) */
   amp?: React.ReactNode;
+  /** sections that open the amplifier's last row, before the audio monitor */
+  ampLastRow?: React.ReactNode;
   /** where the one-line readouts go: the mode bar, beside Step / Oscilloscope */
   readoutSlot?: HTMLElement | null;
 }) {
@@ -229,31 +231,8 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
         <figcaption className="sr-only">Oscilloscope{paused ? ", paused" : ""}</figcaption>
         {error && <p className="warn">Simulation failed: {error}</p>}
         <Scope ref={scope} msPerDiv={msPerDiv} vRange={[-100, 60]} iRange={iRange} showVm={showVm} triggered={triggered} stored={stored} phosphor={oldSchool} />
-        <p className="legendline">
-          <Tip text={<>
-            The cell runs continuously, and every control acts on it as you move it. Nothing resets it: change the
-            leak or the holding current and watch it relax, slow currents included. Only switching models starts it again.
-            Unlike the step protocol, a scope run cannot be replayed.{" "}
-            {triggered
-              ? "With pulses on, each sweep starts at a pulse onset, so stored traces line up with the live one."
-              : "Store keeps the screen as a reference; with pulses on, sweeps are triggered and line up."}
-          </>}>How the scope works</Tip>
-          {paused && <> · <b>paused</b></>}
-          {showVm && <> · <span style={{ color: ORANGE }}>- -</span> true Vm</>}
-          {stored.map((sn, n) => (
-            <span key={n} className="pinlabel"><br />
-              <StoredKey dash={STORED_DASH[n % STORED_DASH.length]} /> stored {n + 1}: {sn.label}
-              {sn.msPerDiv !== msPerDiv && <> (hidden: stored at {fmtDiv(sn.msPerDiv)}/div)</>}
-              {sn.triggered !== triggered && sn.msPerDiv === msPerDiv && <> (stored {sn.triggered ? "triggered" : "free running"}, so it may not line up)</>}
-            </span>
-          ))}
-        </p>
-      </figure>
-
-      <AmpFront>
-        {amp}
-        <AmpSection name="SCOPE">
-          <label className="select amp-select">
+        <div className="scope-bar">
+          <label className="select inline">
             <span>Time base</span>
             <select id="timebase-select" value={msPerDiv} onChange={(e) => setMsPerDiv(Number(e.target.value))}>
               {TIMEBASES.map((t) => <option key={t} value={t}>{fmtDiv(t)}/div</option>)}
@@ -280,7 +259,32 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
               The readouts are measured on true Vm.
             </>}>true Vm</Tip>
           </span>
-        </AmpSection>
+        </div>
+        <p className="legendline">
+          <Tip text={<>
+            The cell runs continuously, and every control acts on it as you move it. Nothing resets it: change the
+            leak or the holding current and watch it relax, slow currents included. Only switching models starts it again.
+            Unlike the step protocol, a scope run cannot be replayed.{" "}
+            {triggered
+              ? "With pulses on, each sweep starts at a pulse onset, so stored traces line up with the live one."
+              : "Store keeps the screen as a reference; with pulses on, sweeps are triggered and line up."}
+          </>}>How the scope works</Tip>
+          {paused && <> · <b>paused</b></>}
+          {showVm && <> · <span style={{ color: ORANGE }}>- -</span> true Vm</>}
+          {stored.map((sn, n) => (
+            <span key={n} className="pinlabel"><br />
+              <StoredKey dash={STORED_DASH[n % STORED_DASH.length]} /> stored {n + 1}: {sn.label}
+              {sn.msPerDiv !== msPerDiv && <> (hidden: stored at {fmtDiv(sn.msPerDiv)}/div)</>}
+              {sn.triggered !== triggered && sn.msPerDiv === msPerDiv && <> (stored {sn.triggered ? "triggered" : "free running"}, so it may not line up)</>}
+            </span>
+          ))}
+        </p>
+      </figure>
+
+      <AmpFront>
+        {amp}
+        <AmpRow>
+        {ampLastRow}
         <AmpSection name="MONITOR">
           <span className="seg small" role="radiogroup" aria-label="Audio monitor">
             {([["off", "Off"], ["pop", "Hiss & pop"], ["tone", "Tone (Vm)"]] as const).map(([m, name]) => (
@@ -303,12 +307,11 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
         </AmpSection>
         {oldSchool && (
           <div className="amp-meters">
-            <Meter label="FIRING RATE" unit="Hz" value={readout?.rate ?? NaN} min={rateScale[0]} max={rateScale[rateScale.length - 1]} major={rateScale}
-              sub="spikes in the last 2 s" />
-            <Meter label="MEMBRANE POTENTIAL" unit="mV" value={readout?.meanVm ?? NaN} min={-100} max={0} major={[-100, -80, -60, -40, -20, 0]}
-              sub="mean true Vm, last 1 s" />
+            <Meter label="FIRING RATE" unit="Hz" value={readout?.rate ?? NaN} min={rateScale[0]} max={rateScale[rateScale.length - 1]} major={rateScale} />
+            <Meter label="MEMBRANE POTENTIAL" unit="mV" value={readout?.meanVm ?? NaN} min={-100} max={0} major={[-100, -80, -60, -40, -20, 0]} />
           </div>
         )}
+        </AmpRow>
       </AmpFront>
     </>
   );

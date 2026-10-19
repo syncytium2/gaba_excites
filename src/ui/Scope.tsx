@@ -222,8 +222,13 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
     const fit = () => {
       const fig = el.closest(".figures");
       if (!fig) return;
-      const rel = el.getBoundingClientRect().top - fig.getBoundingClientRect().top;
-      const room = window.innerHeight - 24 - rel - (TOP + GAP + I_H + BOTTOM) - 40;
+      // from the top of the page, so the instrument fits the first screen, header included
+      const rel = el.getBoundingClientRect().top + window.scrollY;
+      // leave room for the amplifier front below, so the whole instrument shows at once
+      const amp = fig.querySelector(".amp");
+      const below = amp ? amp.getBoundingClientRect().height + 14 : 0;
+      // 80: the control bar and legend under the screen, and the card's padding
+      const room = window.innerHeight - 24 - rel - (TOP + GAP + I_H + BOTTOM) - 80 - below;
       const h = Math.round(Math.max(V_H_MIN, Math.min(V_H_MAX, room)));
       if (h !== vH.current) {
         vH.current = h;
@@ -240,6 +245,8 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
       }
     });
     ro.observe(el);
+    const ampEl = el.closest(".figures")?.querySelector(".amp");
+    if (ampEl) ro.observe(ampEl);
     width.current = Math.round(el.clientWidth) || 600;
     fit();
     reset();

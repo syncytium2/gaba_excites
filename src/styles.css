@@ -356,7 +356,18 @@ body:has(.page.old-school) { background: #1a1b19; }
 .amp-brand { font-weight: 800; font-size: 13px; color: #f2efe6; }
 .amp-model { font-size: 12px; color: #c9c5b9; }
 .amp-note { font-size: 11px; color: #a9a597; letter-spacing: 0.02em; font-style: italic; margin-left: auto; }
-.amp-sections { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; }
+.amp-sections { display: flex; flex-direction: column; }
+/* Rows are divided by an engraved groove; within a row, every section's controls sit on one bottom line. */
+.amp-row { display: flex; flex-wrap: wrap; align-items: stretch; padding: 6px 0; }
+.amp-row + .amp-row { border-top: 1px solid #151613; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07); }
+.amp-section { display: flex; flex-direction: column; }
+.amp-section .amp-ctrls { margin-top: auto; }
+.amp-choice { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: #dedbd2; padding-bottom: 2px; }
+.amp-choice-label { text-align: center; }
+.amp-select { padding-bottom: 2px; }
+.amp-small { font-size: 12px; padding: 3px 8px; margin-bottom: 2px; }
+.amp-readout { font: 13px ui-monospace, Menlo, Consolas, monospace; color: #ffb547; background: #0e0f0d; border: 1px solid #3e3f39; border-radius: 3px; padding: 2px 8px; margin-bottom: 3px; text-shadow: 0 0 4px rgba(255, 170, 60, 0.6); }
+.amp .check { padding-bottom: 5px; }
 .amp-section { padding: 0 14px; border-left: 1px solid #191a17; box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.06); }
 .amp-section:first-child { padding-left: 0; border-left: 0; box-shadow: none; }
 .amp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
@@ -385,5 +396,18 @@ body:has(.page.old-school) { background: #1a1b19; }
 .amp-switch input:focus-visible + .amp-lamp { outline: 2px solid var(--accent); outline-offset: 2px; }
 .amp-switch-text { color: #dedbd2; min-width: 2.2em; }
 .amp-meters { display: flex; gap: 10px; margin-left: auto; padding-left: 14px; }
-.amp-meters .meter { flex: 0 0 132px; padding: 5px; }
+.amp-meters .meter { flex: 0 0 104px; padding: 4px; }
+.amp-meters .meter .m-sub { font-size: 9px; line-height: 1.25; }
 .amp-meters .meter figcaption, .amp-meters .meter .m-sub { font-size: 10px; }
+
+/* the scope's own controls: one slim bar under the screen */
+.scope-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 4px 0 2px; font-size: 12.5px; color: var(--ink-2); }
+.scope-bar .seg { margin: 0; }
+.scope-bar .amp-buttons { display: inline-flex; gap: 6px; }
+/* compact dials on the amplifier */
+.amp .knobfield { width: 60px; margin: 0; }
+.amp .knob { width: 36px; height: 36px; }
+.amp .kf-label { font-size: 11px; min-height: 1.3em; }
+.amp .kf-value { min-width: 56px; font-size: 11.5px; padding: 0 4px; }
+.amp-row { padding: 4px 0; }
+.amp-badge { margin-bottom: 2px; }

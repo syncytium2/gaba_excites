@@ -52,3 +52,25 @@ export function AmpDial(props: React.ComponentProps<typeof Knob>) {
   const narrow = useNarrow();
   return narrow ? <NumField {...props} /> : <Knob {...props} />;
 }
+
+/** One row of sections. Rows are divided by an engraved groove, and each row's controls share a bottom edge. */
+export function AmpRow({ children }: { children: React.ReactNode }) {
+  return <div className="amp-row">{children}</div>;
+}
+
+/** A row of push buttons that pick one value, such as Poisson / Regular. */
+export function AmpChoice<T extends string | number>({ label, value, options, onChange, disabled }: {
+  label: string; value: T; options: readonly (readonly [T, string])[]; onChange: (v: T) => void; disabled?: boolean;
+}) {
+  return (
+    <div className="amp-choice">
+      <span className="amp-choice-label">{label}</span>
+      <span className="seg small" role="radiogroup" aria-label={label}>
+        {options.map(([v, name]) => (
+          <button key={String(v)} type="button" role="radio" aria-checked={value === v} className={value === v ? "on" : ""} disabled={disabled}
+            onClick={() => onChange(v)}>{name}</button>
+        ))}
+      </span>
+    </div>
+  );
+}
