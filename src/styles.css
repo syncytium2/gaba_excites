@@ -89,12 +89,19 @@ button.linkish { border: none; background: none; padding: 0; color: #1f63b8; tex
 .figures { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .status { color: var(--muted); font-size: 12px; min-height: 18px; }
 
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-.tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 8px 12px; }
-.t-label { font-size: 12px; color: var(--ink-2); }
-.t-value { font-size: 22px; font-weight: 600; }
+/* Readout tiles: name, value and unit on one line; the note on hover or focus. */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
+.tile { position: relative; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 5px 10px; }
+.tile.has-tip { cursor: help; }
+.tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.t-label { font-size: 11.5px; color: var(--ink-2); width: 100%; }
+.t-value { font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .t-unit { font-size: 12px; font-weight: 400; color: var(--muted); }
-.t-sub { font-size: 11.5px; color: var(--muted); }
+.t-action { font-size: 11.5px; color: var(--muted); }
+/* Out of the layout until shown, so a hidden note never widens the page on a phone. */
+.t-tip { display: none; left: 0; right: auto; width: min(320px, calc(100vw - 32px)); }
+.tile:hover .t-tip, .tile:focus .t-tip, .tile:focus-within .t-tip { display: block; visibility: visible; opacity: 1; }
+.stats .tile:nth-child(even) .t-tip { left: auto; right: 0; }
 
 .card { margin: 0; background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 10px 12px; min-width: 0; }
 .card figcaption { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 600; margin-bottom: 6px; }
@@ -247,9 +254,9 @@ body:has(.page.old-school) { background: #1a1b19; }
 .page.old-school .pb > * { flex-basis: 100%; }
 .page.old-school .pb > .knobfield { flex-basis: auto; }
 .page.old-school .pb > .row2, .page.old-school .pb > .row3 { display: flex; flex-wrap: wrap; gap: 6px 14px; }
-.knobfield { display: inline-flex; flex-direction: column; align-items: center; width: 86px; margin: 4px 0; }
+.knobfield { display: inline-flex; flex-direction: column; align-items: center; width: 70px; margin: 2px 0; }
 .kf-label { font-size: 11.5px; color: var(--ink-2); text-align: center; line-height: 1.2; min-height: 2.4em; display: flex; align-items: flex-end; justify-content: center; gap: 3px; letter-spacing: 0.02em; }
-.knob { width: 62px; height: 62px; cursor: grab; touch-action: none; border-radius: 50%; }
+.knob { width: 44px; height: 44px; cursor: grab; touch-action: none; border-radius: 50%; }
 .knob:active { cursor: grabbing; }
 .knob:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .knob svg { width: 100%; height: 100%; display: block; }
@@ -267,7 +274,7 @@ body:has(.page.old-school) { background: #1a1b19; }
 
 /* ---- analog meters (Old school) ---- */
 .meters { display: flex; gap: 14px; flex-wrap: wrap; align-items: stretch; }
-.meter { margin: 0; flex: 1 1 220px; max-width: 320px; background: linear-gradient(#2e2f2b, #252622); border-radius: 8px; padding: 8px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.5); }
+.meter { margin: 0; flex: 1 1 160px; max-width: 210px; background: linear-gradient(#2e2f2b, #252622); border-radius: 8px; padding: 8px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.5); }
 .meter svg { width: 100%; display: block; }
 .m-face { fill: #efe7cf; stroke: #0e0f0d; stroke-width: 2; }
 .m-arc { fill: none; stroke: #2a2620; stroke-width: 1; }
@@ -330,3 +337,4 @@ body:has(.page.old-school) { background: #1a1b19; }
 @media (min-width: 901px) {
   .figures.pinned { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
 }
+.legendline .tip-body { left: 0; right: auto; }

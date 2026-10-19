@@ -69,9 +69,11 @@ interface Props {
 
 const DIVS_X = 10;
 const DIVS_V = 8;
-const DIVS_I = 4;
-const V_H = 300;
-const I_H = 96;
+const DIVS_I = 2;
+/** the voltage screen's height, px: as tall as this, shrinking to fit a short window */
+const V_H_MAX = 300;
+const V_H_MIN = 180;
+const I_H = 48;
 const GAP = 14;
 const LEFT = 52;
 const RIGHT = 10;
@@ -117,6 +119,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const width = useRef(600);
+  const vH = useRef(V_H_MAX);
   const cols = useRef<Columns>(columns(600));
   const dirty = useRef(true);
   const props = useRef({ msPerDiv, vRange, iRange, showVm, triggered, stored, phosphor });
@@ -214,7 +217,22 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
 
   useEffect(() => {
     const el = box.current!;
+    // Fit the screen to the window: the scope and its controls on one screen.
+    // Measured from the plot column's top, which is pinned in scope mode.
+    const fit = () => {
+      const fig = el.closest(".figures");
+      if (!fig) return;
+      const rel = el.getBoundingClientRect().top - fig.getBoundingClientRect().top;
+      const room = window.innerHeight - 24 - rel - (TOP + GAP + I_H + BOTTOM) - 40;
+      const h = Math.round(Math.max(V_H_MIN, Math.min(V_H_MAX, room)));
+      if (h !== vH.current) {
+        vH.current = h;
+        reset();
+      }
+    };
+    window.addEventListener("resize", fit);
     const ro = new ResizeObserver(() => {
+      fit();
       const w = Math.round(el.clientWidth);
       if (w > 0 && w !== width.current) {
         width.current = w;
@@ -223,6 +241,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
     });
     ro.observe(el);
     width.current = Math.round(el.clientWidth) || 600;
+    fit();
     reset();
     let raf = 0;
     const frame = (now: number) => {
@@ -243,6 +262,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      window.removeEventListener("resize", fit);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -252,6 +272,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
     if (!cv) return;
     const { msPerDiv, vRange, iRange, showVm, triggered, stored } = props.current;
     const W = width.current;
+    const V_H = vH.current;
     const H = TOP + V_H + GAP + I_H + BOTTOM;
     const dpr = window.devicePixelRatio || 1;
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) {
@@ -366,6 +387,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
     if (!cv) return;
     const { msPerDiv, vRange, iRange, showVm, triggered, stored } = props.current;
     const W = width.current;
+    const V_H = vH.current;
     const H = TOP + V_H + GAP + I_H + BOTTOM;
     const dpr = window.devicePixelRatio || 1;
     const cw = Math.round(W * dpr), ch = Math.round(H * dpr);

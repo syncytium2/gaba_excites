@@ -694,3 +694,20 @@ cannot differ. Its holding current stays +7.5 pA (−61.4 mV once settled): +8 p
 citations are now links (`[label](https://…)` in `tour.ts`), the 2002 paper's to its DOI, which a test checks.
 `scripts/screenshot.mjs` captures the opening, then switches to the pyramidal cell in step mode, where it used to
 start. Two sentences in `public/methods.html` that called the pyramidal cell "the default" now name it.
+
+## 2026-10-19 — the scope and its controls on one screen
+
+Asked by the owner after testing on a 16" laptop; checked at 1555×972, the size of his screenshot.
+
+- **Readout tiles show name, value and unit only.** The owner asked for value and unit; the short name stays,
+  small, because without it "18 pA" and "−32.4 mV" cannot be told apart and a screen reader has nothing to say.
+  The note is on hover and on keyboard focus (the tile is focusable, aria-describedby). Rheobase's "refine" and
+  its refined value stay visible: a control and a requested result, not an explanation. One shared `Tile`.
+- **Old school knobs 62 → 44 px, meters at most 210 px wide.**
+- **The scope fits the window:** the voltage screen is up to 300 px and shrinks (to a 180 px floor) when the window
+  is short; the current trace is halved to 48 px, with two divisions. The paragraph under the scope is behind
+  "How the scope works".
+- **"Try this" folds the panels a tour part does not use** (Model, Electrode, Stimulus, Noise, and any synapse
+  that is off), and the app opens with only Tour, Cell and GABA open. Any panel still opens by hand.
+- A hidden tooltip still takes layout space: the tile notes are `display: none` until shown, after the screenshot
+  check caught the page scrolling sideways at 390 px.

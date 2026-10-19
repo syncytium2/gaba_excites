@@ -22,7 +22,12 @@ await page.goto(url);
 // The app opens on the guided tour's first part: the GnRH cell in the scope.
 await page.waitForTimeout(2500);
 await page.screenshot({ path: `${out}/opening.png`, fullPage: true });
-// The rest of this script starts where the app used to open: the pyramidal cell, step mode.
+// The rest of this script starts where the app used to open: every panel open,
+// the pyramidal cell, step mode. (The tour folds the panels it does not use.)
+await page.evaluate(() => localStorage.setItem("gaba_excites.panels", JSON.stringify(
+  { tour: true, model: true, cell: true, electrode: true, protocol: true, stimulus: true, glu: true, gaba: true, noise: true })));
+await page.reload();
+await page.waitForTimeout(1000);
 await page.click("#mode-steps");
 await page.selectOption("#model-select", "rs");
 await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });

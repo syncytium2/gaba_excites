@@ -22,6 +22,7 @@ import { AQUA, AXIS, BLUE, GRID, INK2, MUTED, ORANGE, rampColor } from "./ui/pal
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 import { Notebook } from "./ui/Notebook.tsx";
 import { Tour } from "./ui/Tour.tsx";
+import { Tile } from "./ui/Tile.tsx";
 import { TOUR, tourInputs, type TourControl, type TourSettings } from "./core/tour.ts";
 
 // The app opens on the tour's first part: the GnRH cell in the oscilloscope,
@@ -96,7 +97,7 @@ export function App() {
 
   const protocol = useMemo(() => toProtocol(form), [form]);
   // The left panels collapse. The ones you reach for first start open.
-  const panels = usePanels({ tour: true, model: true, cell: true, electrode: false, protocol: true, stimulus: true, glu: false, gaba: true, noise: false });
+  const panels = usePanels({ tour: true, model: false, cell: true, electrode: false, protocol: true, stimulus: false, glu: false, gaba: true, noise: false });
 
   // ------------------------------------------------------------ worker
   const worker = useRef<Worker | null>(null);
@@ -197,9 +198,13 @@ export function App() {
     setPulse({ ...SCOPE_PULSE[s.model], enabled: false });
     setNoise({ ...noise, memSigma: 0 });
     setMode(s.mode);
+    // Only the panels this part uses stay open, so the plot and its controls
+    // share one screen. Any panel still opens by hand.
     panels.set("cell", true);
-    if (t.glu.enabled) panels.set("glu", true);
-    if (t.gaba.enabled) panels.set("gaba", true);
+    panels.set("protocol", s.mode === "steps");
+    panels.set("glu", t.glu.enabled);
+    panels.set("gaba", t.gaba.enabled);
+    for (const k of ["model", "electrode", "stimulus", "noise"]) panels.set(k, false);
     setSelected(null);
     setRefined(null);
     if (s.play) {
@@ -679,8 +684,9 @@ function Stats({ summary, rinRest, rinHold, refined, onRefine, tol }: {
   return (
     <div className="stats">
       <Tile label="Rheobase" value={s ? amp(s.rheobase) : "—"} unit="pA"
-        sub={refined ? (Number.isFinite(refined.value) ? `refined: ${fmt(refined.value, d)} ± ${fmt(refined.tol, d)} pA` : "refining…")
-          : s && Number.isFinite(s.rheobase) ? <button className="linkish" onClick={onRefine}>refine to {tol} pA</button> : "no step fired"} />
+        sub={s && !Number.isFinite(s.rheobase) ? "no step fired" : "the smallest step that fired"}
+        action={refined ? (Number.isFinite(refined.value) ? `refined: ${fmt(refined.value, d)} ± ${fmt(refined.tol, d)} pA` : "refining…")
+          : s && Number.isFinite(s.rheobase) ? <button className="linkish" onClick={onRefine}>refine to {tol} pA</button> : undefined} />
       <Tile label="Threshold" value={s ? fmt(s.threshold, 1) : "—"} unit="mV" sub="first spike, dV/dt ≥ 20 V/s" />
       <Tile label="AP peak" value={s ? fmt(s.apPeak, 0) : "—"} unit="mV" sub="first spike at rheobase" />
       <Tile label="AP half-width" value={s ? fmt(s.apHalfWidth, 2) : "—"} unit="ms" sub="at half the threshold-to-peak height" />
@@ -694,15 +700,6 @@ function Stats({ summary, rinRest, rinHold, refined, onRefine, tol }: {
   );
 }
 
-function Tile({ label, value, unit, sub }: { label: string; value: string; unit: string; sub?: React.ReactNode }) {
-  return (
-    <div className="tile">
-      <div className="t-label">{label}</div>
-      <div className="t-value">{value} <span className="t-unit">{unit}</span></div>
-      {sub && <div className="t-sub">{sub}</div>}
-    </div>
-  );
-}
 
 // ------------------------------------------------------------------ traces
 

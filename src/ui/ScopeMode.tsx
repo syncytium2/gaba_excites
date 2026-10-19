@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Tile } from "./Tile.tsx";
 import type { CellParams } from "../core/cell.ts";
 import { MODELS } from "../core/models.ts";
 import { describe as describeTrip, ExtremeWatch, type Limits } from "../core/extremes.ts";
@@ -281,13 +282,15 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
         {error && <p className="warn">Simulation failed: {error}</p>}
         <Scope ref={scope} msPerDiv={msPerDiv} vRange={[-100, 60]} iRange={iRange} showVm={showVm} triggered={triggered} stored={stored} phosphor={oldSchool} />
         <p className="legendline">
-          The cell runs continuously, and every control on the left acts on it as you move it. Nothing resets it: change the
-          leak or the holding current and watch it relax, slow currents included. Only switching models starts it again.
-          {showVm && <> <span style={{ color: ORANGE }}>- -</span> true Vm.</>}{" "}
-          Unlike the step protocol, a scope run cannot be replayed.{" "}
-          {triggered
-            ? "With pulses on, each sweep starts at a pulse onset, so stored traces line up with the live one."
-            : "Store keeps the screen as a reference; with pulses on, sweeps are triggered and line up."}
+          <Tip text={<>
+            The cell runs continuously, and every control on the left acts on it as you move it. Nothing resets it: change the
+            leak or the holding current and watch it relax, slow currents included. Only switching models starts it again.
+            Unlike the step protocol, a scope run cannot be replayed.{" "}
+            {triggered
+              ? "With pulses on, each sweep starts at a pulse onset, so stored traces line up with the live one."
+              : "Store keeps the screen as a reference; with pulses on, sweeps are triggered and line up."}
+          </>}>How the scope works</Tip>
+          {showVm && <> · <span style={{ color: ORANGE }}>- -</span> true Vm</>}
           {stored.map((sn, n) => (
             <span key={n} className="pinlabel"><br />
               <StoredKey dash={STORED_DASH[n % STORED_DASH.length]} /> stored {n + 1}: {sn.label}
@@ -325,12 +328,3 @@ function StoredKey({ dash }: { dash: number[] }) {
   );
 }
 
-function Tile({ label, value, unit, sub }: { label: string; value: string; unit: string; sub?: React.ReactNode }) {
-  return (
-    <div className="tile">
-      <div className="t-label">{label}</div>
-      <div className="t-value">{value} <span className="t-unit">{unit}</span></div>
-      {sub && <div className="t-sub">{sub}</div>}
-    </div>
-  );
-}
