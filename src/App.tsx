@@ -23,7 +23,7 @@ import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 import { Notebook } from "./ui/Notebook.tsx";
 import { Tour } from "./ui/Tour.tsx";
 import { Tile } from "./ui/Tile.tsx";
-import { AmpChoice, AmpDial, AmpRow, AmpSection } from "./ui/AmpFront.tsx";
+import { AmpChoice, AmpDial, AmpRow, AmpSection, AmpSlot } from "./ui/AmpFront.tsx";
 import { TOUR, tourInputs, type TourControl, type TourSettings } from "./core/tour.ts";
 
 // The app opens on the tour's first part: the GnRH cell in the oscilloscope,
@@ -172,6 +172,17 @@ export function App() {
     setPins([]);
     setSelected(null);
     setRefined(null);
+  };
+
+  // The published cell at its default holding current, with both PSC generators
+  // back to this cell's defaults: off, with its own kinetics and E_GABA.
+  const resetCell = () => {
+    const t = tourInputs({ model: cell.model, mode, ihold: MODELS[cell.model].defaults.ihold });
+    setCell(t.cell);
+    setIhold(t.ihold);
+    setGlu(t.glu);
+    setGaba(t.gaba);
+    setPresetId("custom");
   };
 
   const applyPreset = (id: string) => {
@@ -351,13 +362,14 @@ export function App() {
     <>
       <AmpRow>
         <AmpSection name="MODEL">
-          <label className="select amp-select">
-            <span>Cell</span>
-            <select id="amp-model-select" value={cell.model} onChange={(e) => switchModel(e.target.value as ModelId)}>
+          <AmpSlot label="Cell">
+            <select id="amp-model-select" aria-label="Cell model" value={cell.model} onChange={(e) => switchModel(e.target.value as ModelId)}>
               {MODEL_LIST.map((m) => <option key={m.id} value={m.id}>{m.short}</option>)}
             </select>
-          </label>
-          <button type="button" className="amp-small" onClick={() => { setCell(publishedParams(cell.model)); setIhold(model.defaults.ihold); }}>Reset cell</button>
+          </AmpSlot>
+          <AmpSlot label="Reset">
+            <button type="button" onClick={resetCell} title="The published cell at its default holding current; both PSC generators back to this cell's defaults (off)">Cell + PSCs</button>
+          </AmpSlot>
         </AmpSection>
         <AmpSection name="CELL">
           <AmpDial label="Ihold" unit="pA" value={ihold} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 0.5 : model.ranges.ihold.step} digits={1} onChange={setIhold} />
@@ -379,8 +391,10 @@ export function App() {
         {synDials("GABA PSC", gaba, setGaba, true)}
         {synDials("GLUTAMATE PSC", glu, setGlu, false)}
         <AmpSection name="RANDOM DRAW">
-          <span className="amp-readout" aria-live="polite">#{seed}</span>
-          <button type="button" className="amp-small" onClick={() => setSeed(seed + 1)} title="New PSC timing and noise; the cell is unchanged">New draw</button>
+          <AmpSlot label="Draw">
+            <span className="amp-readout" aria-live="polite">#{seed}</span>
+            <button type="button" onClick={() => setSeed(seed + 1)} title="New PSC timing and noise; the cell is unchanged">New</button>
+          </AmpSlot>
         </AmpSection>
       </AmpRow>
     </>
@@ -422,6 +436,7 @@ export function App() {
             <Tour onApply={applyTour} control={tourControl} />
           </Panel>
 
+          {mode === "steps" && <>
           <Panel title="Model" open={panels.open.model} onToggle={() => panels.toggle("model")}
             summary={model.label}>
             <label className="select">
@@ -453,8 +468,8 @@ export function App() {
                 <div className="warn">No stable rest: with this leak the channels keep the cell depolarized, so rest and Rin are undefined.</div>
               )}
             </div>
-            <button className="linkish" onClick={() => { setCell(publishedParams(cell.model)); setIhold(model.defaults.ihold); }}>
-              Reset to the published cell
+            <button className="linkish" onClick={resetCell}>
+              Reset to the published cell and PSCs
             </button>
           </Panel>
 
@@ -547,6 +562,7 @@ export function App() {
               </div>
             </section>
           )}
+          </>}
         </aside>
 
         <main className={"figures" + (mode === "scope" ? " pinned" : "")}>

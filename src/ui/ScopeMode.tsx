@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AmpDial, AmpFront, AmpRow, AmpSection } from "./AmpFront.tsx";
+import { AmpDial, AmpFront, AmpRow, AmpSection, AmpSlot } from "./AmpFront.tsx";
 import type { CellParams } from "../core/cell.ts";
 import { MODELS } from "../core/models.ts";
 import { describe as describeTrip, ExtremeWatch, type Limits } from "../core/extremes.ts";
@@ -286,24 +286,21 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
         <AmpRow>
         {ampLastRow}
         <AmpSection name="MONITOR">
-          <span className="seg small" role="radiogroup" aria-label="Audio monitor">
-            {([["off", "Off"], ["pop", "Hiss & pop"], ["tone", "Tone (Vm)"]] as const).map(([m, name]) => (
-              <button key={m} id={`sound-${m}`} role="radio" aria-checked={sound === m} className={sound === m ? "on" : ""} onClick={() => changeSound(m)}>
-                {name}
-              </button>
-            ))}
-          </span>
-          {sound !== "off" && (
-            <>
-              <AmpDial label="Volume" unit="%" value={volume} min={0} max={100} step={5} digits={0} onChange={setVolume} />
-              {(speed !== 1 || paused) && <span className="small">Sound plays at 1× while running.</span>}
-              <Tip text={sound === "pop"
+          <AmpSlot label={(speed !== 1 || paused) && sound !== "off" ? "Sound (plays at 1× while running)" : "Sound"}>
+            <span className="seg small" role="radiogroup" aria-label="Audio monitor">
+              {([["off", "Off"], ["pop", "Hiss & pop"], ["tone", "Tone (Vm)"]] as const).map(([m, name]) => (
+                <button key={m} id={`sound-${m}`} role="radio" aria-checked={sound === m} className={sound === m ? "on" : ""} onClick={() => changeSound(m)}>
+                  {name}
+                </button>
+              ))}
+            </span>
+            {sound !== "off" && <Tip text={sound === "pop"
                 ? <>An audio monitor, as on a rig: the recording noise is the <b>hiss</b>, each spike a <b>pop</b>. Raise the noise RMS for more hiss.</>
                 : <>A tone whose <b>pitch follows true Vm</b>: four octaves from −90 to +40 mV. Drift glides, PSPs blip, spikes chirp.</>}>
                 what you hear
-              </Tip>
-            </>
-          )}
+              </Tip>}
+          </AmpSlot>
+          {sound !== "off" && <AmpDial label="Volume" unit="%" value={volume} min={0} max={100} step={5} digits={0} onChange={setVolume} />}
         </AmpSection>
         {oldSchool && (
           <div className="amp-meters">

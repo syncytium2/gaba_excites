@@ -58,19 +58,31 @@ export function AmpRow({ children }: { children: React.ReactNode }) {
   return <div className="amp-row">{children}</div>;
 }
 
+/**
+ * Any control that is not a dial, in a cell the same height as a dial's, with its
+ * name on the same line as the dials' names and its bottom on their bottom line.
+ */
+export function AmpSlot({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="amp-slot">
+      <span className="amp-slot-label">{label}</span>
+      <div className="amp-slot-body">{children}</div>
+    </div>
+  );
+}
+
 /** A row of push buttons that pick one value, such as Poisson / Regular. */
 export function AmpChoice<T extends string | number>({ label, value, options, onChange, disabled }: {
   label: string; value: T; options: readonly (readonly [T, string])[]; onChange: (v: T) => void; disabled?: boolean;
 }) {
   return (
-    <div className="amp-choice">
-      <span className="amp-choice-label">{label}</span>
+    <AmpSlot label={label}>
       <span className="seg small" role="radiogroup" aria-label={label}>
         {options.map(([v, name]) => (
           <button key={String(v)} type="button" role="radio" aria-checked={value === v} className={value === v ? "on" : ""} disabled={disabled}
             onClick={() => onChange(v)}>{name}</button>
         ))}
       </span>
-    </div>
+    </AmpSlot>
   );
 }

@@ -753,3 +753,16 @@ The amplifier's face said "no real amplifier has synapses built in", and the ent
 Sutter's dPatch, which appears to have dynamic clamp built in, so the claim is withdrawn. The face now says only
 "current-clamp amplifier · fictional": the brand and model are made up. Nothing here was checked against Sutter's
 documentation; the site makes no claim either way about which amplifiers can do this.
+
+## 2026-10-19 — reset includes the PSCs; tour-only left column; an even amplifier
+
+- **Reset restores the PSCs too** (the owner): the published cell, its default holding current, and both PSC
+  generators at the cell's defaults, off, with its own kinetics and E_GABA. One `resetCell`, used by the Cell
+  panel's link and the amplifier's Reset button.
+- **In scope mode the left column holds only the tour** (the owner), since every control is on the amplifier.
+  Step mode keeps its panels. The screenshot check drives the amplifier in scope mode and fails if the left column
+  shows more than the tour.
+- **The amplifier, made even** (the owner found it uneven): every control is one cell of the same height, name on
+  top and bottom on the row's bottom line; buttons, the cell picker and the timing switches sit in `AmpSlot`s so
+  they align with the dials; each section takes a share of its row, so rows run edge to edge; section names are
+  centered. Below 900 px the controls may wrap, which keeps the page from scrolling sideways on a phone.

@@ -411,3 +411,33 @@ body:has(.page.old-school) { background: #1a1b19; }
 .amp .kf-value { min-width: 56px; font-size: 11.5px; padding: 0 4px; }
 .amp-row { padding: 4px 0; }
 .amp-badge { margin-bottom: 2px; }
+
+/* ---- amplifier: an even grid ----
+   Every control is one cell of the same height: its name on top, the dial (or
+   buttons) below, and its bottom on the row's bottom line. Sections share out
+   the row's width, so every row runs edge to edge, with names centered. */
+.amp { --amp-cell-h: 74px; }
+.amp-row { gap: 0; padding: 7px 0 6px; }
+.amp-section { flex: 1 1 auto; align-items: center; padding: 0 10px; }
+.amp-section:first-child { padding-left: 4px; }
+.amp-head { justify-content: center; margin-bottom: 5px; min-height: 16px; }
+.amp-section .amp-ctrls { justify-content: center; align-items: flex-end; flex-wrap: nowrap; gap: 0 6px; }
+.amp .knobfield, .amp-slot {
+  height: var(--amp-cell-h); display: flex; flex-direction: column; align-items: center; justify-content: space-between; margin: 0;
+}
+.amp .knobfield { width: 60px; }
+.amp-slot { min-width: 60px; }
+.amp .kf-label, .amp-slot-label {
+  height: 14px; min-height: 14px; line-height: 14px; font-size: 11px; color: #dedbd2; white-space: nowrap; display: block; text-align: center;
+}
+.amp .kf-value { height: 19px; line-height: 17px; }
+.amp-slot-body { height: 24px; display: flex; align-items: center; gap: 6px; }
+.amp-slot-body select, .amp-slot-body button { height: 24px; font-size: 12px; padding: 0 8px; }
+.amp-slot-body .seg button { height: 22px; }
+.amp-readout { margin: 0; height: 22px; line-height: 18px; }
+.amp-meters { align-self: flex-end; }
+@media (max-width: 900px) {
+  .amp-section .amp-ctrls { flex-wrap: wrap; justify-content: flex-start; }
+  .amp-section { align-items: flex-start; }
+  .amp-note { margin-left: 0; }
+}

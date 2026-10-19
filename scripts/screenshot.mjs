@@ -66,31 +66,38 @@ await page.waitForTimeout(300);
 await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
 await page.screenshot({ path: `${out}/gnrh.png`, fullPage: true });
 
-// the oscilloscope: running live on both cells, with pulses on the pyramidal cell
+// the oscilloscope: running live on both cells, with pulses on the pyramidal cell.
+// In scope mode every control is on the amplifier front; the side panels are gone.
+const amp = page.locator(".amp");
+const setDial = async (name, v) => {
+  const k = amp.getByRole("slider", { name });
+  await k.dblclick();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type(String(v));
+  await page.keyboard.press("Enter");
+};
 await page.selectOption("#model-select", "rs");
 await page.click("#mode-scope");
-await page.click("#pulse-on");
+if (await page.locator(".tools .panel").count() !== 1) problems.push("scope: the left column shows more than the tour");
+await amp.getByRole("switch", { name: "PULSES on" }).check();
 await page.waitForTimeout(2500);
 const live = await page.evaluate(() => [...document.querySelectorAll(".readline")].map((t) => t.textContent ?? ""));
 if (!live.some((t) => /Firing\s*[0-9]/.test(t))) problems.push("scope: no live firing rate after 2.5 s: " + live.join(" | "));
 // store a screen, cut the leak, and look at the live trace over the stored one
 await page.waitForTimeout(2000);
 await page.click("#scope-store");
-await page.getByRole("textbox", { name: "gL (leak)" }).fill("15");
-await page.keyboard.press("Enter");
+await setDial("gL (leak)", 15);
 await page.waitForTimeout(4500);
 const legend = await page.evaluate(() => document.querySelector(".scope-screen")?.parentElement?.textContent ?? "");
 if (!/stored 1: pyramidal, gL 28\.95 nS/.test(legend)) problems.push("scope: the stored trace's label is missing");
 await page.screenshot({ path: `${out}/scope.png`, fullPage: true });
 // the siren in scope mode: silent so far, then a 30 nA pulse
 if (await page.locator(".siren").count()) problems.push("siren: showing in ordinary scope use");
-await page.getByRole("textbox", { name: "Amplitude" }).fill("30000");
-await page.keyboard.press("Enter");
+await setDial("Amplitude", 30000);
 await page.waitForTimeout(2500);
 if (!(await page.locator(".siren").count())) problems.push("siren: not showing in scope mode at 30 nA");
-await page.getByRole("textbox", { name: "Amplitude" }).fill("700");
-await page.keyboard.press("Enter");
-await page.selectOption("#model-select", "gnrh");
+await setDial("Amplitude", 700);
+await page.selectOption("#amp-model-select", "gnrh");
 await page.waitForTimeout(3000);
 await page.screenshot({ path: `${out}/scope-gnrh.png`, fullPage: true });
 
@@ -101,7 +108,7 @@ const knobCount = await page.locator(".knob").count();
 if (knobCount < 15) problems.push(`old school: only ${knobCount} knobs`);
 if (await page.locator(".meter").count() !== 2) problems.push("old school: the two meters are missing");
 if (await page.locator(".panel.closed .pb:visible").count()) problems.push("old school: a collapsed panel shows its contents");
-const glKnob = page.locator(".tools").getByRole("slider", { name: "gL (leak)" }); // the side panel's, not the amplifier's
+const glKnob = amp.getByRole("slider", { name: "gL (leak)" });
 await glKnob.focus();
 await page.keyboard.press("End");
 if ((await glKnob.getAttribute("aria-valuenow")) !== "5") problems.push("old school: End did not take the GnRH leak knob to its maximum (5 nS)");
