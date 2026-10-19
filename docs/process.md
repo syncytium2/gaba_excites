@@ -839,3 +839,15 @@ is, ions, gradients and channels.
   first."); `parseInline` accepts site-relative links, and a test checks the link.
 - **The "Start here" pop-up is retired; the glossary waits.** The page is in `_headers`, the sitemap, `llms.txt`,
   and `deploy.sh`'s gates (file present, no third-party beacon).
+
+## 2026-10-19 — the tour text approved
+
+The owner edited the tour's text in the Claude Doc "Guided tour text for approval" and approved all eight parts. His
+edits are carried into `src/core/tour.ts` word for word (one doubled space closed): the membrane potential named in the
+opening, "resting potential" as a stable potential that some neurons have and others do not, "a few" pA because of
+the high input resistance, each group defining excitability its own way, leak including channels rarely open at
+rest, input resistance changing with membrane potential, and "undisturbed" for on-cell recording. No number changed,
+so no test moved. `TOUR_IS_DRAFT` is off, which removes the on-screen draft note.
+
+Noted for the owner, not changed: in the model, the gL dial is only the linear leak; voltage-gated channels open at
+rest count in the measured Rin but are not part of gL.

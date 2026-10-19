@@ -3,8 +3,8 @@
  * the controls. Every part runs on the GnRH cell, so every number quoted here
  * belongs to that model, and tour.test.ts pins each one.
  *
- * DRAFT. All text below is Claude's, written 2026-10-19 for the owner to
- * approve or rewrite line by line. Do not deploy it as his words.
+ * Text drafted by Claude on 2026-10-19, then edited and approved by the owner
+ * the same day (in the Claude Doc "Guided tour text for approval").
  *
  * In the text, [[term]] marks the place a term is first defined (the panel
  * renders it as <dfn>), and [label](https://…) or [label](/page) is a link.
@@ -15,7 +15,7 @@ import { MODELS, type ModelId } from "./models.ts";
 import { presetsFor, type ProtocolForm } from "./protocol.ts";
 import { DEFAULT_GABA, DEFAULT_GLU, type SynInput } from "./synapses.ts";
 
-export const TOUR_IS_DRAFT = true;
+export const TOUR_IS_DRAFT = false;
 
 export interface TourSettings {
   model: ModelId;
@@ -63,10 +63,10 @@ export const TOUR: TourPart[] = [
     body: [
       "GABA is called the brain's inhibitory transmitter: released onto a neuron, it usually makes that neuron less likely to fire. In 2002 we recorded from GnRH neurons, the cells that drive reproduction, and found the opposite. GABA excited them ([DeFazio, Heger, Ojeda & Moenter 2002](https://doi.org/10.1210/me.2002-0163)).",
       "New to action potentials? Read [Tony's short introduction](/explainer) first.",
-      "This is a model GnRH neuron. GABA arrives at random, about three times a second. Each arrival makes a [[postsynaptic potential]] (PSP): a small, brief change in the cell's voltage caused by one synapse.",
+      "This is the membrane potential of a model GnRH neuron. GABA inputs arrive at random, about three times a second. Each arrival makes a [[postsynaptic potential]] (PSP): a small, brief change in the cell's membrane potential caused by one synaptic input.",
     ],
-    tryThis: "Opens the oscilloscope on the GnRH cell, held near −61 mV by a small steady current, with GABA arriving about three times a second.",
-    lookFor: "Most PSPs push the voltage up a few millivolts and fade. Now and then one sets off an action potential, the tall spike. The rest of this tour is about why.",
+    tryThis: "Opens the oscilloscope on the GnRH cell, showing the membrane potential adjusted to −61 mV by a small steady current, with GABA arriving about three times a second.",
+    lookFor: "Most PSPs push the voltage up a few millivolts and fade. Now and then one sets off an action potential, the tall brief spike. The rest of this tour is about why.",
     settings: { model: "gnrh", mode: "scope", ihold: OPENING_IHOLD, gaba: { rate: 3 } },
     controls: ["ihold"],
   },
@@ -74,7 +74,7 @@ export const TOUR: TourPart[] = [
     id: "rest",
     title: "A resting cell",
     body: [
-      "The trace is the [[membrane potential]] (Vm): the voltage inside the cell relative to outside, in millivolts (mV). A neuron that is left alone settles at its [[resting potential]]. Moving Vm up, toward zero, is called depolarizing; moving it down is hyperpolarizing.",
+      "The trace is the [[membrane potential]] (Vm): the voltage inside the cell relative to outside, in millivolts (mV). Some neurons have a [[resting potential]], a stable membrane potential with no action potentials (others are active at their baseline). Moving Vm up, toward zero, is called depolarizing and often causes action potentials; moving it down is hyperpolarizing.",
       "With no input and no current injected, this model cell rests at −67.5 mV.",
     ],
     tryThis: "Turns GABA off and the holding current to zero.",
@@ -86,8 +86,8 @@ export const TOUR: TourPart[] = [
     id: "threshold",
     title: "Find threshold",
     body: [
-      "In [[current clamp]] you inject current through the electrode and watch the voltage. Current is measured in picoamperes (pA); a GnRH neuron needs only tens of them. A [[current step]] switches the current on for a while and off again, and each run of the protocol is one [[sweep]].",
-      "This is the protocol of [Adams et al. 2018](https://doi.org/10.1523/JNEUROSCI.2988-17.2017): 500 ms steps from 0 to 30 pA in 2 pA increments, on a −6 pA holding current that sits the cell at −70 mV. Small steps only depolarize the cell. The smallest current that makes it fire is its [[rheobase]]. With 2 pA steps, the first to fire here is 18 pA. The voltage where the spike takes off is its [[threshold]]. Both are measures of excitability, and they need not agree.",
+      "In [[current clamp]] you inject current through the electrode and watch the voltage. Current is measured in picoamperes (pA); a GnRH neuron needs only a few to cause an obvious change in membrane potential because of its high input resistance. A [[current step]] switches the current on for a while and off again, and each run of the protocol is one [[sweep]].",
+      "This is the step protocol used in [Adams et al. 2018](https://doi.org/10.1523/JNEUROSCI.2988-17.2017) to study excitability: 500 ms steps from 0 to 30 pA in 2 pA increments, on a −6 pA holding current that sits the cell at −70 mV. Small steps only depolarize the cell. The smallest current that makes it fire is its [[rheobase]]. With 2 pA steps, the first to fire here is 18 pA. The voltage where the spike takes off is its [[threshold]]. Both are measures of excitability, and they need not agree. Each research group can define excitability their own way.",
     ],
     tryThis: "Switches to the step protocol, with the Adams et al. steps, and plays them one at a time.",
     lookFor: "Each sweep a little bigger than the last, until one fires. Then the Rheobase and Threshold readouts above the plot, and how late the first spike comes on the smallest step that fires.",
@@ -98,7 +98,7 @@ export const TOUR: TourPart[] = [
     id: "leak",
     title: "Change the leak",
     body: [
-      "Some channels are open all the time and let a little current through. Together they are the [[leak]]. Their [[conductance]] (gL, in nanosiemens, nS) says how easily current flows. The more conductance, the less the voltage moves for a given current: the cell's [[input resistance]] (Rin) falls.",
+      "Some channels are open all the time and let a little current through. Other channels have a low probability of being open at rest, but still contribute to leak. Together they are the [[leak conductance]]. Their [[conductance]] (gL, in nanosiemens, nS) says how easily current flows. The more conductance, the less the voltage moves for a given current: the cell's [[input resistance]] (Rin) falls. Input resistance can change depending on membrane potential.",
     ],
     tryThis: "Doubles the leak, from 1 to 2 nS. Same steps as before.",
     lookFor: "Smaller responses to the same steps, and rheobase up from 18 to 28 pA. Drag gL, just above, to see it move both ways.",
@@ -145,7 +145,7 @@ export const TOUR: TourPart[] = [
     id: "where-rest",
     title: "Where is rest?",
     body: [
-      "This tour held the cell near −61 mV. Real GnRH neurons' resting potential depends on how it is measured. Gramicidin perforated patch, which leaves the cell's chloride alone, gives about −51 to −59 mV. On-cell estimates, which leave the cell unopened, give about −70 to −73 mV. Adams et al. built this model at −70 mV.",
+      "This tour adjusted the current for the cell to be near −61 mV. Real GnRH neurons' resting potential depends on how it is measured. Gramicidin perforated patch, which leaves the cell's chloride alone, gives about −51 to −59 mV. On-cell estimates, which leave the cell undisturbed, give about −70 to −73 mV. Adams et al. built this model at −70 mV.",
     ],
     tryThis: "Holds the cell at −70 mV (−6 pA), with GABA as GnRH neurons have it: E_GABA −36.5 mV, about five times a second.",
     lookFor: "Every GABA PSP still pushes the voltage up, yet none reaches threshold. Whether GABA fires a GnRH neuron depends on two voltages: E_GABA, and where the cell rests.",
