@@ -441,3 +441,10 @@ body:has(.page.old-school) { background: #1a1b19; }
   .amp-section { align-items: flex-start; }
   .amp-note { margin-left: 0; }
 }
+
+/* horizontal (edgewise) panel meters: Old school's readouts, in the mode bar */
+.hmeter { margin: 0; width: 230px; background: linear-gradient(#2e2f2b, #252622); border-radius: 6px; padding: 3px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.5); }
+.hmeter svg { width: 100%; display: block; }
+.hm-label { font: 700 6.5px system-ui, sans-serif; letter-spacing: 0.12em; fill: #2a2620; }
+.hm-unit { font: italic 7.5px Georgia, serif; fill: #2a2620; text-anchor: end; }
+.page.old-school .readline { gap: 4px 12px; }

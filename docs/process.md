@@ -775,3 +775,12 @@ live stream, with recording noise off and on). It was the drawing. The scope str
 from its max to its min, and the canvas's default miter join extends the sharp corners at a fast edge into spikes up
 to 10 line widths long. The time base mattered because it sets how much of the rise falls in one column. Fixed with
 round joins on the live trace and the phosphor beam, which also thins the noise band the miters had been fattening.
+
+## 2026-10-19 — horizontal meters; an adjustable readout window
+
+- **Old school's meters are horizontal (edgewise) panel meters in the mode bar,** where the readout line is in the
+  plain look; the round meters at the bottom of the amplifier were off screen. The owner recalled the EPC-7 as
+  having horizontal meters (not checked here). `HMeter` has the round meter's needle ballistics.
+- **The firing rate and mean Vm average over one window the user picks:** 0.1, 0.2, 0.5, 1 or 2 s ("Readouts over",
+  under the screen), default 1 s. It was 2 s for the rate and 1 s for Vm. The readouts now publish every 0.1 s, so
+  a short window shows what it catches. A rate is reported once half a window has run.

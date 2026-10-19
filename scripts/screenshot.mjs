@@ -106,7 +106,7 @@ await page.check("#old-school");
 await page.waitForTimeout(300);
 const knobCount = await page.locator(".knob").count();
 if (knobCount < 15) problems.push(`old school: only ${knobCount} knobs`);
-if (await page.locator(".meter").count() !== 2) problems.push("old school: the two meters are missing");
+if (await page.locator(".hmeter").count() !== 2) problems.push("old school: the two meters are missing");
 if (await page.locator(".panel.closed .pb:visible").count()) problems.push("old school: a collapsed panel shows its contents");
 const glKnob = amp.getByRole("slider", { name: "gL (leak)" });
 await glKnob.focus();

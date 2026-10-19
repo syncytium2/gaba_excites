@@ -10,16 +10,15 @@ import { fmtDiv, Scope, STORED_DASH, type ScopeHandle, type Snapshot } from "./S
 import { Tip } from "./Tip.tsx";
 import { MUTED, ORANGE } from "./palette.ts";
 import { Monitor } from "./audio.ts";
-import { Meter } from "./Meter.tsx";
+import { HMeter } from "./Meter.tsx";
 import type { MonitorMode } from "../core/monitor.ts";
 
 const TIMEBASES = [10, 20, 50, 100, 200, 500, 1000, 2000];
 const SPEEDS = [0.1, 1, 10];
 /** stored screens kept at once; the oldest goes first */
 const MAX_STORED = 3;
-/** windows for the live readouts, in simulated time */
-const RATE_WINDOW = 2000;
-const VM_WINDOW = 1000;
+/** windows the live readouts (firing rate, mean Vm) can average over, in simulated ms */
+const READ_WINDOWS = [100, 200, 500, 1000, 2000];
 
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 
@@ -66,6 +65,10 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
   const [showVm, setShowVm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [readout, setReadout] = useState<Readout | null>(null);
+  // one window for both readouts, read by the worker callback through a ref
+  const [readWin, setReadWin] = useState(1000);
+  const readWinRef = useRef(readWin);
+  readWinRef.current = readWin;
   const [stored, setStored] = useState<Snapshot[]>([]);
   // the audio monitor: off until asked for (browsers allow sound only after a click)
   const [sound, setSound] = useState<MonitorMode>("off");
@@ -109,8 +112,9 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
       for (let i = 0; i < r.vm.length; i++) sum += r.vm[i];
       vmBins.current.push({ t: tEnd, sum, n: r.vm.length });
       spikes.current.push(...r.spikes);
-      while (vmBins.current.length && vmBins.current[0].t < tEnd - VM_WINDOW) vmBins.current.shift();
-      while (spikes.current.length && spikes.current[0] < tEnd - RATE_WINDOW) spikes.current.shift();
+      const win = readWinRef.current;
+      while (vmBins.current.length && vmBins.current[0].t < tEnd - win) vmBins.current.shift();
+      while (spikes.current.length && spikes.current[0] < tEnd - win) spikes.current.shift();
       live.current = { vNow: r.vm[r.vm.length - 1], achieved: r.achieved, speed: r.speed, t: tEnd };
     };
     const { cell, inputs, speed } = latest.current;
@@ -124,15 +128,15 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
     const pub = setInterval(() => {
       const bins = vmBins.current;
       const n = bins.reduce((s, b) => s + b.n, 0);
-      const span = Math.min(RATE_WINDOW, live.current.t);
+      const span = Math.min(readWinRef.current, live.current.t);
       const recent = watch.current.since(live.current.t - SIREN_WINDOW);
       onExtremesRef.current(recent.map((x) => describeTrip(x, limitsRef.current)));
       setReadout({
-        rate: span > 200 ? (spikes.current.length / span) * 1000 : NaN,
+        rate: span >= 0.5 * readWinRef.current ? (spikes.current.length / span) * 1000 : NaN,
         meanVm: n ? bins.reduce((s, b) => s + b.sum, 0) / n : NaN,
         ...live.current,
       });
-    }, 250);
+    }, 100); // often enough that a 0.1 s window shows its changes
     return () => {
       onExtremesRef.current([]);
       watch.current = new ExtremeWatch(limitsRef.current);
@@ -210,14 +214,21 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
 
   const lagging = readout && readout.achieved < 0.85 * readout.speed;
   const rateScale = RATE_SCALE[cell.model];
+  const winText = readWin < 1000 ? `${readWin} ms` : `${readWin / 1000} s`;
   const readouts = (
     <span className="readline">
+      {oldSchool ? <>
+        <HMeter label="FIRING RATE" unit="Hz" value={readout?.rate ?? NaN} min={rateScale[0]} max={rateScale[rateScale.length - 1]} major={rateScale} />
+        <HMeter label="MEMBRANE POTENTIAL" unit="mV" value={readout?.meanVm ?? NaN} min={-100} max={0} major={[-100, -80, -60, -40, -20, 0]} />
+      </> : <>
       <span>Firing <b>{readout ? fmt(readout.rate, 1) : "—"}</b> Hz</span>
       <span>Mean Vm <b>{readout ? fmt(readout.meanVm, 1) : "—"}</b> mV</span>
+      </>}
       <span>Vm now <b>{readout ? fmt(readout.vNow, 1) : "—"}</b> mV</span>
       <span className={lagging ? "warn" : undefined}><b>{readout ? `${fmt(readout.achieved, readout.achieved < 1 ? 2 : 1)}×` : "—"}</b> real time</span>
       <Tip text={<>
-        <b>Firing</b>: spikes in the last 2 s. <b>Mean Vm</b>: over the last 1 s. <b>Vm now</b>: the true membrane potential.
+        <b>Firing</b>: spikes in the last {winText}. <b>Mean Vm</b>: over the last {winText}. <b>Vm now</b>: the true membrane potential.
+        A short window follows changes quickly but jumps; a long one is steady but slow.
         All three are measured on true Vm, not the recorded trace. <b>Real time</b>: the speed reached
         {lagging ? <>, which is this device's limit; asked for {readout!.speed}×</> : <>, asked for {speed}×</>}.
       </>}>{""}</Tip>
@@ -250,6 +261,12 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
             <button id="scope-store" onClick={store} title="Keep what is on screen as a faint reference trace">Store</button>
             {stored.length > 0 && <button className="linkish" onClick={() => setStored([])}>clear</button>}
           </span>
+          <label className="select inline">
+            <span>Readouts over</span>
+            <select id="readout-window" value={readWin} onChange={(e) => setReadWin(Number(e.target.value))}>
+              {READ_WINDOWS.map((w) => <option key={w} value={w}>{w < 1000 ? `${w} ms` : `${w / 1000} s`}</option>)}
+            </select>
+          </label>
           <span className="check">
             <input id="scope-show-vm" type="checkbox" checked={showVm} onChange={(e) => setShowVm(e.target.checked)} />
             <label htmlFor="scope-show-vm">show</label>
@@ -302,12 +319,6 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
           </AmpSlot>
           {sound !== "off" && <AmpDial label="Volume" unit="%" value={volume} min={0} max={100} step={5} digits={0} onChange={setVolume} />}
         </AmpSection>
-        {oldSchool && (
-          <div className="amp-meters">
-            <Meter label="FIRING RATE" unit="Hz" value={readout?.rate ?? NaN} min={rateScale[0]} max={rateScale[rateScale.length - 1]} major={rateScale} />
-            <Meter label="MEMBRANE POTENTIAL" unit="mV" value={readout?.meanVm ?? NaN} min={-100} max={0} major={[-100, -80, -60, -40, -20, 0]} />
-          </div>
-        )}
         </AmpRow>
       </AmpFront>
     </>

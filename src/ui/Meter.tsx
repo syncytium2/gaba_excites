@@ -90,3 +90,66 @@ export function Meter({ label, unit, value, min, max, major, minor = 5, sub }: {
     </figure>
   );
 }
+
+/**
+ * A horizontal (edgewise) panel meter: a straight scale and a needle that slides
+ * along it, short enough to sit in a row of readouts. Same ballistics as Meter:
+ * a damped spring chasing the value, pinned at the stops, and no motion with
+ * reduced motion.
+ */
+export function HMeter({ label, unit, value, min, max, major, minor = 5 }: {
+  label: string; unit: string; value: number; min: number; max: number; major: number[]; minor?: number;
+}) {
+  const W = 200, L = 14, Rr = 186; // scale from x=L to x=Rr
+  const toX = (v: number) => L + ((Rr - L) * (v - min)) / (max - min);
+  const target = Number.isFinite(value) ? Math.max(L - 5, Math.min(Rr + 5, toX(value))) : L - 5;
+  const [x, setX] = useState(target);
+  const st = useRef({ x: target, v: 0, target });
+  st.current.target = target;
+  useEffect(() => {
+    if (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      st.current.x = st.current.target;
+      setX(st.current.target);
+      return;
+    }
+    const zeta = 0.6, wn = 2 * Math.PI * 1.2;
+    let raf = 0, last = 0, shown = target;
+    const tick = (now: number) => {
+      raf = requestAnimationFrame(tick);
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
+      last = now;
+      const s = st.current;
+      const a = wn * wn * (s.target - s.x) - 2 * zeta * wn * s.v;
+      s.v += a * dt;
+      s.x += s.v * dt;
+      if (s.x > Rr + 5) { s.x = Rr + 5; s.v = 0; }
+      if (s.x < L - 5) { s.x = L - 5; s.v = 0; }
+      if (Math.abs(s.x - shown) > 0.05) { shown = s.x; setX(s.x); }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const ticks: { v: number; major: boolean }[] = [];
+  for (let i = 0; i < major.length; i++) {
+    ticks.push({ v: major[i], major: true });
+    if (i + 1 < major.length) for (let m = 1; m < minor; m++) ticks.push({ v: major[i] + ((major[i + 1] - major[i]) * m) / minor, major: false });
+  }
+  const shownText = Number.isFinite(value) ? `${value.toFixed(Math.abs(value) < 10 ? 1 : 0)} ${unit}` : "no reading";
+  return (
+    <figure className="hmeter" role="meter" aria-label={label} aria-valuemin={min} aria-valuemax={max}
+      aria-valuenow={Number.isFinite(value) ? value : undefined} aria-valuetext={shownText}>
+      <svg viewBox={`0 0 ${W} 40`} aria-hidden="true">
+        <rect className="m-face" x="1" y="1" width={W - 2} height="38" rx="3" />
+        <line className="m-arc" x1={L} y1={26} x2={Rr} y2={26} />
+        {ticks.map((t, i) => (
+          <line key={i} className={t.major ? "m-major" : "m-minor"} x1={toX(t.v)} y1={26} x2={toX(t.v)} y2={t.major ? 19 : 22} />
+        ))}
+        {major.map((v) => <text key={v} className="m-num" x={toX(v)} y={15}>{v}</text>)}
+        <text className="hm-label" x={L} y={36}>{label}</text>
+        <text className="hm-unit" x={Rr} y={36}>{unit}</text>
+        <line className="m-needle" x1={x} y1={5} x2={x} y2={35} />
+      </svg>
+    </figure>
+  );
+}
