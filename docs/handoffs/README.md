@@ -9,7 +9,8 @@ Name: `YYYY-MM-DD-<slug>.md`, the date it was written.
 ## Open
 
 - [`2026-10-18-explainer.md`](2026-10-18-explainer.md): a simple explainer so anyone can play with the simulator,
-  built from Tony's text. **It waits for his text.**
+  built from Tony's text. **Since 2026-10-19, on branch `gnrh-rest`:** his first draft is `/explainer`, reached from the
+  guided tour; the pop-up is retired and the glossary waits (see `docs/process.md`).
 - [`2026-10-18-channel-editor.md`](2026-10-18-channel-editor.md): a single-cell Na⁺ channel editor and an excitability
   scorecard, for threshold and hyperexcitability.
 - [`2026-10-18-adrs.md`](2026-10-18-adrs.md): architecture decision records, extracted from `docs/process.md`. Read

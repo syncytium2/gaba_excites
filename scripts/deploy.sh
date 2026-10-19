@@ -51,7 +51,7 @@ echo "  CSP present"
 BORN="$(git log --max-parents=0 --format=%cI | tail -1)"
 grep -rqF "$BORN" dist/assets/ || fail "root-commit time $BORN not baked into the bundle"
 echo "  Born stamp baked: $BORN"
-[[ -f dist/methods.html && -f dist/lit.html && -f dist/_headers && -f dist/llms.txt ]] || fail "static pages missing from dist/"
+[[ -f dist/methods.html && -f dist/lit.html && -f dist/explainer.html && -f dist/_headers && -f dist/llms.txt ]] || fail "static pages missing from dist/"
 LOCAL_HASH="$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' dist/index.html | head -1)"
 echo "  bundle: $LOCAL_HASH"
 grep -qF "$APP_VERSION" dist/assets/*.js || fail "version $APP_VERSION not baked into the bundle"
@@ -81,11 +81,11 @@ for u in "${URLS[@]}"; do
   curl -s --max-time 15 "$u/fall-2026/" | grep -qF "$CLASS_HASH" || fail "$u/fall-2026/ is not serving the classroom version"
   echo "  $u/fall-2026/ serving the classroom version"
   UA='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
-  for route in / /methods /lit; do
+  for route in / /methods /lit /explainer; do
     n="$(curl -sL --max-time 15 -H "User-Agent: $UA" "$u$route" | grep -c cloudflareinsights || true)"
     [[ "$n" == 0 ]] || fail "third-party beacon injected into $u$route"
   done
-  echo "  no third-party beacon on /, /methods or /lit (asked as a browser)"
+  echo "  no third-party beacon on /, /methods, /lit or /explainer (asked as a browser)"
 done
 
 step "Recording -> DEPLOYED.md"

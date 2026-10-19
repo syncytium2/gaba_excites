@@ -7,7 +7,7 @@
  * approve or rewrite line by line. Do not deploy it as his words.
  *
  * In the text, [[term]] marks the place a term is first defined (the panel
- * renders it as <dfn>), and [label](https://…) is a link.
+ * renders it as <dfn>), and [label](https://…) or [label](/page) is a link.
  */
 
 import { publishedParams, type CellParams } from "./cell.ts";
@@ -62,6 +62,7 @@ export const TOUR: TourPart[] = [
     title: "The puzzle",
     body: [
       "GABA is called the brain's inhibitory transmitter: released onto a neuron, it usually makes that neuron less likely to fire. In 2002 we recorded from GnRH neurons, the cells that drive reproduction, and found the opposite. GABA excited them ([DeFazio, Heger, Ojeda & Moenter 2002](https://doi.org/10.1210/me.2002-0163)).",
+      "New to action potentials? Read [Tony's short introduction](/explainer) first.",
       "This is a model GnRH neuron. GABA arrives at random, about three times a second. Each arrival makes a [[postsynaptic potential]] (PSP): a small, brief change in the cell's voltage caused by one synapse.",
     ],
     tryThis: "Opens the oscilloscope on the GnRH cell, held near −61 mV by a small steady current, with GABA arriving about three times a second.",
@@ -177,7 +178,7 @@ export type Inline = { kind: "text" | "term"; text: string } | { kind: "link"; t
 /** A paragraph as plain text, [[term]]s and [label](https://…) links, in order. */
 export function parseInline(text: string): Inline[] {
   const out: Inline[] = [];
-  const re = /\[\[([^\]]+)\]\]|\[([^\]]+)\]\((https:\/\/[^)\s]+)\)/g;
+  const re = /\[\[([^\]]+)\]\]|\[([^\]]+)\]\((https:\/\/[^)\s]+|\/[^)\s]*)\)/g;
   let at = 0;
   for (let m; (m = re.exec(text)); at = re.lastIndex) {
     if (m.index > at) out.push({ kind: "text", text: text.slice(at, m.index) });

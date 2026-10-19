@@ -822,3 +822,20 @@ amplifier, between 380 and 560 px); the scope's canvas and the step plots each f
 has a fixed height tall enough for Old school's meters. A first version subtracted the amplifier's measured height,
 and the screenshot check caught it moving 71 px at 1440 px wide, where the Steps row wraps and the amplifier grows.
 The check now fails if the amplifier's top moves more than 2 px on a mode switch.
+
+## 2026-10-19 — the explainer: Tony's draft at /explainer, reached from the tour
+
+The owner took the suggestion that joins the two efforts. The explainer session's plan (branch `explainer`: a
+"Start here" pop-up, Tony's page, a glossary, then "try it" links) is partly overtaken by the guided tour, which
+does the starting and the trying. What the tour lacked is the foundation in Tony's draft: what an action potential
+is, ions, gradients and channels.
+
+- **`public/explainer.html` is Tony's first draft (`docs/first draft explainer.docx`, 2026-10-18) as written:** his
+  three paragraphs and two footnotes, extracted from the .docx, not retyped or edited. The .docx stays uncommitted
+  (public repository).
+- **Claude's suggested edits sit in a dashed box at the end, none applied:** a typo, chloride in GnRH neurons, the
+  bracketed link placeholder, and the EEG sentence. The box also names the two lines on the page that are Claude's.
+- **The tour's first part now opens with a link to it** ("New to action potentials? Read Tony's short introduction
+  first."); `parseInline` accepts site-relative links, and a test checks the link.
+- **The "Start here" pop-up is retired; the glossary waits.** The page is in `_headers`, the sitemap, `llms.txt`,
+  and `deploy.sh`'s gates (file present, no third-party beacon).

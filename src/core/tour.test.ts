@@ -55,6 +55,11 @@ describe("the guided tour's text matches the model", () => {
     }
   });
 
+  it("the first part points newcomers to the explainer page", () => {
+    const links = TOUR[0].body.flatMap(parseInline).filter((x) => x.kind === "link");
+    expect(links.some((l) => "href" in l && l.href === "/explainer")).toBe(true);
+  });
+
   it("the 2002 citation is a link to its DOI", () => {
     const links = TOUR.flatMap((p) => p.body.flatMap(parseInline)).filter((x) => x.kind === "link");
     expect(links.some((l) => "href" in l && l.href === "https://doi.org/10.1210/me.2002-0163")).toBe(true);
