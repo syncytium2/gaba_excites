@@ -26,6 +26,10 @@ one CI step. It merges that framework to main first, so the other sessions can n
   cell with GABA PSPs at about −60 mV, then build up in steps with "try this" buttons, and make it formally
   accessible. Read it with the explainer handoff.
 
+- [`2026-10-20-lts-cell.md`](2026-10-20-lts-cell.md): a rebound-bursting cell (the LTS cell of ModelDB 123623,
+  checked in NEURON) to teach that hyperpolarization can excite. **Confirm with the owner before building.** Also the
+  state of the site after the v0.2.2 deploy and what is open with him.
+
 ## Superseded
 
 - [`2026-10-18-adrs-addendum.md`](2026-10-18-adrs-addendum.md): superseded the same day by
