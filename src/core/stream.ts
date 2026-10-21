@@ -20,7 +20,7 @@
 import type { BuiltCell } from "./cell.ts";
 import { settle, step, type Electrode, type Inputs, type SynNow } from "./simulate.ts";
 import { kinetics, rng, type SynInput, type SynKinetics } from "./synapses.ts";
-import { DEFAULT_NOISE, OU, RecordingNoise, type NoiseParams } from "./noise.ts";
+import { DEFAULT_NOISE, OU, Recorder, type NoiseParams } from "./noise.ts";
 import { REARM_LEVEL, SPIKE_LEVEL } from "./analysis.ts";
 
 /** A repeating current pulse, on top of the holding current. */
@@ -124,7 +124,7 @@ export class Stream {
   private glu: Synapse;
   private gaba: Synapse;
   private ou: OU | null = null;
-  private rec: RecordingNoise | null = null;
+  private rec!: Recorder;
   private noiseKey = "";
   private draws = 0;
   private pulseT0 = 0;
@@ -156,14 +156,18 @@ export class Stream {
   }
 
   private setNoise(n: NoiseParams) {
-    const key = `${n.memSigma}|${n.memTau}|${n.recSigma}|${n.recBandwidth}|${n.humAmp}|${n.humHz}`;
+    const key = `${n.memSigma}|${n.memTau}|${n.recSigma}|${n.recFilter}|${n.humAmp}|${n.humHz}`;
     if (key === this.noiseKey) return;
     const first = this.noiseKey === "";
     this.noiseKey = key;
     // a retuned source draws from a fresh stream, never a replay of the old one
     const d = first ? 0 : ++this.draws * 1000003;
     this.ou = n.memSigma > 0 ? new OU(n.memSigma, n.memTau, this.opt.dt, this.opt.seed * 104729 + 7 + d) : null;
-    this.rec = n.recSigma > 0 || n.humAmp > 0 ? new RecordingNoise(n, this.opt.sampleMs, this.opt.seed * 15485863 + 11 + d) : null;
+    // the amplifier runs every integration step, as in runSweep; a new setting starts its filter settled at
+    // the present pipette signal (under the holding current), so the record does not jump
+    this.rec = new Recorder(n, this.opt.dt, this.opt.seed * 15485863 + 11 + d);
+    const e = this.inp.electrode;
+    this.rec.start(this.s[this.cell.iv + 1] - e.bridge * e.rs * 1e-3 * this.inp.ihold);
   }
 
   /** New leak, Cm or channels: same state, new cell. A different model starts over, settled. */
@@ -224,11 +228,12 @@ export class Stream {
       this.pulseHigh = on;
       const ic = this.inp.ihold + (on ? this.inp.pulse.amp : 0);
       step(this.cell, e, this.s, ic, this.ou ? this.ou.next() : 0, dt, this.syn);
+      const rv = this.rec.next(this.s[iv + 1] - bridgeRs * ic);
       if (i % every === 0) {
         const v = this.s[iv];
         if (j === 0) t0 = t;
         vm[j] = v;
-        vRec[j] = this.s[iv + 1] - bridgeRs * ic + (this.rec ? this.rec.next() : 0);
+        vRec[j] = rv;
         iCmd[j] = ic;
         gGlu[j] = this.syn.gGlu;
         gGaba[j] = this.syn.gGaba;

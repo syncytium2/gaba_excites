@@ -278,11 +278,20 @@ synapses each firing at 1 Hz, for example.</p>
 <h2 id="noise">4b. Noise</h2>
 <p>There are two kinds of noise, kept separate because they teach different things.</p>
 <ul>
-  <li><strong>Recording noise</strong> models the amplifier and digitizer. It is added to the recorded trace after the simulation,
-  so the cell never feels it and no measurement moves. White Gaussian noise passes through a Gaussian low-pass filter at the
-  chosen bandwidth (σ<sub>t</sub> = 0.1325 / f<sub>c</sub>, the filter pCLAMP applies) and is scaled so that the RMS you set
-  is the RMS you see. Optional mains hum at 50 or 60 Hz adds a random phase per sweep. The default is 0.2 mV RMS at 10 kHz,
-  typical of a whole-cell current-clamp recording.</li>
+  <li><strong>The amplifier's filter and recording noise.</strong> The recorded signal at the pipette, after bridge
+  balance, has white Gaussian noise and optional mains hum (50 or 60 Hz, random phase per sweep) added to it, and the sum
+  goes through the amplifier's output filter: a 4-pole low-pass Bessel at 1, 2, 5 or 10 kHz, or bypassed. The settings
+  follow an Axopatch 200B's front panel. The filter runs at every integration step (100 kHz), as an analog filter acts
+  before the digitizer: the analog prototype's poles (normalized to −3 dB at 1 rad/s: −0.9952 ± 1.2571i,
+  −1.3701 ± 0.4102i) are discretized by the bilinear transform with the cutoff prewarped, so −3 dB falls at exactly
+  f<sub>c</sub>. A Bessel delays every frequency by nearly the same time, so a fast event is smoothed and delayed but does
+  not ring; a step overshoots by under 1.5%. The RMS you set is the noise as it reads through the 10 kHz filter, the way an
+  amplifier's noise is specified, so a lower setting shows less of it (about √(f<sub>c</sub>/10 kHz) as much) and bypass
+  more. None of this reaches the cell or any measurement. The app opens at 10 kHz with 0.2 mV RMS, typical of a whole-cell
+  current-clamp recording.
+  <br>What it does to a spike, on the pyramidal cell's first spike at 700 pA (true peak 46.7 mV): at 10 kHz the recorded
+  peak is the true one within 0.1 mV, 0.03 ms late; at 5 kHz, 46.5 mV; at 2 kHz, 45.3 mV, 0.18 ms late; at 1 kHz,
+  39.2 mV, 0.42 ms late. These spikes are about 0.7 ms wide, so even 1 kHz costs less than one might expect.</li>
   <li><strong>Membrane noise</strong> is a fluctuating current the cell does feel. It is injected at the membrane rather than
   through the pipette, so it produces no bridge error. It follows an Ornstein–Uhlenbeck process: Gaussian, mean zero, SD σ,
   correlation time τ, advanced with the exact update x ← x·e<sup>−dt/τ</sup> + σ·√(1 − e<sup>−2dt/τ</sup>)·N(0,1). It is
@@ -338,8 +347,9 @@ to fire, or switch GABA on mid-burst.</p>
   and 24 pA on −6 pA for the GnRH cell, the paper's 4-spike step.</li>
   <li><strong>The screen</strong> writes the recorded voltage and the command current left to right at the chosen time
   base and wraps, with an erase bar ahead of the write head. Each pixel column keeps the minimum and maximum of every
-  sample in it, so a spike reaches its full height at any time base. Recording noise uses the same Gaussian filter as in
-  the step protocol, applied as the samples arrive.</li>
+  sample in it, so a spike reaches its full height at any time base. The amplifier's filter and recording noise are the step
+  protocol's own, run at every integration step, so with nothing changed the scope records exactly what a step sweep
+  records.</li>
   <li><strong>Trigger and Store.</strong> With pulses off, the screen free-runs. With pulses on, each sweep starts at a
   pulse onset and runs one screen, then waits for the next onset. Onsets during a sweep are ignored, as a scope's
   hold-off does. Every sweep therefore lines up with the stimulus. Store keeps the screen as a faint reference trace
@@ -468,7 +478,7 @@ these values in.</p>
   <li><strong>AMPA and GABA<sub>A</sub> only.</strong> There is no NMDA voltage dependence, no GABA<sub>B</sub>, no
   short-term plasticity, and no correlations between inputs.</li>
   <li><strong>Current clamp only</strong>, with an idealized current source and a single lumped pipette capacitance.
-  There is no amplifier bandwidth and no recording noise.</li>
+  The amplifier is idealized apart from its output filter and recording noise.</li>
   <li><strong>The published pyramidal cell is in a high-conductance state</strong>, with Rin = 32 MΩ, as published. Cutting the leak
   so that Rin reaches slice values (5 nS gives 149 MΩ) makes it far more excitable.</li>
 </ul>

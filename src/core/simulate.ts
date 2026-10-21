@@ -25,7 +25,7 @@
 
 import { cellCaSteady, type BuiltCell } from "./cell.ts";
 import { eventTimes, kinetics, type SynInput } from "./synapses.ts";
-import { addRecordingNoise, DEFAULT_NOISE, OU, type NoiseParams } from "./noise.ts";
+import { DEFAULT_NOISE, OU, Recorder, type NoiseParams } from "./noise.ts";
 
 export interface Electrode {
   /** series (access) resistance, MΩ */
@@ -225,14 +225,18 @@ export function runSweep(
   const bridgeRs = e.bridge * e.rs * 1e-3;
   const syn: SynNow = { gGlu: 0, gGaba: 0, eGlu: inp.glu.erev, eGaba: inp.gaba.erev };
 
-  const record = (j: number, iCmd: number) => {
+  // the amplifier: noise, hum and its filter, fed every integration step (noise.ts, filter.ts)
+  const rec = new Recorder(noise, dt, opt.seed * 15485863 + sweepIndex * 5 + 11);
+  const record = (j: number, iCmd: number, v: number) => {
     vm[j] = s[iv];
-    vRec[j] = s[iv + 1] - bridgeRs * iCmd;
+    vRec[j] = v;
     iOut[j] = iCmd;
     gGluOut[j] = syn.gGlu;
     gGabaOut[j] = syn.gGaba;
   };
-  record(0, inp.ihold + (0 >= tOn && 0 < tOff ? amp : 0));
+  // the first sample is the settled cell under the command in force before the sweep (the holding current),
+  // so a step that starts at 0 ms does not make sample 0 jump by the whole bridge error
+  record(0, inp.ihold + (0 >= tOn && 0 < tOff ? amp : 0), rec.start(s[iv + 1] - bridgeRs * inp.ihold));
 
   for (let i = 1; i <= nSteps; i++) {
     const t = i * dt;
@@ -256,10 +260,9 @@ export function runSweep(
 
     const iCmd = inp.ihold + (t >= tOn && t < tOff ? amp : 0);
     step(cell, e, s, iCmd, ou ? ou.next() : 0, dt, syn);
-    if (i % every === 0) record(i / every, iCmd);
+    const v = rec.next(s[iv + 1] - bridgeRs * iCmd);
+    if (i % every === 0) record(i / every, iCmd, v);
   }
-
-  addRecordingNoise(vRec, dt * every, noise, opt.seed * 15485863 + sweepIndex * 5 + 11);
 
   return { amp, sampleMs: dt * every, vRec, vm, iCmd: iOut, gGlu: gGluOut, gGaba: gGabaOut, gluTimes, gabaTimes };
 }

@@ -8,7 +8,7 @@ import { buildCell, publishedParams, PUBLISHED_RS } from "./cell.ts";
 import { DEFAULT_SIM, runSweep, settle } from "./simulate.ts";
 import { detectSpikes } from "./analysis.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "./synapses.ts";
-import { DEFAULT_NOISE, RecordingNoise } from "./noise.ts";
+import { DEFAULT_NOISE } from "./noise.ts";
 import { DEFAULT_PULSE, Stream, type Chunk, type StreamInputs } from "./stream.ts";
 
 const OPT = { dt: 0.01, sampleMs: 0.05, seed: 3 };
@@ -124,14 +124,21 @@ describe("live changes", () => {
   });
 });
 
-describe("recording noise, one sample at a time", () => {
-  it("has the RMS you set, as the step protocol's does", () => {
-    for (const bw of [1, 10]) {
-      const r = new RecordingNoise({ ...DEFAULT_NOISE, recSigma: 0.3, recBandwidth: bw }, 0.05, 5);
-      const x = Float64Array.from({ length: 200000 }, () => r.next());
-      const m = x.reduce((a, b) => a + b, 0) / x.length;
-      const sd = Math.sqrt(x.reduce((a, b) => a + (b - m) ** 2, 0) / x.length);
-      expect(sd).toBeCloseTo(0.3, 1);
-    }
+describe("the amplifier's filter and noise, live", () => {
+  it("the stream records exactly what the step protocol records, filter and noise on", () => {
+    const noise = { ...DEFAULT_NOISE, recSigma: 0.5, recFilter: 2 as const, humAmp: 0.3 };
+    const cell = buildCell(PUBLISHED_RS);
+    const e = { rs: 15, cp: 0, bridge: 1 };
+    const ms = 300;
+    const proto = { sweepMs: ms, stepStart: 0, stepDur: ms, amps: [0] };
+    const settled = settle(cell, e, 700, 1000, OPT.dt);
+    const inputs = { ihold: 700, electrode: e, glu: DEFAULT_GLU, gaba: DEFAULT_GABA, noise };
+    const sweep = runSweep(cell, inputs, proto, 0, settled, { ...OPT, settleMs: 1000 }, 0);
+    const st = new Stream(cell, { ...inputs, pulse: DEFAULT_PULSE }, OPT, 1000, settled);
+    const chunks = [st.advance(123.4), st.advance(ms - 123.4)];
+    const rec = concat(chunks, "vRec");
+    const n = rec.length - 1;
+    expect(n).toBeGreaterThan(5000);
+    expect(Array.from(rec.subarray(0, n))).toEqual(Array.from(sweep.vRec.subarray(1, n + 1)));
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addRecordingNoise, DEFAULT_NOISE, gaussian, OU } from "./noise.ts";
+import { DEFAULT_NOISE, gaussian, OU, Recorder } from "./noise.ts";
 import { buildCell, PUBLISHED_RS } from "./cell.ts";
 import { runFamily, type Inputs } from "./simulate.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "./synapses.ts";
@@ -14,12 +14,19 @@ const sd = (a: ArrayLike<number>) => {
 };
 
 describe("recording noise", () => {
-  it("has the RMS you set, at any bandwidth", () => {
-    for (const bw of [1, 5, 10, 20]) {
-      const v = new Float32Array(200000);
-      addRecordingNoise(v, 0.025, { ...DEFAULT_NOISE, recSigma: 0.3, recBandwidth: bw }, 5);
-      expect(sd(v)).toBeCloseTo(0.3, 1);
-    }
+  // fed a flat signal every 0.01 ms step, as runSweep and the stream feed it
+  const rms = (recFilter: 0 | 1 | 2 | 5 | 10) => {
+    const r = new Recorder({ ...DEFAULT_NOISE, recSigma: 0.3, recFilter }, 0.01, 5);
+    r.start(0);
+    return sd(Float64Array.from({ length: 400000 }, () => r.next(0)));
+  };
+
+  it("has the RMS you set through the 10 kHz filter, and less through a lower one, as on an amplifier", () => {
+    expect(rms(10)).toBeCloseTo(0.3, 2);
+    // white noise through the same filter shape scales as √fc
+    expect(rms(5) / rms(10)).toBeCloseTo(Math.sqrt(0.5), 1);
+    expect(rms(1) / rms(10)).toBeCloseTo(Math.sqrt(0.1), 1);
+    expect(rms(0)).toBeGreaterThan(2 * rms(10)); // bypass passes everything up to 50 kHz
   });
 
   it("is on the record only: Vm is untouched", () => {

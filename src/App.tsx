@@ -3,6 +3,7 @@ import type uPlot from "uplot";
 import { buildCell, cellRinAt, publishedParams, type CellParams } from "./core/cell.ts";
 import { MODELS, MODEL_LIST, type ModelId } from "./core/models.ts";
 import { DEFAULT_NOISE, type NoiseParams } from "./core/noise.ts";
+import { FILTER_KHZ } from "./core/filter.ts";
 import { DEFAULT_ELECTRODE, type Electrode, type Sweep } from "./core/simulate.ts";
 import type { FamilySummary } from "./core/analysis.ts";
 import { PRESETS, presetsFor, toProtocol, MAX_SWEEPS, SCOPE_PULSE, INC_DIAL, INC_RANGES, incRangeFor, type IncRange, type ProtocolForm } from "./core/protocol.ts";
@@ -66,7 +67,8 @@ export function App() {
   const [seed, setSeed] = useState(1);
   // Recording noise on by default at a typical whole-cell level: it touches the
   // trace only, so no measurement moves. Membrane noise starts off.
-  const [noise, setNoise] = useState<NoiseParams>({ ...DEFAULT_NOISE, recSigma: 0.2 });
+  // the app opens with the amplifier's filter at 10 kHz, a common setting for current clamp
+  const [noise, setNoise] = useState<NoiseParams>({ ...DEFAULT_NOISE, recSigma: 0.2, recFilter: 10 });
   const [showVm, setShowVm] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
   const [pins, setPins] = useState<Pin[]>([]);
@@ -324,7 +326,7 @@ export function App() {
       `# step ${protocol.stepStart}-${protocol.stepStart + protocol.stepDur} ms of ${protocol.sweepMs} ms`,
       `# glutamate ${glu.enabled ? `${glu.rate} Hz ${glu.gPeak} nS rise ${glu.tauRise} decay ${glu.tauDecay} ms E ${glu.erev} mV ${glu.pattern}` : "off"}`,
       `# GABA ${gaba.enabled ? `${gaba.rate} Hz ${gaba.gPeak} nS rise ${gaba.tauRise} decay ${gaba.tauDecay} ms E ${gaba.erev} mV ${gaba.pattern}` : "off"}`,
-      `# noise: recording ${noise.recSigma} mV RMS at ${noise.recBandwidth} kHz, hum ${noise.humAmp} mV at ${noise.humHz} Hz; membrane ${noise.memSigma} pA SD, tau ${noise.memTau} ms`,
+      `# noise: recording filter ${noise.recFilter ? `${noise.recFilter} kHz 4-pole Bessel` : "bypassed"}, noise ${noise.recSigma} mV RMS at 10 kHz, hum ${noise.humAmp} mV at ${noise.humHz} Hz; membrane ${noise.memSigma} pA SD, tau ${noise.memTau} ms`,
       `# seed ${seed}; measurements on Vm`,
       "step_pA,spikes_in_step,mean_rate_Hz,initial_rate_Hz,final_rate_Hz,latency_ms,v_baseline_mV,v_steady_mV,spikes_after_step,after_step_latency_ms",
     ];
@@ -465,9 +467,11 @@ export function App() {
           <AmpDial label="Period" unit="ms" value={pulse.period} min={10} max={10000} step={50} digits={0} disabled={!pulse.enabled} onChange={(period) => setPulse({ ...pulse, period })} />
         </AmpSection>
         )}
-        <AmpSection name="RECORDING NOISE">
-          <AmpDial label="RMS" unit="mV" value={noise.recSigma} min={0} max={3} step={0.05} digits={2} onChange={(recSigma) => setNoise({ ...noise, recSigma })} />
-          <AmpDial label="Bandwidth" unit="kHz" value={noise.recBandwidth} min={0.2} max={20} step={0.5} digits={1} onChange={(recBandwidth) => setNoise({ ...noise, recBandwidth })} />
+        <AmpSection name="RECORDING">
+          <AmpChoice label="Filter, kHz" value={noise.recFilter} options={FILTER_KHZ.map((f) => [f, f === 0 ? "Bypass" : String(f)] as const)} onChange={(recFilter) => setNoise({ ...noise, recFilter })} />
+          <AmpDial label="RMS" unit="mV" value={noise.recSigma} min={0} max={3} step={0.05} digits={2}
+            hint="Recording noise as it reads through the 10 kHz filter, the way an amplifier's noise is specified. A lower filter setting passes less of it; bypass passes more. The filter acts on the recorded trace only: every measurement is on true Vm."
+            onChange={(recSigma) => setNoise({ ...noise, recSigma })} />
           <AmpDial label="Line hum" unit="mV" value={noise.humAmp} min={0} max={3} step={0.05} digits={2} onChange={(humAmp) => setNoise({ ...noise, humAmp })} />
           <AmpChoice label="Mains" value={noise.humHz} options={[[50, "50 Hz"], [60, "60 Hz"]] as const} onChange={(humHz) => setNoise({ ...noise, humHz })} />
         </AmpSection>

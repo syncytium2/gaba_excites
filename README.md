@@ -89,7 +89,8 @@ mean rate). An editor that lets you change each channel is next on the
 | **Sound and Old school** | In the oscilloscope: an audio monitor, either hiss and a pop per spike or a tone whose pitch follows Vm. An Old school switch turns the scope into a green-phosphor instrument with knurled knobs for every control and analog meters for rate and Vm. |
 | **Step protocol** | A family (first, increment, count) or any list of steps; step onset, duration, sweep length. Presets for an F–I family, fine threshold steps, a synaptic barrage, and three GABA demonstrations. |
 | **Rs, bridge, pipette C** | Series resistance changes the *record*, not Vm: an I·Rs offset (removed by bridge balance) and, with pipette capacitance, a low-pass on spikes. |
-| **Noise** | Recording noise (RMS, bandwidth, mains hum) on the trace only; membrane noise (an Ornstein–Uhlenbeck current, σ and τ) that the cell feels and that leaves Rin unchanged. |
+| **Recording** | The amplifier's output filter, a 4-pole Bessel at 1, 2, 5 or 10 kHz or bypassed, as on an Axopatch 200B; recording noise (RMS as read at 10 kHz) and mains hum, through the same filter. On the trace only: every measurement is on true Vm. |
+| **Noise** | Membrane noise (an Ornstein–Uhlenbeck current, σ and τ) that the cell feels and that leaves Rin unchanged. |
 
 A small red siren blinks when the cell is driven past what a real cell would
 do: spikes that no longer overshoot or depolarization block, Vm beyond the

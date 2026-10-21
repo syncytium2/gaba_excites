@@ -954,3 +954,28 @@ check drives a marquee, Expand and ⌘-A on the LTS cell. Not on touch screens y
   readout takes the title row's free space, in place of the "N sweeps simulated" note, and is written to the DOM
   directly so hovering never re-renders the app. The screenshot check fails if the card grows in Measure. Below
   about 1300 px wide the end of the line (the Δ) is cut off with an ellipsis.
+
+## 2026-10-21 — the amplifier's filter
+
+The owner asked for the filter from the rig-features list, with the Axopatch's settings. Built as recommended:
+
+- **A 4-pole Bessel output filter** (`src/core/filter.ts`) at 1, 2, 5, 10 kHz or bypass, the settings the owner
+  chose after an Axopatch 200B (not checked against its manual). Poles from scipy (`bessel(4, 1, analog=True,
+  norm="mag")`), bilinear transform with the cutoff prewarped; −3 dB at fc and a step overshoot under 1.5% are tested.
+- **It runs at every integration step (100 kHz)**, not on stored samples: the step protocol stores at 33 kHz and the
+  scope at 20 kHz, where a 10 kHz filter would sit at Nyquist. An analog filter acts before the digitizer anyway.
+  Both paths feed the same `Recorder` every step, and a test holds the scope's record to the step protocol's, sample
+  for sample, with filter, noise and hum on.
+- **The noise-only Bandwidth dial is folded into it.** Noise and hum are added to the pipette signal and filtered with
+  it, as on a rig. The RMS dial now means the RMS through the 10 kHz filter (how amplifier noise is specified), so a
+  lower setting shows less noise, about √(fc/10 kHz) as much, and bypass more. The section is now "RECORDING".
+- **Defaults:** the app opens at 10 kHz (0.2 mV RMS, much as before); core runs (tests, CLI) default to bypass, so no
+  pinned number moved.
+- **What it does to a spike is smaller than first claimed.** The pre-build note said a 1 kHz filter costs "tens of
+  mV". Measured on the pyramidal cell's first spike at 700 pA (peak 46.7 mV): 10 kHz within 0.1 mV and 0.03 ms late;
+  2 kHz 1.4 mV low, 0.18 ms late; 1 kHz 7.5 mV low, 0.42 ms late. These spikes are ~0.7 ms wide. Pinned in
+  `src/core/filter.test.ts`, quoted on the methods page. The phase plot draws true Vm, so the filter does not change it.
+- **Sample 0 fixed** (a roadmap small fix): the first recorded sample is the settled cell under the holding current,
+  so a step that starts at 0 ms no longer makes it jump by the whole bridge error.
+- **Colquhoun & Sigworth 1995 removed from `lit/sources.json`:** its Gaussian filter (σ = 0.1325/fc) is no longer in
+  the code.

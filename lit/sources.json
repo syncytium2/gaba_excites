@@ -403,28 +403,6 @@
       ]
     },
     {
-      "key": "colquhoun1995",
-      "type": "chapter",
-      "authors": [
-        "Colquhoun D",
-        "Sigworth FJ"
-      ],
-      "year": 1995,
-      "title": "Fitting and statistical analysis of single-channel records",
-      "booktitle": "Single-Channel Recording, 2nd ed. (Sakmann B, Neher E, eds.)",
-      "publisher": "Plenum Press",
-      "access": "book",
-      "role": "method",
-      "models": [
-        "rs",
-        "gnrh"
-      ],
-      "took": "The Gaussian filter's σ = 0.1325 / fc, used to band-limit the recording noise.",
-      "usedIn": [
-        "src/core/noise.ts"
-      ]
-    },
-    {
       "key": "adams2019",
       "type": "article",
       "authors": [

@@ -5,12 +5,8 @@ The owner's words are quoted where the item came from them.
 
 ## Small fixes (to do)
 
-- **The first recorded sample dips when a step starts at 0 ms.** With
-  stepStart = 0 and a nonzero step, sample 0 of the recorded trace takes the
-  step's command current, but the cell is still at its settled state, so bridge
-  balance subtracts the whole I·Rs at once: −454 mV at 25.6 nA with Rs 15 MΩ.
-  Sample 0 should use the command that was in force before the step. Vm and
-  every measurement are unaffected. Found 2026-10-16 while testing the siren.
+- **The first recorded sample dips when a step starts at 0 ms.** Fixed 2026-10-21 with the filter: sample 0 of
+  the recorded trace is now the settled cell under the holding current, the command in force before the sweep.
 - **The stored sample rate is 33 kHz, not the 40 kHz the comment in
   `src/core/simulate.ts` claims.** With dt = 0.01 ms, sampleMs 0.025 rounds to
   every 3 steps (0.03 ms). Each sweep reports its true sampleMs, and every
@@ -69,8 +65,8 @@ The owner's words are quoted where the item came from them.
   verified. Each number taken goes into `lit/sources.json`. Not started; do not start it before the tour ships.
 - **Rig features, for eventually** (owner, 2026-10-19, relayed by another session: "not for today but features to
   add eventually"). Not started.
-  - **Filter settings:** a recording filter on the displayed traces. Today the Recording noise "Bandwidth" dial
-    filters only the added noise (a Gaussian low-pass, `src/core/noise.ts`), not the signal itself.
+  - **Filter settings:** done 2026-10-21 (v0.2.5): a 4-pole Bessel output filter at the Axopatch 200B's settings
+    (1, 2, 5, 10 kHz, bypass) on the recorded trace, noise included (`src/core/filter.ts`).
   - **Gain:** amplifier output gain. Overlaps with amplifier mode above.
   - **Voltage clamp:** a second recording mode; the solver is current clamp only today.
   - **Evoked responses:** stimulus-evoked synaptic input (a single timed PSC or train), beside the random

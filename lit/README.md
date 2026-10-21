@@ -142,16 +142,6 @@ Uhlenbeck GE, Ornstein LS (1930). On the theory of the Brownian motion. Phys Rev
 
 **Used in:** [`src/core/noise.ts`](../src/core/noise.ts)
 
-### `colquhoun1995`
-
-Colquhoun D, Sigworth FJ (1995). Fitting and statistical analysis of single-channel records. In: Single-Channel Recording, 2nd ed. (Sakmann B, Neher E, eds.). Plenum Press.
-
-*book* · models: pyramidal, GnRH
-
-**Took:** The Gaussian filter's σ = 0.1325 / fc, used to band-limit the recording noise.
-
-**Used in:** [`src/core/noise.ts`](../src/core/noise.ts)
-
 ### `defazio2002k`
 
 DeFazio RA, Moenter SM (2002). Estradiol feedback alters potassium currents and firing properties of gonadotropin-releasing hormone neurons. Mol Endocrinol 16(10):2255–2265.

@@ -1,11 +1,12 @@
 /**
  * Two kinds of noise, kept apart because they teach different things.
  *
- * RECORDING noise — the amplifier and digitizer. Added to the recorded trace
- * after the simulation; the cell never feels it, and no measurement uses it
- * (measurements are on Vm). White Gaussian noise through a Gaussian low-pass
- * at the chosen bandwidth — the filter Clampfit and pCLAMP apply — scaled so
- * the RMS you set is the RMS you see, plus optional mains hum.
+ * RECORDING noise — the amplifier and digitizer. Added to the recorded signal
+ * at the pipette, with optional mains hum, and the sum goes through the
+ * amplifier's filter (filter.ts: 4-pole Bessel, 1–10 kHz or bypass), as on a
+ * rig; the cell never feels it, and no measurement uses it (measurements are
+ * on Vm). The RMS you set is the RMS through the 10 kHz filter, the way an
+ * amplifier's noise is specified; a lower cutoff passes less of it.
  *
  * MEMBRANE noise — fluctuations the cell does feel. A current injected at the
  * membrane (not through the pipette, so it causes no bridge error), following
@@ -18,12 +19,13 @@
  */
 
 import { rng } from "./synapses.ts";
+import { Bessel4, type FilterKHz } from "./filter.ts";
 
 export interface NoiseParams {
-  /** recording noise, mV RMS after filtering */
+  /** recording noise, mV RMS as seen through the 10 kHz filter */
   recSigma: number;
-  /** recording bandwidth (Gaussian filter −3 dB), kHz */
-  recBandwidth: number;
+  /** the amplifier's filter, 4-pole Bessel −3 dB, kHz; 0 = bypass */
+  recFilter: FilterKHz;
   /** mains hum amplitude, mV peak */
   humAmp: number;
   /** mains frequency, Hz */
@@ -34,7 +36,8 @@ export interface NoiseParams {
   memTau: number;
 }
 
-export const DEFAULT_NOISE: NoiseParams = { recSigma: 0, recBandwidth: 10, humAmp: 0, humHz: 60, memSigma: 0, memTau: 5 };
+// Core runs default to bypass, so the recorded trace is the pipette signal itself; the app opens at 10 kHz.
+export const DEFAULT_NOISE: NoiseParams = { recSigma: 0, recFilter: 0, humAmp: 0, humHz: 60, memSigma: 0, memTau: 5 };
 
 /** Standard normal draws from a seeded uniform source (Box–Muller, both halves used). */
 export function gaussian(seed: number): () => number {
@@ -76,96 +79,61 @@ export class OU {
   }
 }
 
-/**
- * The recording filter: a Gaussian low-pass at fc, σ_t = 0.1325 / fc
- * (Colquhoun & Sigworth), as a unit-sum kernel over samples dtMs apart, and
- * the gain that restores the RMS the kernel's Σh² takes away.
- */
-function recKernel(p: NoiseParams, dtMs: number): { h: number[]; gain: number } {
-  const fcPerMs = Math.max(p.recBandwidth, 0.01); // kHz = 1/ms
-  const sigSamples = 0.1325 / fcPerMs / dtMs;
-  const half = Math.max(1, Math.ceil(4 * sigSamples));
-  const h: number[] = [];
-  let sum = 0;
-  for (let k = -half; k <= half; k++) {
-    const w = sigSamples > 0.05 ? Math.exp(-0.5 * (k / sigSamples) ** 2) : k === 0 ? 1 : 0;
-    h.push(w);
-    sum += w;
-  }
-  let ss = 0;
-  for (let k = 0; k < h.length; k++) {
-    h[k] /= sum;
-    ss += h[k] * h[k];
-  }
-  return { h, gain: p.recSigma / Math.sqrt(ss) };
-}
-
-/**
- * Filtered Gaussian noise plus hum, added in place to `v`, sampled every dtMs.
- * The kernel is normalized to unit sum, which shrinks white-noise variance by
- * Σh²; the output is rescaled by 1/√Σh² so its RMS equals recSigma.
- */
-export function addRecordingNoise(v: Float32Array, dtMs: number, p: NoiseParams, seed: number): void {
-  if (p.recSigma > 0) {
-    const { h, gain } = recKernel(p, dtMs);
-    const n = v.length;
-    const g = gaussian(seed);
-    const white = new Float32Array(n + h.length - 1);
-    for (let i = 0; i < white.length; i++) white[i] = g();
-    for (let i = 0; i < n; i++) {
-      let acc = 0;
-      for (let k = 0; k < h.length; k++) acc += h[k] * white[i + k];
-      v[i] += gain * acc;
+/** RMS of the 10 kHz filter's output for unit white noise at dtMs: Σh² of its impulse response, square-rooted. */
+const refRms = new Map<number, number>();
+function rmsThrough10k(dtMs: number): number {
+  let r = refRms.get(dtMs);
+  if (r === undefined) {
+    const f = new Bessel4(10, dtMs);
+    let ss = 0;
+    for (let i = 0; i < Math.ceil(5 / dtMs); i++) {
+      const h = f.next(i === 0 ? 1 : 0);
+      ss += h * h;
     }
+    r = Math.sqrt(ss);
+    refRms.set(dtMs, r);
   }
-  if (p.humAmp > 0) {
-    const phase = 2 * Math.PI * rng(seed ^ 0x5bd1e995)();
-    const w = (2 * Math.PI * p.humHz) / 1000; // rad per ms
-    for (let i = 0; i < v.length; i++) v[i] += p.humAmp * Math.sin(w * i * dtMs + phase);
-  }
+  return r;
 }
 
 /**
- * The same recording noise, one sample at a time, for the oscilloscope: the
- * same kernel run over a ring of white noise, so the same filter and RMS, with
- * no end to the trace. The hum keeps its phase across calls.
+ * What the amplifier records, one integration step at a time: the pipette
+ * signal (after bridge balance) plus white noise and hum, through the filter.
+ * runSweep and the oscilloscope's stream both feed it every step, so the two
+ * record identically.
  */
-export class RecordingNoise {
-  private h: number[];
-  private gain: number;
-  private ring: Float64Array;
-  private head = 0;
+export class Recorder {
+  private filter: Bessel4 | null;
   private g: () => number;
-  private n = 0;
+  private sigma: number;
+  private hum: number;
   private humW: number;
   private humPhase: number;
-  // plain fields, not constructor parameter properties: node's type stripping
-  // (which runs the CLI) cannot handle those
-  private p: NoiseParams;
+  private n = 0;
   private dtMs: number;
   constructor(p: NoiseParams, dtMs: number, seed: number) {
-    this.p = p;
     this.dtMs = dtMs;
-    const k = recKernel(p, dtMs);
-    this.h = k.h;
-    this.gain = k.gain;
+    this.filter = p.recFilter > 0 ? new Bessel4(p.recFilter, dtMs) : null;
     this.g = gaussian(seed);
-    this.ring = Float64Array.from({ length: this.h.length }, () => this.g());
+    // white noise per step whose RMS through the 10 kHz filter is recSigma
+    this.sigma = p.recSigma > 0 ? p.recSigma / rmsThrough10k(dtMs) : 0;
+    this.hum = p.humAmp;
     this.humW = (2 * Math.PI * p.humHz) / 1000;
     this.humPhase = 2 * Math.PI * rng(seed ^ 0x5bd1e995)();
   }
-  next(): number {
-    let out = 0;
-    if (this.p.recSigma > 0) {
-      const L = this.h.length;
-      this.ring[this.head] = this.g();
-      this.head = (this.head + 1) % L;
-      let acc = 0;
-      for (let k = 0; k < L; k++) acc += this.h[k] * this.ring[(this.head + k) % L];
-      out += this.gain * acc;
-    }
-    if (this.p.humAmp > 0) out += this.p.humAmp * Math.sin(this.humW * this.n * this.dtMs + this.humPhase);
+
+  /** Start at a steady pipette signal: the filter is settled there, and this is the first sample. */
+  start(v: number): number {
+    this.filter?.reset(v);
+    return v;
+  }
+
+  /** The recorded voltage for this step, given the pipette signal. */
+  next(v: number): number {
+    let x = v;
+    if (this.sigma > 0) x += this.sigma * this.g();
+    if (this.hum > 0) x += this.hum * Math.sin(this.humW * this.n * this.dtMs + this.humPhase);
     this.n++;
-    return out;
+    return this.filter ? this.filter.next(x) : x;
   }
 }
