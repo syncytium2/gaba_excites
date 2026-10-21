@@ -979,3 +979,24 @@ The owner asked for the filter from the rig-features list, with the Axopatch's s
   so a step that starts at 0 ms no longer makes it jump by the whole bridge error.
 - **Colquhoun & Sigworth 1995 removed from `lit/sources.json`:** its Gaussian filter (σ = 0.1325/fc) is no longer in
   the code.
+
+## 2026-10-21 — the app starts in Old school, in both modes
+
+The owner: "I'd like the app to start in retro mode. I still find the switch jarring. Can we adjust the non retro
+mode to closer to retro without the heavy lifting to match the oscilloscope simulation." Old school was opt-in and
+scope-only, so every switch to the step protocol flipped the page from dark to light. Now:
+
+- **Old school dresses the page in both modes** and is on by default. Its checkbox sits beside the mode buttons in
+  both. The phosphor tube and meters stay the oscilloscope's; nothing of the scope simulation moved to the steps.
+- **The step view's charts take a dark palette** (`DARK_CHART`, `src/ui/palette.ts`), chosen with the dataviz
+  skill: the reference palette's dark steps (blue #3987e5, orange #d95926, aqua #199e70), which pass every check as
+  a set on the card's surface #2a2b27; the sweep ramp reversed to run dim → bright (a sequential ramp flips its
+  anchor in dark), passing the ordinal check on every other step, as the light ramp does by design. The charts
+  rebuild when the theme changes; the caption says "dim → bright" in Old school.
+- **The saved choice moved to a new key** (`gaba_excites.oldschool.v2`), so a browser that had saved "off" before
+  still opens in Old school once.
+- **Also fixed:** the selected table row and the notebook's text fields, which Old school had never dressed; and two
+  of today's tips (the RMS hint, the "After step" header), whose hidden bodies inherited no-wrap and widened the page
+  to 1952 px. `.tip-body` now wraps whatever its context; the screenshot check fails on overflow in the step view.
+- The screenshot check now asserts the Old school opening and that a mode switch keeps it, then unticks it to run the
+  plain-look checks as before.

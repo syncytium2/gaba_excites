@@ -31,6 +31,18 @@ const setDial = async (name, v) => {
 // The app opens on the guided tour's first part: the GnRH cell in the scope.
 await page.waitForTimeout(2500);
 await page.screenshot({ path: `${out}/opening.png`, fullPage: true });
+// It opens in Old school, and Old school dresses the step protocol too, so a mode switch keeps the theme
+// (the owner, 2026-10-21). Then untick it: the rest of this script checks the plain look, and the Old school
+// section below ticks it again.
+if (!(await page.locator(".page.old-school").count())) problems.push("theme: the app does not open in Old school");
+await page.click("#mode-steps");
+await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
+if (!(await page.locator(".page.old-school").count())) problems.push("theme: switching to the step protocol left Old school");
+if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) problems.push("theme: horizontal overflow in the step protocol");
+await page.screenshot({ path: `${out}/steps-oldschool.png`, fullPage: true });
+await page.uncheck("#old-school");
+await page.click("#mode-scope");
+await page.waitForTimeout(500);
 // The amplifier stays where it is when the mode switches (the owner, 2026-10-19).
 const ampTop = () => page.evaluate(() => Math.round(document.querySelector(".amp").getBoundingClientRect().top));
 const ampInScope = await ampTop();

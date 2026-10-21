@@ -19,7 +19,7 @@ import { ScopeMode } from "./ui/ScopeMode.tsx";
 import { Siren } from "./ui/Siren.tsx";
 import { KnobContext } from "./ui/Knob.tsx";
 import { describe as describeTrip, ExtremeWatch, limitsFor, type ExtremeKind } from "./core/extremes.ts";
-import { AQUA, AXIS, BLUE, GRID, INK2, MUTED, ORANGE, rampColor } from "./ui/palette.ts";
+import { DARK_CHART, LIGHT_CHART, rampIn, type ChartColors } from "./ui/palette.ts";
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 import { Notebook } from "./ui/Notebook.tsx";
 import { Tour } from "./ui/Tour.tsx";
@@ -30,6 +30,7 @@ import { applyZoom, ZOOM_MENU, type Range, type ZoomOp } from "./ui/zoom.ts";
 // The app opens on the tour's first part: the GnRH cell in the oscilloscope,
 // held near −61 mV, with GABA PSCs on (the owner, 2026-10-19).
 const OPENING = TOUR[0].settings;
+const OLD_SCHOOL_KEY = "gaba_excites.oldschool.v2";
 const opening = tourInputs(OPENING);
 import type { RunSettings } from "./core/report.ts";
 
@@ -89,20 +90,24 @@ export function App() {
   // Remembered in this browser as a convenience only; every access is guarded.
   const [oldSchoolPref, setOldSchoolPref] = useState<boolean>(() => {
     try {
-      return localStorage.getItem("gaba_excites.oldschool") === "1";
+      // the app starts in Old school (the owner, 2026-10-21); a new key, so a choice saved before that does not hide it
+      return localStorage.getItem(OLD_SCHOOL_KEY) !== "0";
     } catch {
-      return false;
+      return true;
     }
   });
   const setOldSchool = (on: boolean) => {
     setOldSchoolPref(on);
     try {
-      localStorage.setItem("gaba_excites.oldschool", on ? "1" : "0");
+      localStorage.setItem(OLD_SCHOOL_KEY, on ? "1" : "0");
     } catch {
       /* storage unavailable: still works for this visit */
     }
   };
-  const oldSchool = mode === "scope" && oldSchoolPref;
+  // Old school dresses the whole page, in both modes, so switching modes is not a change of theme; the
+  // phosphor tube itself stays the oscilloscope's (ScopeMode)
+  const oldSchool = oldSchoolPref;
+  const pal = oldSchool ? DARK_CHART : LIGHT_CHART;
 
   const protocol = useMemo(() => toProtocol(form), [form]);
   // The left panels collapse. The ones you reach for first start open.
@@ -489,7 +494,7 @@ export function App() {
           Oscilloscope
         </button>
       </div>
-      {mode === "scope" && (
+      {(
         <label className="check oldschool-toggle">
           <input id="old-school" type="checkbox" checked={oldSchoolPref} onChange={(e) => setOldSchool(e.target.checked)} />
           Old school
@@ -571,15 +576,15 @@ export function App() {
                     </span>
                   </figcaption>
                   {playing && shown ? (
-                    <TracePlots result={shown} rank={shown.sweeps.map((_, k) => k)} sel={shown.sweeps.length - 1} showVm={showVm} synOn={synOn} onSelect={() => {}} ranges={playRanges} screenH={screenH} zoom={zoom} onZoom={setZoom} cursorMode={cursorMode} readoutRef={readoutRef} />
+                    <TracePlots result={shown} rank={shown.sweeps.map((_, k) => k)} sel={shown.sweeps.length - 1} showVm={showVm} synOn={synOn} onSelect={() => {}} ranges={playRanges} screenH={screenH} zoom={zoom} onZoom={setZoom} cursorMode={cursorMode} readoutRef={readoutRef} pal={pal} />
                   ) : (
-                    <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} screenH={screenH} zoom={zoom} onZoom={setZoom} cursorMode={cursorMode} readoutRef={readoutRef} />
+                    <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} screenH={screenH} zoom={zoom} onZoom={setZoom} cursorMode={cursorMode} readoutRef={readoutRef} pal={pal} />
                   )}
                   <p className="legendline">
-                    Sweeps shade light → dark with step amplitude; {playing && shown
-                      ? <><span style={{ color: ORANGE }}>■</span> the newest sweep ({shown.sweeps[shown.sweeps.length - 1].amp} pA).</>
-                      : <><span style={{ color: ORANGE }}>■</span> the selected sweep ({sweeps[sel]?.amp} pA). Hover to read values, click a trace to select it. Drag a marquee and click inside it to zoom; ⌘/Ctrl-A autoscales.</>}
-                    {synOn && <> Conductances are the selected sweep's: <span style={{ color: ORANGE }}>■</span> glutamate, <span style={{ color: AQUA }}>■</span> GABA.</>}
+                    Sweeps shade {pal.name === "dark" ? "dim → bright" : "light → dark"} with step amplitude; {playing && shown
+                      ? <><span style={{ color: pal.orange }}>■</span> the newest sweep ({shown.sweeps[shown.sweeps.length - 1].amp} pA).</>
+                      : <><span style={{ color: pal.orange }}>■</span> the selected sweep ({sweeps[sel]?.amp} pA). Hover to read values, click a trace to select it. Drag a marquee and click inside it to zoom; ⌘/Ctrl-A autoscales.</>}
+                    {synOn && <> Conductances are the selected sweep's: <span style={{ color: pal.orange }}>■</span> glutamate, <span style={{ color: pal.aqua }}>■</span> GABA.</>}
                   </p>
                 </figure>
               </>
@@ -603,7 +608,7 @@ export function App() {
                         <button className="linkish" onClick={downloadCsv}>CSV</button>
                       </span>
                     </figcaption>
-                    <FIPlot summary={summary!} pins={pins} />
+                    <FIPlot summary={summary!} pins={pins} pal={pal} />
                     <p className="legendline">
                       Mean rate is spikes in the step ÷ its duration; initial rate is 1 / the first interspike interval. Steps below
                       0 pA are left off; they are in the table.
@@ -612,7 +617,7 @@ export function App() {
                   </figure>
                   <figure className="card">
                     <figcaption><span>Phase plot, {sweeps[sel]?.amp} pA</span></figcaption>
-                    <PhasePlot vm={sweeps[sel].vm} dt={sweeps[sel].sampleMs} color={ORANGE} />
+                    <PhasePlot vm={sweeps[sel].vm} dt={sweeps[sel].sampleMs} color={pal.orange} />
                   </figure>
                 </div>
 
@@ -663,16 +668,16 @@ function uPlotSyncKey() {
   return "t";
 }
 
-function axisOpts(label: string, size = 50): uPlot.Axis {
+function axisOpts(pal: ChartColors, label: string, size = 50): uPlot.Axis {
   return {
     label,
-    stroke: INK2,
+    stroke: pal.ink2,
     size,
     labelSize: 18,
     font: "11px system-ui, -apple-system, sans-serif",
     labelFont: "12px system-ui, -apple-system, sans-serif",
-    grid: { stroke: GRID, width: 1 },
-    ticks: { stroke: AXIS, width: 1, size: 4 },
+    grid: { stroke: pal.grid, width: 1 },
+    ticks: { stroke: pal.axis, width: 1, size: 4 },
   };
 }
 
@@ -688,7 +693,9 @@ const READOUT_HINT = "hover a trace: time, V, I · click for a Δ reference · E
 
 interface MarqueeMenu { p: number; left: number; top: number; view: { x: Range; y: Range }; sel: { x: Range; y: Range } }
 
-function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screenH = 460, zoom, onZoom, cursorMode, readoutRef }: {
+function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screenH = 460, zoom, onZoom, cursorMode, readoutRef, pal }: {
+  /** chart colors for the page's theme */
+  pal: ChartColors;
   result: Result; rank: number[]; sel: number; showVm: boolean; synOn: boolean; onSelect: (k: number) => void;
   zoom: Zoom; onZoom: (z: Zoom) => void;
   cursorMode: CursorMode;
@@ -707,7 +714,7 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
   const n = sw[0].vRec.length;
   const dt = sw[0].sampleMs;
   const t = useMemo(() => Float64Array.from({ length: n }, (_, i) => i * dt), [n, dt]);
-  const colors = sw.map((_, k) => (k === sel ? ORANGE : rampColor(rank[k], sw.length)));
+  const colors = sw.map((_, k) => (k === sel ? pal.orange : rampIn(pal, rank[k], sw.length)));
   // draw the selected sweep last so it sits on top
   const order = [...sw.keys()].filter((k) => k !== sel).concat(sel);
 
@@ -839,7 +846,7 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
     const x = u.valToPos(p.t, "x", true), y = u.valToPos(p.v, "y", true);
     const c = u.ctx;
     c.save();
-    c.strokeStyle = ORANGE;
+    c.strokeStyle = pal.orange;
     c.lineWidth = 1;
     c.setLineDash([3, 3]);
     c.beginPath();
@@ -884,7 +891,7 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
     cursor: { sync: { key: SYNC, filters: { pub: (type) => type !== "mousedown" && type !== "mouseup" } }, drag: cursorMode === "zoom" ? { x: true, y: true, setScale: false } : { x: false, y: false }, focus: { prox: 12 } },
     focus: { alpha: 0.35 },
     scales: { x: { time: false } },
-    axes: [showX ? axisOpts("", 30) : { ...axisOpts("", 0), show: false }, axisOpts(yLabel, 56)],
+    axes: [showX ? axisOpts(pal, "", 30) : { ...axisOpts(pal, "", 0), show: false }, axisOpts(pal, yLabel, 56)],
     series: [{ label: "t (ms)" }, ...series],
     ...extra,
   });
@@ -895,7 +902,7 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
     width: k === sel ? 2 : 1,
     value: (_u, v) => (v == null ? "—" : v.toFixed(1) + " mV"),
   }));
-  if (showVm) vSeries.push({ label: "Vm", stroke: ORANGE, width: 1.25, dash: [4, 3] });
+  if (showVm) vSeries.push({ label: "Vm", stroke: pal.orange, width: 1.25, dash: [4, 3] });
 
   // uPlot reports the series nearest the cursor through setSeries(…, {focus}).
   // Remember it, and make a click on the plot select that sweep.
@@ -913,7 +920,7 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
     });
   };
 
-  const structKey = `${sw.length}|${sel}|${showVm}|${colors.join()}|${n}|${vH}|${JSON.stringify(zoom)}|${cursorMode}`;
+  const structKey = `${sw.length}|${sel}|${showVm}|${colors.join()}|${n}|${vH}|${JSON.stringify(zoom)}|${cursorMode}|${pal.name}`;
   // each plot's scales: the marquee zoom where there is one, else the fixed play ranges, else autoscaled
   const scalesFor = (p: number, fixed?: [number, number]): uPlot.Scales => ({
     x: { time: false, ...(zoom.x && { range: zoom.x }) },
@@ -928,9 +935,9 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
       {synOn && (
         <Plot className="plot" data={gData} deps={[structKey, synOn]}
           options={(w) => base(w, gH, "g syn (nS)", [
-            { label: "g glutamate", stroke: ORANGE, width: 1 },
-            { label: "g GABA", stroke: AQUA, width: 1 },
-          ], { axes: [axisOpts("time (ms)", 40), axisOpts("g syn (nS)", 56)], hooks: { init: [marqueeHook(2)] }, scales: scalesFor(2) })} />
+            { label: "g glutamate", stroke: pal.orange, width: 1 },
+            { label: "g GABA", stroke: pal.aqua, width: 1 },
+          ], { axes: [axisOpts(pal, "time (ms)", 40), axisOpts(pal, "g syn (nS)", 56)], hooks: { init: [marqueeHook(2)] }, scales: scalesFor(2) })} />
       )}
       {menu && (
         <div className="zoom-menu" role="menu" aria-label="Zoom" ref={menuEl} style={{ left: menu.left, top: menu.top }}
@@ -957,7 +964,7 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
 
 // ------------------------------------------------------------------ F–I
 
-function FIPlot({ summary, pins }: { summary: FamilySummary; pins: Pin[] }) {
+function FIPlot({ summary, pins, pal }: { summary: FamilySummary; pins: Pin[]; pal: ChartColors }) {
   // The F–I curve starts at 0 pA: hyperpolarizing steps fire nothing and belong
   // to the Rin measurement. They stay in the table below.
   const stats = [...summary.stats].filter((s) => s.amp >= 0).sort((a, b) => a.amp - b.amp);
@@ -972,11 +979,11 @@ function FIPlot({ summary, pins }: { summary: FamilySummary; pins: Pin[] }) {
 
   const series: uPlot.Series[] = [
     { label: "I (pA)" },
-    { label: "mean rate", stroke: BLUE, width: 2, points: { show: true, size: 8, fill: BLUE, stroke: "#fcfcfb", width: 2 }, spanGaps: true, value: (_u, v) => (v == null ? "—" : v.toFixed(1) + " Hz") },
-    { label: "initial rate", stroke: ORANGE, width: 1.5, dash: [5, 3], points: { show: true, size: 8, fill: ORANGE, stroke: "#fcfcfb", width: 2 }, spanGaps: true, value: (_u, v) => (v == null ? "—" : v.toFixed(1) + " Hz") },
-    ...pins.map((_p, i): uPlot.Series => ({ label: `pin ${i + 1}`, stroke: MUTED, width: 1.5, dash: [3, 3], spanGaps: true, points: { show: true, size: 6, fill: MUTED } })),
+    { label: "mean rate", stroke: pal.blue, width: 2, points: { show: true, size: 8, fill: pal.blue, stroke: pal.surface, width: 2 }, spanGaps: true, value: (_u, v) => (v == null ? "—" : v.toFixed(1) + " Hz") },
+    { label: "initial rate", stroke: pal.orange, width: 1.5, dash: [5, 3], points: { show: true, size: 8, fill: pal.orange, stroke: pal.surface, width: 2 }, spanGaps: true, value: (_u, v) => (v == null ? "—" : v.toFixed(1) + " Hz") },
+    ...pins.map((_p, i): uPlot.Series => ({ label: `pin ${i + 1}`, stroke: pal.muted, width: 1.5, dash: [3, 3], spanGaps: true, points: { show: true, size: 6, fill: pal.muted } })),
   ];
-  const key = `${pins.length}|${xs.join()}`;
+  const key = `${pins.length}|${xs.join()}|${pal.name}`;
   return (
     <Plot className="plot" data={data} deps={[key]}
       options={(w) => ({
@@ -988,7 +995,7 @@ function FIPlot({ summary, pins }: { summary: FamilySummary; pins: Pin[] }) {
           x: { time: false, range: (_u, _lo, hi) => [0, Math.max(hi ?? 0, 1)] },
           y: { range: (_u, _lo, hi) => [0, Math.max(10, hi * 1.08)] },
         },
-        axes: [axisOpts("step current (pA)", 40), axisOpts("firing rate (Hz)", 50)],
+        axes: [axisOpts(pal, "step current (pA)", 40), axisOpts(pal, "firing rate (Hz)", 50)],
         series,
       })} />
   );

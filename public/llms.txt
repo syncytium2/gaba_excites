@@ -48,9 +48,10 @@ background, is at https://gaba.tonydefazio.com/explainer (a first draft).
   the same integrator; unchanged, it reproduces a step-protocol sweep sample
   for sample. Readouts (firing rate, mean Vm) are measured on true Vm.
 - In the oscilloscope, an audio monitor (hiss with a pop per spike, or a tone
-  whose pitch follows Vm, four octaves over -90..+40 mV) and an "Old school"
-  look: a green-phosphor tube with persistence, knurled knobs for every
-  control, and analog meters with needle ballistics.
+  whose pitch follows Vm, four octaves over -90..+40 mV). The app opens in an
+  "Old school" look, in both modes: a dark instrument panel with knurled knobs
+  for every control, and in the oscilloscope a green-phosphor tube with
+  persistence and analog meters with needle ballistics. A switch turns it off.
 - A siren flags unphysiologic drive, using criteria taken from the cell
   itself: spike failure (no overshoot, or depolarization block above -30 mV
   for 50 ms), Vm beyond the reversal potentials in play, or injected current
