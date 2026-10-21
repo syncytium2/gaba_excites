@@ -39,6 +39,28 @@ export function amplitudes(f: ProtocolForm): number[] {
   return Array.from({ length: n }, (_, k) => f.first + k * f.delta);
 }
 
+/**
+ * The family's increment is set on the amplifier as a dial, a range switch
+ * and a sign: |delta| = dial × range. The protocol keeps one signed `delta`;
+ * the range is how the dial reads it.
+ */
+export const INC_RANGES = [0.1, 1, 10] as const;
+export type IncRange = (typeof INC_RANGES)[number];
+export const INC_DIAL = { min: 1, max: 20, step: 0.5 };
+
+/** Whether `range` shows |delta| exactly on the dial. */
+export function incRangeFits(delta: number, range: IncRange): boolean {
+  const n = Math.abs(delta) / range;
+  const k = n / INC_DIAL.step;
+  return n >= INC_DIAL.min - 1e-9 && n <= INC_DIAL.max + 1e-9 && Math.abs(k - Math.round(k)) < 1e-6;
+}
+
+/** The range to show `delta` in: `preferred` if it fits, else ×1, ×10, ×0.1 in that order, else ×1. */
+export function incRangeFor(delta: number, preferred: IncRange = 1): IncRange {
+  if (incRangeFits(delta, preferred)) return preferred;
+  return ([1, 10, 0.1] as const).find((r) => incRangeFits(delta, r)) ?? 1;
+}
+
 export function toProtocol(f: ProtocolForm): StepProtocol {
   const sweepMs = Math.max(10, f.sweepMs);
   const stepStart = Math.max(0, Math.min(f.stepStart, sweepMs));

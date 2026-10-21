@@ -5,7 +5,7 @@ import { MODELS, MODEL_LIST, type ModelId } from "./core/models.ts";
 import { DEFAULT_NOISE, type NoiseParams } from "./core/noise.ts";
 import { DEFAULT_ELECTRODE, type Electrode, type Sweep } from "./core/simulate.ts";
 import type { FamilySummary } from "./core/analysis.ts";
-import { PRESETS, presetsFor, toProtocol, MAX_SWEEPS, SCOPE_PULSE, type ProtocolForm } from "./core/protocol.ts";
+import { PRESETS, presetsFor, toProtocol, MAX_SWEEPS, SCOPE_PULSE, INC_DIAL, INC_RANGES, incRangeFor, type IncRange, type ProtocolForm } from "./core/protocol.ts";
 import type { SynInput } from "./core/synapses.ts";
 import type { Pulse } from "./core/stream.ts";
 import type { CellInfo, Request, Response } from "./worker.ts";
@@ -53,6 +53,7 @@ export function App() {
   const [ihold, setIhold] = useState(opening.ihold);
   const [electrode, setElectrode] = useState<Electrode>(DEFAULT_ELECTRODE);
   const [presetId, setPresetId] = useState(opening.presetId);
+  const [incPref, setIncPref] = useState<IncRange>(1);
   const [form, setForm] = useState<ProtocolForm>(opening.form);
   const [glu, setGlu] = useState<SynInput>(opening.glu);
   const [gaba, setGaba] = useState<SynInput>(opening.gaba);
@@ -353,6 +354,8 @@ export function App() {
   // knob's Shift+arrow and Page keys still cover the cortical cells' 2000 Hz range quickly.
   const synRange = cell.model === "gnrh" ? { rate: 50, rateStep: 1, g: 10, gStep: 0.1 } : { rate: 2000, rateStep: 1, g: 50, gStep: 0.5 };
   const PATTERNS = [["poisson", "Poisson"], ["regular", "Regular"]] as const;
+  // the increment's range switch: the one last chosen, while it still shows the increment exactly
+  const incRange = incRangeFor(form.delta, incPref);
   const putForm = (patch: Partial<ProtocolForm>) => { setForm({ ...form, ...patch }); setPresetId("custom"); };
   const synDials = (name: string, syn: SynInput, set: (s: SynInput) => void, withErev: boolean) => {
     const put = (patch: Partial<SynInput>) => { set({ ...syn, ...patch }); setPresetId("custom"); };
@@ -432,8 +435,10 @@ export function App() {
           <AmpChoice label="Steps as" value={form.mode} options={[["family", "Family"], ["list", "List"]] as const} onChange={(m) => putForm({ mode: m })} />
           {form.mode === "family" ? <>
             <AmpDial label="First" unit="pA" value={form.first} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 1 : 10} digits={cell.model === "gnrh" ? 1 : 0} onChange={(first) => putForm({ first })} />
-            {/* the increment is a size and a sign, so a family can step down (0, −5, −10 … pA) as well as up */}
-            <AmpDial label="Increment" unit="pA" value={Math.abs(form.delta)} min={cell.model === "gnrh" ? 0.5 : 5} max={cell.model === "gnrh" ? 10 : 200} step={cell.model === "gnrh" ? 0.5 : 5} digits={cell.model === "gnrh" ? 1 : 0} onChange={(size) => putForm({ delta: (form.delta < 0 ? -1 : 1) * size })} />
+            {/* the increment is a dial, a range and a sign: |delta| = dial × range, so one dial covers
+                0.1–200 pA on every cell, and a family can step down (0, −5, −10 … pA) as well as up */}
+            <AmpDial label="Increment" unit={incRange === 1 ? "pA" : `× ${incRange} pA`} value={Math.abs(form.delta) / incRange} min={INC_DIAL.min} max={INC_DIAL.max} step={INC_DIAL.step} digits={1} onChange={(n) => putForm({ delta: (form.delta < 0 ? -1 : 1) * +(n * incRange).toFixed(6) })} />
+            <AmpChoice label="Range" value={incRange} options={INC_RANGES.map((r) => [r, `×${r}`] as const)} onChange={(r) => { setIncPref(r); putForm({ delta: (form.delta < 0 ? -1 : 1) * +((Math.abs(form.delta) / incRange) * r).toFixed(6) }); }} />
             <AmpChoice label="Steps go" value={form.delta < 0 ? "down" : "up"} options={[["up", "+ up"], ["down", "− down"]] as const} onChange={(d) => putForm({ delta: (d === "down" ? -1 : 1) * Math.abs(form.delta) })} />
             <AmpDial label="Sweeps" unit="" value={form.count} min={1} max={MAX_SWEEPS} step={1} digits={0} onChange={(count) => putForm({ count })} />
           </> : (

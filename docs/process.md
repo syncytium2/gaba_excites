@@ -930,3 +930,8 @@ Two controls the owner found too coarse on the LTS cell, both true of every cort
 - **The family's increment is a size and a sign** (the owner: "maybe need increment and sign?"). The Increment
   dial keeps its old ranges as a magnitude (5–200 pA; 0.5–10 pA on GnRH), and a "+ up / − down" switch beside it
   sets the direction, so 0, −5, −10 … pA is one setting. The protocol still stores one signed `delta`.
+- **And a range switch** (the owner chose a range multiplier over geometric steps): the Increment dial runs 1–20 in
+  0.5 steps, a ×0.1 / ×1 / ×10 switch scales it, and the sign switch sets the direction, so one dial covers
+  0.1–200 pA on every cell (the per-model increment ranges are gone). The switch keeps the user's last choice
+  while it still shows the increment exactly, and otherwise picks one that does (a preset's 0.5 pA reads 5 × 0.1,
+  25 pA reads 2.5 × 10). `src/core/protocol.test.ts` requires every preset's increment to show exactly.
