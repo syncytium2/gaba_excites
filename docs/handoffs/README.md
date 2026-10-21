@@ -27,7 +27,8 @@ one CI step. It merges that framework to main first, so the other sessions can n
   accessible. Read it with the explainer handoff.
 
 - [`2026-10-20-lts-cell.md`](2026-10-20-lts-cell.md): a rebound-bursting cell (the LTS cell of ModelDB 123623,
-  checked in NEURON) to teach that hyperpolarization can excite. **Confirm with the owner before building.** Also the
+  checked in NEURON) to teach that hyperpolarization can excite. **Built 2026-10-21 on branch `lts-cell`** (owner
+  approved; not yet merged or deployed; see `docs/process.md`). Also the
   state of the site after the v0.2.2 deploy and what is open with him.
 
 ## Superseded
