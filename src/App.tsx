@@ -893,6 +893,10 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
     scales: { x: { time: false } },
     axes: [showX ? axisOpts(pal, "", 30) : { ...axisOpts(pal, "", 0), show: false }, axisOpts(pal, yLabel, 56)],
     series: [{ label: "t (ms)" }, ...series],
+    // The same right padding on every stacked plot. uPlot otherwise pads only the plot that draws the time labels
+    // (so its last label is not clipped), which made that plot narrower and its time scale disagree with the plots
+    // above it: traces, the synced cursor and the time axis all misaligned.
+    padding: [null, 24, null, null],
     ...extra,
   });
 

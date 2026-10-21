@@ -115,6 +115,10 @@ await page.screenshot({ path: `${out}/lts-burst.png`, fullPage: true });
 
 // measure mode: the readout rides in the title row, so the card must not grow
 {
+  // the stacked plots share time, so they must share their drawing area, or the traces, the synced cursor and the
+  // time axis misalign (the owner caught the cursor off on the conductance plot, 2026-10-21)
+  const areas = await page.evaluate(() => [...document.querySelectorAll(".traces .u-over")].map((o) => { const r = o.getBoundingClientRect(); return `${Math.round(r.left)}+${Math.round(r.width)}`; }));
+  if (new Set(areas).size !== 1) problems.push(`plots: the stacked plots' drawing areas differ (${areas.join(", ")})`);
   const h0 = (await page.locator(".screen-card").first().boundingBox()).height;
   await page.getByRole("radio", { name: "Measure" }).click();
   await page.waitForTimeout(200);
