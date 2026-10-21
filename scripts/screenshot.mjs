@@ -101,6 +101,22 @@ await page.screenshot({ path: `${out}/lts-burst.png`, fullPage: true });
   }
 }
 
+// measure mode: the readout rides in the title row, so the card must not grow
+{
+  const h0 = (await page.locator(".screen-card").first().boundingBox()).height;
+  await page.getByRole("radio", { name: "Measure" }).click();
+  await page.waitForTimeout(200);
+  const over = await page.locator(".traces .u-over").first().boundingBox();
+  await page.mouse.move(over.x + over.width * 0.3, over.y + over.height * 0.6);
+  await page.waitForTimeout(150);
+  const text = await page.locator(".readout").innerText();
+  if (!/ms · .* mV · .* pA/.test(text)) problems.push(`measure: no t, V, I readout (got "${text}")`);
+  const h1 = (await page.locator(".screen-card").first().boundingBox()).height;
+  if (Math.abs(h1 - h0) > 1) problems.push(`measure: the trace card grew from ${h0} to ${h1} px`);
+  await page.screenshot({ path: `${out}/measure.png`, fullPage: false });
+  await page.getByRole("radio", { name: "Zoom" }).click();
+}
+
 // the GnRH model, with membrane noise
 await page.selectOption("#model-select", "gnrh");
 await page.waitForTimeout(300);

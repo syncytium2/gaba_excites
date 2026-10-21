@@ -946,3 +946,11 @@ a double-click, or a button that appears while zoomed. The zoom lives in App, no
 re-runs and playing the sweeps, as Igor's axes do; switching cells or starting a tour part resets it. It replaces
 uPlot's drag-to-zoom-in-time. The arithmetic is `src/ui/zoom.ts` with `src/ui/zoom.test.ts`; the screenshot
 check drives a marquee, Expand and ⌘-A on the LTS cell. Not on touch screens yet (uPlot's drag is mouse only).
+- **Zoom and measure cursors** (the owner: "the ability to switch between zoom and measure modes for the cursor.
+  measure needs a readout of time, voltage, and current somewhere helpful without increasing vertical height").
+  A Zoom | Measure switch sits in the trace card's title row. In Measure there is no marquee; hovering reads the
+  sweep nearest the pointer (else the selected one): time, recorded V (true Vm too when it is shown) and the
+  command current, and a click pins a reference (dashed crosshair) so the line adds Δt and ΔV; Esc clears it. The
+  readout takes the title row's free space, in place of the "N sweeps simulated" note, and is written to the DOM
+  directly so hovering never re-renders the app. The screenshot check fails if the card grows in Measure. Below
+  about 1300 px wide the end of the line (the Δ) is cut off with an ellipsis.

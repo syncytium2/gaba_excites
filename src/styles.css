@@ -485,3 +485,9 @@ body:has(.page.old-school) { background: #1a1b19; }
 .zoom-menu button:hover, .zoom-menu button:focus-visible { background: color-mix(in srgb, var(--accent) 15%, transparent); outline: none; }
 .zoom-menu hr { border: 0; border-top: 1px solid var(--grid); margin: 4px 0; }
 .zoom-reset { position: absolute; top: 4px; right: 4px; z-index: 10; font-size: 12px; padding: 2px 8px; }
+/* measure mode's readout rides in the trace card's title row, so the card never grows */
+.card figcaption .readout {
+  flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-weight: 400; font-size: 12px; color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.card figcaption .cursor-mode { margin: 0; }

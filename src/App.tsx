@@ -57,6 +57,9 @@ export function App() {
   const [incPref, setIncPref] = useState<IncRange>(1);
   // the step view's marquee zoom; kept here so it survives re-runs and playing the sweeps, as Igor's axes do
   const [zoom, setZoom] = useState<Zoom>(NO_ZOOM);
+  // the step view's cursor: zoom draws a marquee; measure reads t, V and I, and Δ from a clicked reference
+  const [cursorMode, setCursorMode] = useState<CursorMode>("zoom");
+  const readoutRef = useRef<HTMLSpanElement>(null);
   const [form, setForm] = useState<ProtocolForm>(opening.form);
   const [glu, setGlu] = useState<SynInput>(opening.glu);
   const [gaba, setGaba] = useState<SynInput>(opening.gaba);
@@ -538,10 +541,18 @@ export function App() {
                 <figure className="card screen-card">
                   <figcaption>
                     <span>Recorded voltage{showVm ? ", with true Vm of the selected sweep dashed" : ""}
-                      <span className="status" aria-live="polite">{busy ? "simulating…" : `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms`}</span>
+                      <span className="status" aria-live="polite" hidden={cursorMode === "measure" && !busy}>{busy ? "simulating…" : `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms`}</span>
                     </span>
                     <span className="play-status" aria-live="polite">
                       {playing && shown ? `Sweep ${shown.sweeps.length} of ${sweeps.length}: ${shown.sweeps[shown.sweeps.length - 1].amp} pA` : ""}
+                    </span>
+                    {cursorMode === "measure" && <span className="readout" ref={readoutRef}>{READOUT_HINT}</span>}
+                    <span className="seg small cursor-mode" role="radiogroup" aria-label="Cursor">
+                      {(["zoom", "measure"] as const).map((m) => (
+                        <button key={m} type="button" role="radio" aria-checked={cursorMode === m} className={cursorMode === m ? "on" : ""}
+                          title={m === "zoom" ? "Drag a marquee, click inside it to zoom (Igor style)" : "Read time, voltage and current; click to set a reference for Δt and ΔV"}
+                          onClick={() => setCursorMode(m)}>{m === "zoom" ? "Zoom" : "Measure"}</button>
+                      ))}
                     </span>
                     <button type="button" onClick={() => (playing ? setPlay(null) : setPlay(1))}>{playing ? "Show all" : "Play sweeps"}</button>
                     <span className="check">
@@ -556,9 +567,9 @@ export function App() {
                     </span>
                   </figcaption>
                   {playing && shown ? (
-                    <TracePlots result={shown} rank={shown.sweeps.map((_, k) => k)} sel={shown.sweeps.length - 1} showVm={showVm} synOn={synOn} onSelect={() => {}} ranges={playRanges} screenH={screenH} zoom={zoom} onZoom={setZoom} />
+                    <TracePlots result={shown} rank={shown.sweeps.map((_, k) => k)} sel={shown.sweeps.length - 1} showVm={showVm} synOn={synOn} onSelect={() => {}} ranges={playRanges} screenH={screenH} zoom={zoom} onZoom={setZoom} cursorMode={cursorMode} readoutRef={readoutRef} />
                   ) : (
-                    <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} screenH={screenH} zoom={zoom} onZoom={setZoom} />
+                    <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} screenH={screenH} zoom={zoom} onZoom={setZoom} cursorMode={cursorMode} readoutRef={readoutRef} />
                   )}
                   <p className="legendline">
                     Sweeps shade light → dark with step amplitude; {playing && shown
@@ -668,11 +679,17 @@ function axisOpts(label: string, size = 50): uPlot.Axis {
 interface Zoom { x?: Range; y: (Range | undefined)[] }
 const NO_ZOOM: Zoom = { y: [] };
 
+type CursorMode = "zoom" | "measure";
+const READOUT_HINT = "hover a trace: time, V, I · click for a Δ reference · Esc clears it";
+
 interface MarqueeMenu { p: number; left: number; top: number; view: { x: Range; y: Range }; sel: { x: Range; y: Range } }
 
-function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screenH = 460, zoom, onZoom }: {
+function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screenH = 460, zoom, onZoom, cursorMode, readoutRef }: {
   result: Result; rank: number[]; sel: number; showVm: boolean; synOn: boolean; onSelect: (k: number) => void;
   zoom: Zoom; onZoom: (z: Zoom) => void;
+  cursorMode: CursorMode;
+  /** where measure mode writes its readout: a span in the card's title row, written directly so hovering never re-renders the app */
+  readoutRef: React.RefObject<HTMLSpanElement | null>;
   /** fixed axes, so a family drawn one sweep at a time does not rescale as it grows */
   ranges?: { v: [number, number]; i: [number, number] };
   /** the screen card's height: the voltage plot takes what the others leave */
@@ -780,13 +797,87 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
   const orderRef = useRef(order);
   orderRef.current = order;
 
+  // ---- measure: the readout follows the cursor on the sweep nearest it (else the selected one);
+  // a click pins a reference, and the readout adds Δt and ΔV from it
+  const pin = useRef<{ t: number; v: number; k: number } | null>(null);
+  const vChart = useRef<uPlot | null>(null);
+  const live = useRef({ sw, sel, showVm, cursorMode, t });
+  live.current = { sw, sel, showVm, cursorMode, t };
+  const sweepAtCursor = () => {
+    const idx = focused.current;
+    const k = idx != null && idx > 0 ? orderRef.current[idx - 1] : undefined;
+    return k ?? live.current.sel;
+  };
+  const f1 = (x: number) => (x < 0 ? "−" : "") + Math.abs(x).toFixed(1);
+  const f2 = (x: number) => (x < 0 ? "−" : "") + Math.abs(x).toFixed(2);
+  const readCursor = (u: uPlot) => {
+    const out = readoutRef.current;
+    const L = live.current;
+    if (!out || L.cursorMode !== "measure") return;
+    const i = u.cursor.idx;
+    if (i == null || u.cursor.left == null || u.cursor.left < 0) {
+      out.textContent = pin.current ? `ref ${f2(pin.current.t)} ms, ${f1(pin.current.v)} mV · ${READOUT_HINT}` : READOUT_HINT;
+      return;
+    }
+    const k = sweepAtCursor();
+    const w = L.sw[k];
+    const t = L.t[i], v = w.vRec[i];
+    // the units name the quantities, which keeps the line short enough for the title row
+    let s = `${w.amp < 0 ? "−" : ""}${Math.abs(w.amp)} pA sweep: ${f2(t)} ms · ${f1(v)} mV`;
+    if (L.showVm) s += ` (Vm ${f1(w.vm[i])})`;
+    s += ` · ${f1(w.iCmd[i])} pA`;
+    if (pin.current) s += ` · Δ ${f2(t - pin.current.t)} ms, ${f1(v - pin.current.v)} mV`;
+    out.textContent = s;
+  };
+  const drawPin = (u: uPlot) => {
+    const p = pin.current;
+    if (!p || live.current.cursorMode !== "measure") return;
+    const x = u.valToPos(p.t, "x", true), y = u.valToPos(p.v, "y", true);
+    const c = u.ctx;
+    c.save();
+    c.strokeStyle = ORANGE;
+    c.lineWidth = 1;
+    c.setLineDash([3, 3]);
+    c.beginPath();
+    c.moveTo(x, u.bbox.top); c.lineTo(x, u.bbox.top + u.bbox.height);
+    c.moveTo(u.bbox.left, y); c.lineTo(u.bbox.left + u.bbox.width, y);
+    c.stroke();
+    c.restore();
+  };
+  const measureHook = (u: uPlot) => {
+    vChart.current = u;
+    u.over.addEventListener("click", () => {
+      const L = live.current;
+      if (L.cursorMode !== "measure") return;
+      const i = u.cursor.idx;
+      if (i == null) return;
+      const k = sweepAtCursor();
+      pin.current = { t: L.t[i], v: L.sw[k].vRec[i], k };
+      u.redraw(false);
+      readCursor(u);
+    });
+  };
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && pin.current) {
+        pin.current = null;
+        vChart.current?.redraw(false);
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, []);
+  useEffect(() => {
+    if (cursorMode === "zoom") pin.current = null;
+  }, [cursorMode]);
+
   // The plots share one time axis, so only the bottom one labels it.
   const base = (w: number, h: number, yLabel: string, series: uPlot.Series[], extra?: Partial<uPlot.Options>, showX = true): uPlot.Options => ({
     width: w,
     height: h,
     legend: { show: false },
     // drag draws a marquee in both axes and leaves it (Igor); the plots share the cursor but not the marquee
-    cursor: { sync: { key: SYNC, filters: { pub: (type) => type !== "mousedown" && type !== "mouseup" } }, drag: { x: true, y: true, setScale: false }, focus: { prox: 12 } },
+    cursor: { sync: { key: SYNC, filters: { pub: (type) => type !== "mousedown" && type !== "mouseup" } }, drag: cursorMode === "zoom" ? { x: true, y: true, setScale: false } : { x: false, y: false }, focus: { prox: 12 } },
     focus: { alpha: 0.35 },
     scales: { x: { time: false } },
     axes: [showX ? axisOpts("", 30) : { ...axisOpts("", 0), show: false }, axisOpts(yLabel, 56)],
@@ -811,13 +902,14 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
   const clickHook = (u: uPlot) => {
     u.over.addEventListener("click", () => {
       if (u.select.width > 3 && u.select.height > 3) return; // the end of a marquee drag, not a click on a trace
+      if (live.current.cursorMode === "measure") return; // in measure mode a click sets the reference
       const idx = focused.current;
       const k = idx != null && idx > 0 ? orderRef.current[idx - 1] : undefined;
       if (k !== undefined) onSelectRef.current(k);
     });
   };
 
-  const structKey = `${sw.length}|${sel}|${showVm}|${colors.join()}|${n}|${vH}|${JSON.stringify(zoom)}`;
+  const structKey = `${sw.length}|${sel}|${showVm}|${colors.join()}|${n}|${vH}|${JSON.stringify(zoom)}|${cursorMode}`;
   // each plot's scales: the marquee zoom where there is one, else the fixed play ranges, else autoscaled
   const scalesFor = (p: number, fixed?: [number, number]): uPlot.Scales => ({
     x: { time: false, ...(zoom.x && { range: zoom.x }) },
@@ -826,7 +918,7 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
   return (
     <div className="traces" ref={box} onMouseEnter={() => (hover.current = true)} onMouseLeave={() => (hover.current = false)}>
       <Plot className="plot" data={vData} deps={[structKey]}
-        options={(w) => base(w, vH, "V recorded (mV)", vSeries, { hooks: { init: [clickHook, marqueeHook(0)], setSeries: [focusHook] }, scales: scalesFor(0, ranges?.v) }, false)} />
+        options={(w) => base(w, vH, "V recorded (mV)", vSeries, { hooks: { init: [clickHook, marqueeHook(0), measureHook], setSeries: [focusHook], setCursor: [readCursor], draw: [drawPin] }, scales: scalesFor(0, ranges?.v) }, false)} />
       <Plot className="plot" data={iData} deps={[structKey]}
         options={(w) => base(w, iH, "I (pA)", order.map((k) => ({ label: `${sw[k].amp} pA`, stroke: colors[k], width: k === sel ? 2 : 1 })), { hooks: { init: [marqueeHook(1)] }, scales: scalesFor(1, ranges?.i) }, !synOn)} />
       {synOn && (
