@@ -910,3 +910,13 @@ The owner approved building the rebound cell of `docs/handoffs/2026-10-20-lts-ce
 - **Citations.** Destexhe et al. 2001 and Huguenard & McCormick 1992 / Huguenard & Prince 1992 (the papers
   IT_huguenard.mod names) are credited as background: every number is the code's, and the equations were not
   checked against the papers.
+
+## 2026-10-21 — no LTS in GnRH neurons, so the rebound stays on the LTS cell
+
+The owner asked for a quick check for an LTS in GnRH neurons ("I remember looking hard and not seeing it"). From
+PubMed abstracts: GnRH neurons have T channels (Zhang et al. 2009 J Neurosci 29:10552, mouse; Kato et al. 2010
+J Physiol Sci 60:195, rat, τ of recovery from inactivation ~0.6 s), and Zhang et al. report estradiol "increased
+the rebound excitation" without saying, in the abstract, whether that is spikes. The rebound that has been pinned
+down is Ih's (Chu et al. 2010 J Neurosci 30:13373). Clear T-dependent rebound bursts in this circuit belong to
+AVPV/RP3V kisspeptin neurons. The Adams 2018 model does not rebound either. The owner chose to go on with the
+current plan: the rebound ("anodal break excitation") lesson lives on the LTS cell, not in the GnRH tour.
