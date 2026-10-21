@@ -472,3 +472,16 @@ body:has(.page.old-school) { background: #1a1b19; }
 .screen-card { min-height: var(--screen-h, 460px); }
 .modebar { min-height: 50px; }
 .hmeter { width: 210px; }
+
+/* Igor-style marquee zoom on the step view's traces */
+.traces { position: relative; }
+.traces .u-select { background: color-mix(in srgb, var(--accent) 12%, transparent); outline: 1px dashed var(--accent); }
+.zoom-menu {
+  position: absolute; z-index: 20; min-width: 150px; padding: 4px 0;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--axis); border-radius: 6px;
+  box-shadow: 0 6px 18px var(--ring); font-size: 13px;
+}
+.zoom-menu button { display: block; width: 100%; text-align: left; padding: 5px 14px; border: 0; border-radius: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.zoom-menu button:hover, .zoom-menu button:focus-visible { background: color-mix(in srgb, var(--accent) 15%, transparent); outline: none; }
+.zoom-menu hr { border: 0; border-top: 1px solid var(--grid); margin: 4px 0; }
+.zoom-reset { position: absolute; top: 4px; right: 4px; z-index: 10; font-size: 12px; padding: 2px 8px; }

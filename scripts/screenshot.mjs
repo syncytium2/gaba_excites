@@ -80,6 +80,27 @@ await page.waitForTimeout(300);
 await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
 await page.screenshot({ path: `${out}/lts-burst.png`, fullPage: true });
 
+// Igor-style marquee zoom on the step view: drag, click inside, Expand; then ⌘/Ctrl-A autoscales
+{
+  const over = await page.locator(".traces .u-over").first().boundingBox();
+  await page.mouse.move(over.x + over.width * 0.4, over.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(over.x + over.width * 0.7, over.y + over.height * 0.6, { steps: 8 });
+  await page.mouse.up();
+  await page.mouse.click(over.x + over.width * 0.55, over.y + over.height * 0.3);
+  if (!(await page.locator(".zoom-menu").count())) problems.push("zoom: no menu after a click inside the marquee");
+  else {
+    await page.locator(".zoom-menu button", { hasText: /^Expand$/ }).click();
+    await page.waitForTimeout(200);
+    if (!(await page.locator(".zoom-reset").count())) problems.push("zoom: Expand did not zoom");
+    await page.screenshot({ path: `${out}/zoom.png`, fullPage: false });
+    await page.locator(".traces .u-over").first().hover();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.waitForTimeout(200);
+    if (await page.locator(".zoom-reset").count()) problems.push("zoom: ⌘/Ctrl-A did not autoscale");
+  }
+}
+
 // the GnRH model, with membrane noise
 await page.selectOption("#model-select", "gnrh");
 await page.waitForTimeout(300);

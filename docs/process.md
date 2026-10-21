@@ -935,3 +935,14 @@ Two controls the owner found too coarse on the LTS cell, both true of every cort
   0.1–200 pA on every cell (the per-model increment ranges are gone). The switch keeps the user's last choice
   while it still shows the increment exactly, and otherwise picks one that does (a preset's 0.5 pA reads 5 × 0.1,
   25 pA reads 2.5 × 10). `src/core/protocol.test.ts` requires every preset's increment to show exactly.
+
+## 2026-10-21 — Igor-style marquee zoom on the step view
+
+The owner asked for "an igor style select and zoom option for the steps view". Dragging on any trace plot now draws
+a marquee in both axes and leaves it; a click inside opens Igor's menu (Expand, Horiz Expand, Vert Expand, Shrink,
+Horiz Shrink, Vert Shrink) and Autoscale. Time is shared by the stacked plots, so horizontal operations move them
+all; vertical ones move only the plot the marquee is on. Autoscale is also ⌘/Ctrl-A over the plots (Igor's key),
+a double-click, or a button that appears while zoomed. The zoom lives in App, not in the plot, so it survives
+re-runs and playing the sweeps, as Igor's axes do; switching cells or starting a tour part resets it. It replaces
+uPlot's drag-to-zoom-in-time. The arithmetic is `src/ui/zoom.ts` with `src/ui/zoom.test.ts`; the screenshot
+check drives a marquee, Expand and ⌘-A on the LTS cell. Not on touch screens yet (uPlot's drag is mouse only).

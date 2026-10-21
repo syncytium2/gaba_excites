@@ -24,6 +24,7 @@ import { Notebook } from "./ui/Notebook.tsx";
 import { Tour } from "./ui/Tour.tsx";
 import { AmpChoice, AmpDial, AmpFront, AmpRow, AmpSection, AmpSlot } from "./ui/AmpFront.tsx";
 import { TOUR, tourInputs, type TourControl, type TourSettings } from "./core/tour.ts";
+import { applyZoom, ZOOM_MENU, type Range, type ZoomOp } from "./ui/zoom.ts";
 
 // The app opens on the tour's first part: the GnRH cell in the oscilloscope,
 // held near −61 mV, with GABA PSCs on (the owner, 2026-10-19).
@@ -54,6 +55,8 @@ export function App() {
   const [electrode, setElectrode] = useState<Electrode>(DEFAULT_ELECTRODE);
   const [presetId, setPresetId] = useState(opening.presetId);
   const [incPref, setIncPref] = useState<IncRange>(1);
+  // the step view's marquee zoom; kept here so it survives re-runs and playing the sweeps, as Igor's axes do
+  const [zoom, setZoom] = useState<Zoom>(NO_ZOOM);
   const [form, setForm] = useState<ProtocolForm>(opening.form);
   const [glu, setGlu] = useState<SynInput>(opening.glu);
   const [gaba, setGaba] = useState<SynInput>(opening.gaba);
@@ -170,6 +173,7 @@ export function App() {
     setPins([]);
     setSelected(null);
     setRefined(null);
+    setZoom(NO_ZOOM);
   };
 
   // The published cell at its default holding current, with both PSC generators
@@ -206,6 +210,7 @@ export function App() {
     setPulse({ ...SCOPE_PULSE[s.model], enabled: false });
     setNoise({ ...noise, memSigma: 0 });
     setMode(s.mode);
+    setZoom(NO_ZOOM);
     setSelected(null);
     setRefined(null);
     if (s.play) {
@@ -551,14 +556,14 @@ export function App() {
                     </span>
                   </figcaption>
                   {playing && shown ? (
-                    <TracePlots result={shown} rank={shown.sweeps.map((_, k) => k)} sel={shown.sweeps.length - 1} showVm={showVm} synOn={synOn} onSelect={() => {}} ranges={playRanges} screenH={screenH} />
+                    <TracePlots result={shown} rank={shown.sweeps.map((_, k) => k)} sel={shown.sweeps.length - 1} showVm={showVm} synOn={synOn} onSelect={() => {}} ranges={playRanges} screenH={screenH} zoom={zoom} onZoom={setZoom} />
                   ) : (
-                    <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} screenH={screenH} />
+                    <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} screenH={screenH} zoom={zoom} onZoom={setZoom} />
                   )}
                   <p className="legendline">
                     Sweeps shade light → dark with step amplitude; {playing && shown
                       ? <><span style={{ color: ORANGE }}>■</span> the newest sweep ({shown.sweeps[shown.sweeps.length - 1].amp} pA).</>
-                      : <><span style={{ color: ORANGE }}>■</span> the selected sweep ({sweeps[sel]?.amp} pA). Hover to read values, click a trace to select it.</>}
+                      : <><span style={{ color: ORANGE }}>■</span> the selected sweep ({sweeps[sel]?.amp} pA). Hover to read values, click a trace to select it. Drag a marquee and click inside it to zoom; ⌘/Ctrl-A autoscales.</>}
                     {synOn && <> Conductances are the selected sweep's: <span style={{ color: ORANGE }}>■</span> glutamate, <span style={{ color: AQUA }}>■</span> GABA.</>}
                   </p>
                 </figure>
@@ -656,8 +661,18 @@ function axisOpts(label: string, size = 50): uPlot.Axis {
   };
 }
 
-function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screenH = 460 }: {
+/**
+ * The step view's zoom, Igor style: x is shared by the stacked plots (they share time), y belongs to one plot
+ * (0 voltage, 1 current, 2 conductance). Undefined means autoscaled.
+ */
+interface Zoom { x?: Range; y: (Range | undefined)[] }
+const NO_ZOOM: Zoom = { y: [] };
+
+interface MarqueeMenu { p: number; left: number; top: number; view: { x: Range; y: Range }; sel: { x: Range; y: Range } }
+
+function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screenH = 460, zoom, onZoom }: {
   result: Result; rank: number[]; sel: number; showVm: boolean; synOn: boolean; onSelect: (k: number) => void;
+  zoom: Zoom; onZoom: (z: Zoom) => void;
   /** fixed axes, so a family drawn one sweep at a time does not rescale as it grows */
   ranges?: { v: [number, number]; i: [number, number] };
   /** the screen card's height: the voltage plot takes what the others leave */
@@ -694,6 +709,74 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
 
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+
+  // ---- Igor-style marquee: drag draws it and leaves it; a click inside it opens the menu
+  const box = useRef<HTMLDivElement>(null);
+  const [menu, setMenu] = useState<MarqueeMenu | null>(null);
+  const setMenuRef = useRef(setMenu);
+  setMenuRef.current = setMenu;
+  const zoomRef = useRef({ zoom, onZoom });
+  zoomRef.current = { zoom, onZoom };
+  const autoscale = () => {
+    setMenu(null);
+    zoomRef.current.onZoom(NO_ZOOM);
+  };
+  const choose = (op: ZoomOp) => {
+    if (!menu) return;
+    const z = applyZoom(op, menu.view, menu.sel);
+    const y = [...zoom.y];
+    if (z.y) y[menu.p] = z.y;
+    setMenu(null);
+    onZoom({ x: z.x ?? zoom.x, y });
+  };
+  const hover = useRef(false);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuRef.current(null);
+      if (hover.current && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        setMenuRef.current(null);
+        zoomRef.current.onZoom(NO_ZOOM);
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, []);
+  const menuEl = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    menuEl.current?.querySelector("button")?.focus();
+  }, [menu]);
+  const marqueeHook = (p: number) => (u: uPlot) => {
+    const wrap = u.over.parentElement!;
+    // capture, so a click inside the marquee never reaches uPlot (which would start a new one)
+    wrap.addEventListener("mousedown", (e) => {
+      const s = u.select;
+      const r = u.over.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      if (s.width > 3 && s.height > 3 && x >= s.left && x <= s.left + s.width && y >= s.top && y <= s.top + s.height) {
+        e.stopPropagation();
+        e.preventDefault();
+        const b = box.current!.getBoundingClientRect();
+        setMenuRef.current({
+          p,
+          left: e.clientX - b.left,
+          top: e.clientY - b.top,
+          view: { x: [u.scales.x.min!, u.scales.x.max!], y: [u.scales.y.min!, u.scales.y.max!] },
+          sel: {
+            x: [u.posToVal(s.left, "x"), u.posToVal(s.left + s.width, "x")],
+            y: [u.posToVal(s.top + s.height, "y"), u.posToVal(s.top, "y")],
+          },
+        });
+      } else setMenuRef.current(null);
+    }, true);
+    // uPlot's double-click resets its own scales behind our back; make it autoscale properly instead
+    wrap.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      setMenuRef.current(null);
+      zoomRef.current.onZoom(NO_ZOOM);
+    }, true);
+  };
   const orderRef = useRef(order);
   orderRef.current = order;
 
@@ -702,7 +785,8 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
     width: w,
     height: h,
     legend: { show: false },
-    cursor: { sync: { key: SYNC }, drag: { x: true, y: false }, focus: { prox: 12 } },
+    // drag draws a marquee in both axes and leaves it (Igor); the plots share the cursor but not the marquee
+    cursor: { sync: { key: SYNC, filters: { pub: (type) => type !== "mousedown" && type !== "mouseup" } }, drag: { x: true, y: true, setScale: false }, focus: { prox: 12 } },
     focus: { alpha: 0.35 },
     scales: { x: { time: false } },
     axes: [showX ? axisOpts("", 30) : { ...axisOpts("", 0), show: false }, axisOpts(yLabel, 56)],
@@ -726,25 +810,49 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
   };
   const clickHook = (u: uPlot) => {
     u.over.addEventListener("click", () => {
+      if (u.select.width > 3 && u.select.height > 3) return; // the end of a marquee drag, not a click on a trace
       const idx = focused.current;
       const k = idx != null && idx > 0 ? orderRef.current[idx - 1] : undefined;
       if (k !== undefined) onSelectRef.current(k);
     });
   };
 
-  const structKey = `${sw.length}|${sel}|${showVm}|${colors.join()}|${n}|${vH}`;
+  const structKey = `${sw.length}|${sel}|${showVm}|${colors.join()}|${n}|${vH}|${JSON.stringify(zoom)}`;
+  // each plot's scales: the marquee zoom where there is one, else the fixed play ranges, else autoscaled
+  const scalesFor = (p: number, fixed?: [number, number]): uPlot.Scales => ({
+    x: { time: false, ...(zoom.x && { range: zoom.x }) },
+    y: { ...((zoom.y[p] ?? fixed) && { range: zoom.y[p] ?? fixed }) },
+  });
   return (
-    <div className="traces">
+    <div className="traces" ref={box} onMouseEnter={() => (hover.current = true)} onMouseLeave={() => (hover.current = false)}>
       <Plot className="plot" data={vData} deps={[structKey]}
-        options={(w) => base(w, vH, "V recorded (mV)", vSeries, { hooks: { init: [clickHook], setSeries: [focusHook] }, ...(ranges && { scales: { x: { time: false }, y: { range: ranges.v } } }) }, false)} />
+        options={(w) => base(w, vH, "V recorded (mV)", vSeries, { hooks: { init: [clickHook, marqueeHook(0)], setSeries: [focusHook] }, scales: scalesFor(0, ranges?.v) }, false)} />
       <Plot className="plot" data={iData} deps={[structKey]}
-        options={(w) => base(w, iH, "I (pA)", order.map((k) => ({ label: `${sw[k].amp} pA`, stroke: colors[k], width: k === sel ? 2 : 1 })), ranges && { scales: { x: { time: false }, y: { range: ranges.i } } }, !synOn)} />
+        options={(w) => base(w, iH, "I (pA)", order.map((k) => ({ label: `${sw[k].amp} pA`, stroke: colors[k], width: k === sel ? 2 : 1 })), { hooks: { init: [marqueeHook(1)] }, scales: scalesFor(1, ranges?.i) }, !synOn)} />
       {synOn && (
         <Plot className="plot" data={gData} deps={[structKey, synOn]}
           options={(w) => base(w, gH, "g syn (nS)", [
             { label: "g glutamate", stroke: ORANGE, width: 1 },
             { label: "g GABA", stroke: AQUA, width: 1 },
-          ], { axes: [axisOpts("time (ms)", 40), axisOpts("g syn (nS)", 56)] })} />
+          ], { axes: [axisOpts("time (ms)", 40), axisOpts("g syn (nS)", 56)], hooks: { init: [marqueeHook(2)] }, scales: scalesFor(2) })} />
+      )}
+      {menu && (
+        <div className="zoom-menu" role="menu" aria-label="Zoom" ref={menuEl} style={{ left: menu.left, top: menu.top }}
+          onKeyDown={(e) => {
+            const items = [...(menuEl.current?.querySelectorAll("button") ?? [])];
+            const i = items.indexOf(document.activeElement as HTMLButtonElement);
+            if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length]?.focus(); }
+            if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length]?.focus(); }
+          }}>
+          {ZOOM_MENU.map(([op, label]) => (
+            <button key={op} type="button" role="menuitem" onClick={() => choose(op)}>{label}</button>
+          ))}
+          <hr />
+          <button type="button" role="menuitem" onClick={autoscale}>Autoscale</button>
+        </div>
+      )}
+      {(zoom.x || zoom.y.some(Boolean)) && (
+        <button type="button" className="zoom-reset" onClick={autoscale} title="Back to the whole sweep (⌘/Ctrl-A, or double-click a plot)">Autoscale</button>
       )}
       {!synOn && <div className="xlabel">time (ms)</div>}
     </div>
