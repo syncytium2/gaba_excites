@@ -88,6 +88,14 @@ export interface SweepStats {
   vBaseline: number;
   /** mean Vm over the last 20% of the step, when the sweep did not spike in the step */
   vSteady: number;
+  /**
+   * spikes after the step ends (rebound, after a hyperpolarizing step), to the
+   * end of the sweep. Kept apart from every F–I measure above, which count
+   * only spikes in the step.
+   */
+  nAfterStep: number;
+  /** first spike after the step, ms from the step's end (NaN if none) */
+  afterLatency: number;
 }
 
 function mean(a: Float32Array, i0: number, i1: number): number {
@@ -106,6 +114,7 @@ export function sweepStats(sw: Sweep, proto: StepProtocol): SweepStats {
   const inStep = spikes.filter((s) => s.t >= on && s.t < off);
   const isi = (k: number) => inStep[k + 1].t - inStep[k].t;
   const n = inStep.length;
+  const after = spikes.filter((s) => s.t >= off);
   return {
     amp: sw.amp,
     spikes,
@@ -116,6 +125,8 @@ export function sweepStats(sw: Sweep, proto: StepProtocol): SweepStats {
     latency: n >= 1 ? inStep[0].t - on : NaN,
     vBaseline: mean(sw.vm, Math.round((on - 50) / dt), Math.round(on / dt)),
     vSteady: n === 0 ? mean(sw.vm, Math.round((off - 0.2 * proto.stepDur) / dt), Math.round(off / dt)) : NaN,
+    nAfterStep: after.length,
+    afterLatency: after.length ? after[0].t - off : NaN,
   };
 }
 

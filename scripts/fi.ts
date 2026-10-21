@@ -70,5 +70,5 @@ if (a.rheobase) {
     console.log(`# rheobase refined: ${hi.toFixed(0)} pA (±1)`);
   }
 }
-console.log("step_pA,spikes,mean_Hz,initial_Hz,final_Hz,latency_ms,v_baseline_mV,v_steady_mV");
-for (const x of s.stats) console.log([x.amp, x.nInStep, f(x.meanRate), f(x.initialRate), f(x.finalRate), f(x.latency), f(x.vBaseline), f(x.vSteady)].join(","));
+console.log("step_pA,spikes,mean_Hz,initial_Hz,final_Hz,latency_ms,v_baseline_mV,v_steady_mV,spikes_after_step,after_step_latency_ms");
+for (const x of s.stats) console.log([x.amp, x.nInStep, f(x.meanRate), f(x.initialRate), f(x.finalRate), f(x.latency), f(x.vBaseline), f(x.vSteady), x.nAfterStep, f(x.afterLatency)].join(","));

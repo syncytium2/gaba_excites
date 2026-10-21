@@ -314,6 +314,7 @@ within 0.2 ms.</p>
 <tr><td>AP peak, half-width</td><td>Peak Vm of that spike, and its width at half the threshold-to-peak amplitude.</td></tr>
 <tr><td>Rheobase</td><td>The smallest step in the family that produced at least one spike during the step. Its resolution is your step increment. “Refine to 1 pA” bisects between the largest silent step below it and the rheobase step, using the same synaptic barrage for every probe.</td></tr>
 <tr><td>Mean rate</td><td>Spikes during the step ÷ step duration.</td></tr>
+<tr><td>After step</td><td>Spikes from the end of the step to the end of the sweep, and the latency of the first from the moment of release: the rebound after a hyperpolarizing step. Counted apart from everything else here; the F–I curve, rheobase and rates count only spikes during the step.</td></tr>
 <tr><td>Initial / final rate</td><td>1 / the first and last interspike intervals during the step. The gap between them is adaptation, from the M current.</td></tr>
 <tr><td>Rin, measured</td><td>Slope of the steady-state ΔV (mean of the last 20% of the step minus the mean of the 50 ms before it) against step current, over the sweeps at or below 0 pA that did not spike. Depolarizing subthreshold steps are left out because they recruit the M current and bend the I–V.</td></tr>
 <tr><td>F–I gain</td><td>Least-squares slope of mean rate against step current over the sweeps that fired, in Hz/nA.</td></tr>

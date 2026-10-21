@@ -174,7 +174,7 @@ export const PRESETS: Preset[] = [
     id: "lts-rebound",
     model: "lts",
     label: "Rebound: hyperpolarization excites",
-    note: "Held at −64 mV by 60 pA, where the T-type Ca²⁺ channels sit inactivated. Step down for 500 ms: nothing fires during any step. On release, −25 pA (to −70 mV) does nothing; −50 pA (to −80 mV) fires a spike 88 ms later; −75 and −100 pA fire two. The hyperpolarization removed the inactivation, and the T current fired the cell on the way back.",
+    note: "Held at −64 mV by 60 pA, where the T-type Ca²⁺ channels sit inactivated. Step down for 500 ms: nothing fires during any step. On release, −25 pA (to −70 mV) does nothing; −50 pA (to −80 mV) fires a spike 88 ms later; −75 and −100 pA fire two. The hyperpolarization removed the inactivation, and the T current fired the cell on the way back. The table's “After step” column counts these spikes; the F–I curve counts only spikes during a step.",
     protocol: { mode: "list", first: 0, delta: -25, count: 5, list: "0, -25, -50, -75, -100", sweepMs: 1500, stepStart: 200, stepDur: 500 },
     glu: DEFAULT_GLU,
     gaba: DEFAULT_GABA,

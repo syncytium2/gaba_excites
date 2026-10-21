@@ -52,7 +52,10 @@ The owner's words are quoted where the item came from them.
   be sent as a link (no server needed).
 - Dendrites (a second compartment) so that where inhibition lands matters.
 - Chloride dynamics, so that E_GABA can move with activity instead of being a
-  parameter.
+  parameter. **For consideration (owner, 2026-10-21):** Kevin Staley's and the
+  owner's work on chloride accumulation, as the basis for it. Citations to come
+  from the owner (a PubMed search for both names together found nothing, so
+  they are not guessed here); each number taken goes into `lit/sources.json`.
 - NMDA (voltage-dependent Mg²⁺ block) and GABA-B.
 - A card for this site on tonydefazio.com.
 - **Amplifier mode** (owner, 2026-10-19; parked so the tour gets finished first). A third face for the
@@ -71,6 +74,11 @@ The owner's words are quoted where the item came from them.
   - **Gain:** amplifier output gain. Overlaps with amplifier mode above.
   - **Voltage clamp:** a second recording mode; the solver is current clamp only today.
   - **Evoked responses:** stimulus-evoked synaptic input (a single timed PSC or train), beside the random
-    background input there is now.
+    background input there is now. **A GABA PSP that sets off a low-threshold spike is a lesson in itself**
+    (owner, 2026-10-21), and needs exactly this: a train that starts and stops, so the release can fire the
+    LTS cell. The work is done and must be kept: `tools/experiments/lts_gaba_rebound.ts` builds such a train
+    from the shipped `step()` and PSC kinetics, and `src/experiments.test.ts` pins what it found. From −64 mV,
+    E_GABA −80 mV never rebounds the cell (up to 40 nS at 100 Hz); −85 mV does at 10 nS, −90 mV at 5 nS,
+    −95 mV at 3 nS. When evoked input arrives, that experiment becomes a preset with those numbers.
   - **Anodal break excitation:** a spike at the end of a hyperpolarizing step. It can be tried today with negative
     steps in step mode; the feature would be a preset (per model) with a measured, test-pinned result.

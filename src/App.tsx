@@ -317,11 +317,11 @@ export function App() {
       `# GABA ${gaba.enabled ? `${gaba.rate} Hz ${gaba.gPeak} nS rise ${gaba.tauRise} decay ${gaba.tauDecay} ms E ${gaba.erev} mV ${gaba.pattern}` : "off"}`,
       `# noise: recording ${noise.recSigma} mV RMS at ${noise.recBandwidth} kHz, hum ${noise.humAmp} mV at ${noise.humHz} Hz; membrane ${noise.memSigma} pA SD, tau ${noise.memTau} ms`,
       `# seed ${seed}; measurements on Vm`,
-      "step_pA,spikes_in_step,mean_rate_Hz,initial_rate_Hz,final_rate_Hz,latency_ms,v_baseline_mV,v_steady_mV",
+      "step_pA,spikes_in_step,mean_rate_Hz,initial_rate_Hz,final_rate_Hz,latency_ms,v_baseline_mV,v_steady_mV,spikes_after_step,after_step_latency_ms",
     ];
     const rows = [...summary.stats]
       .sort((a, b) => a.amp - b.amp)
-      .map((s) => [s.amp, s.nInStep, s.meanRate, s.initialRate, s.finalRate, s.latency, s.vBaseline, s.vSteady].map((v) => (Number.isFinite(v) ? +(+v).toFixed(4) : "")).join(","));
+      .map((s) => [s.amp, s.nInStep, s.meanRate, s.initialRate, s.finalRate, s.latency, s.vBaseline, s.vSteady, s.nAfterStep, s.afterLatency].map((v) => (Number.isFinite(v) ? +(+v).toFixed(4) : "")).join(","));
     const blob = new Blob([[...head, ...rows].join("\n") + "\n"], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -791,8 +791,10 @@ function SweepTable({ summary, sel, onSelect }: { summary: FamilySummary; sel: n
         <table>
           <thead>
             <tr>
-              <th>Step (pA)</th><th>Spikes</th><th>Mean (Hz)</th><th>Initial (Hz)</th><th>Final (Hz)</th>
+              <th>Step (pA)</th><th>Spikes in step</th><th>Mean (Hz)</th><th>Initial (Hz)</th><th>Final (Hz)</th>
               <th>Latency (ms)</th><th>V before (mV)</th><th>V steady (mV)</th>
+              <th><Tip text="Spikes after the step ends, to the end of the sweep: rebound. Not part of the F–I curve, rheobase or rates, which count only spikes in the step.">After step</Tip></th>
+              <th><Tip text="First spike after the step ends, from the moment of release.">After-step latency (ms)</Tip></th>
             </tr>
           </thead>
           <tbody>
@@ -800,6 +802,7 @@ function SweepTable({ summary, sel, onSelect }: { summary: FamilySummary; sel: n
               <tr key={k} className={k === sel ? "sel" : ""} onClick={() => onSelect(k)}>
                 <td>{s.amp}</td><td>{s.nInStep}</td><td>{fmt(s.meanRate)}</td><td>{fmt(s.initialRate)}</td><td>{fmt(s.finalRate)}</td>
                 <td>{fmt(s.latency)}</td><td>{fmt(s.vBaseline)}</td><td>{fmt(s.vSteady)}</td>
+                <td>{s.nAfterStep}</td><td>{fmt(s.afterLatency)}</td>
               </tr>
             ))}
           </tbody>

@@ -15,7 +15,7 @@
 import { describe, expect, it } from "vitest";
 import { buildCell, cellSteadyV, publishedParams } from "./cell.ts";
 import { DEFAULT_SIM, runSweep, settle } from "./simulate.ts";
-import { detectSpikes, sweepStats } from "./analysis.ts";
+import { detectSpikes, summarize, sweepStats } from "./analysis.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "./synapses.ts";
 import { MODELS } from "./models.ts";
 import { PRESETS } from "./protocol.ts";
@@ -76,6 +76,17 @@ describe("LTS pyramidal cell (Pospischil 2008 sPYr_template, demo_PY_LTS.hoc)", 
     expect(one[0] - release).toBeCloseTo(88, 0);
     expect(after(-75).length).toBe(2);
     expect(after(-100).length).toBe(2);
+  });
+
+  it("the per-sweep table counts the rebound apart from the F–I curve", () => {
+    const p = { ...reb, amps: [-25, -50, -100] };
+    const st = settle(lts, E, 60, MODELS.lts.settleMs, DEFAULT_SIM.dt);
+    const sweeps = p.amps.map((a, k) => runSweep(lts, inputs(60), p, a, st, DEFAULT_SIM, k));
+    const s = summarize(sweeps, p);
+    expect(s.stats.map((x) => x.nInStep)).toEqual([0, 0, 0]);
+    expect(s.stats.map((x) => x.nAfterStep)).toEqual([0, 1, 2]);
+    expect(s.stats[1].afterLatency).toBeCloseTo(88, 0);
+    expect(Number.isFinite(s.rheobase)).toBe(false);
   });
 
   it("from its own rest, release from −95 mV fires nothing", () => {

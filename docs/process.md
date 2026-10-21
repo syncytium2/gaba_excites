@@ -901,6 +901,12 @@ The owner approved building the rebound cell of `docs/handoffs/2026-10-20-lts-ce
   and said on the methods page. No GABA preset: the app's GABA runs for the whole sweep, so a train that stops
   can only be made by hand in the oscilloscope (tick GABA, then untick it).
 - **Opens on its lesson.** Choosing the cell loads its first preset, the rebound, held at 60 pA.
+- **Rebound spikes are counted apart from the F–I curve** (owner, 2026-10-21: "rebound spike counts are
+  separate from the F-I curve (only spikes during the step are counted)"). `SweepStats` gained `nAfterStep`
+  and `afterLatency`, shown as two columns of the per-sweep table, in its CSV and in the CLI. The F–I curve,
+  rheobase and rates still count only spikes in the step.
+- **Todos from the owner, on the roadmap:** chloride accumulation (Kevin Staley's and his work) under chloride
+  dynamics; the GABA PSP that sets off an LTS under evoked responses, with the experiment code kept as its seed.
 - **Citations.** Destexhe et al. 2001 and Huguenard & McCormick 1992 / Huguenard & Prince 1992 (the papers
   IT_huguenard.mod names) are credited as background: every number is the code's, and the equations were not
   checked against the papers.
