@@ -920,3 +920,13 @@ the rebound excitation" without saying, in the abstract, whether that is spikes.
 down is Ih's (Chu et al. 2010 J Neurosci 30:13373). Clear T-dependent rebound bursts in this circuit belong to
 AVPV/RP3V kisspeptin neurons. The Adams 2018 model does not rebound either. The owner chose to go on with the
 current plan: the rebound ("anodal break excitation") lesson lives on the LTS cell, not in the GnRH tour.
+
+## 2026-10-21 — slow GABA trains and descending step families
+
+Two controls the owner found too coarse on the LTS cell, both true of every cortical cell:
+
+- **GABA (and glutamate) rate now steps by 1 Hz** on the pyramidal, fast-spiking and LTS cells, not 10 Hz, so a
+  1 Hz train can be dialed in; the range is still 0–2000 Hz (Shift+arrow moves 10 Hz, Page keys 100 Hz).
+- **The family's increment is a size and a sign** (the owner: "maybe need increment and sign?"). The Increment
+  dial keeps its old ranges as a magnitude (5–200 pA; 0.5–10 pA on GnRH), and a "+ up / − down" switch beside it
+  sets the direction, so 0, −5, −10 … pA is one setting. The protocol still stores one signed `delta`.

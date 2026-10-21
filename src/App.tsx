@@ -349,7 +349,9 @@ export function App() {
 
   // The amplifier front's own sections: the cell and the two PSC generators.
   // Dial ranges suit the cell: a GnRH neuron's GABA runs at a few Hz, not hundreds.
-  const synRange = cell.model === "gnrh" ? { rate: 50, rateStep: 1, g: 10, gStep: 0.1 } : { rate: 2000, rateStep: 10, g: 50, gStep: 0.5 };
+  // Rate steps by 1 Hz on every cell, so a slow train (1 Hz and up) can be dialed in; the
+  // knob's Shift+arrow and Page keys still cover the cortical cells' 2000 Hz range quickly.
+  const synRange = cell.model === "gnrh" ? { rate: 50, rateStep: 1, g: 10, gStep: 0.1 } : { rate: 2000, rateStep: 1, g: 50, gStep: 0.5 };
   const PATTERNS = [["poisson", "Poisson"], ["regular", "Regular"]] as const;
   const putForm = (patch: Partial<ProtocolForm>) => { setForm({ ...form, ...patch }); setPresetId("custom"); };
   const synDials = (name: string, syn: SynInput, set: (s: SynInput) => void, withErev: boolean) => {
@@ -430,7 +432,9 @@ export function App() {
           <AmpChoice label="Steps as" value={form.mode} options={[["family", "Family"], ["list", "List"]] as const} onChange={(m) => putForm({ mode: m })} />
           {form.mode === "family" ? <>
             <AmpDial label="First" unit="pA" value={form.first} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 1 : 10} digits={cell.model === "gnrh" ? 1 : 0} onChange={(first) => putForm({ first })} />
-            <AmpDial label="Increment" unit="pA" value={form.delta} min={cell.model === "gnrh" ? 0.5 : 5} max={cell.model === "gnrh" ? 10 : 200} step={cell.model === "gnrh" ? 0.5 : 5} digits={cell.model === "gnrh" ? 1 : 0} onChange={(delta) => putForm({ delta })} />
+            {/* the increment is a size and a sign, so a family can step down (0, −5, −10 … pA) as well as up */}
+            <AmpDial label="Increment" unit="pA" value={Math.abs(form.delta)} min={cell.model === "gnrh" ? 0.5 : 5} max={cell.model === "gnrh" ? 10 : 200} step={cell.model === "gnrh" ? 0.5 : 5} digits={cell.model === "gnrh" ? 1 : 0} onChange={(size) => putForm({ delta: (form.delta < 0 ? -1 : 1) * size })} />
+            <AmpChoice label="Steps go" value={form.delta < 0 ? "down" : "up"} options={[["up", "+ up"], ["down", "− down"]] as const} onChange={(d) => putForm({ delta: (d === "down" ? -1 : 1) * Math.abs(form.delta) })} />
             <AmpDial label="Sweeps" unit="" value={form.count} min={1} max={MAX_SWEEPS} step={1} digits={0} onChange={(count) => putForm({ count })} />
           </> : (
             <AmpSlot label="Steps, pA">
