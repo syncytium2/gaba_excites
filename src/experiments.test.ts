@@ -9,6 +9,7 @@ import { buildCell } from "./core/cell.ts";
 import { fig7fCounts, longStep, meanHInf, withSlowIk } from "../tools/experiments/slow_ik_inactivation.ts";
 import { sweepShifts } from "../tools/experiments/na_shift.ts";
 import { conditions, driveSweep, measure, startV } from "../tools/experiments/threshold_criteria.ts";
+import { gabaTrain } from "../tools/experiments/lts_gaba_rebound.ts";
 
 describe("experiment: DeFazio & Moenter 2021 slow I_K inactivation on the Adams 2018 GnRH model", () => {
   it("at the measured V½ (−30 mV) the paper's Fig. 7F counts are unchanged", () => {
@@ -98,5 +99,28 @@ describe("experiment: K⁺ block and threshold against drive", () => {
     const c = driveSweep("rs", {}, -80, [1, 3, 5]);
     const k = driveSweep("rs", { kd: { g: 0 } }, -80, [1, 3, 5]);
     c.rows.forEach((r, i) => expect(Math.abs(k.rows[i].thresholds[3].v - r.thresholds[3].v)).toBeLessThan(0.5));
+  });
+});
+
+describe("experiment: does GABA rebound the LTS cell the way a step does?", () => {
+  it("E_GABA −80 mV: no, at any size up to 40 nS (100 Hz, 500 ms, from −64 mV); the train cannot take it below −79 mV", () => {
+    for (const g of [3, 10, 40]) {
+      const r = gabaTrain(60, 100, g, -80);
+      expect(r.after).toEqual([]);
+      expect(r.vMin).toBeGreaterThan(-79.5);
+    }
+  });
+
+  it("a reversal further below the T channels' range does it: −85 mV at 10 nS, −90 mV at 5 nS, −95 mV at 3 nS", () => {
+    expect(gabaTrain(60, 100, 5, -85).after).toEqual([]);
+    expect(gabaTrain(60, 100, 10, -85).after.length).toBe(1);
+    expect(gabaTrain(60, 100, 3, -90).after).toEqual([]);
+    expect(gabaTrain(60, 100, 5, -90).after.length).toBe(1);
+    expect(gabaTrain(60, 100, 3, -95).after.length).toBe(1);
+    expect(gabaTrain(60, 100, 10, -95).during).toBe(0);
+  });
+
+  it("from the cell's own rest even −95 mV GABA does not rebound it", () => {
+    expect(gabaTrain(0, 100, 10, -95).after).toEqual([]);
   });
 });

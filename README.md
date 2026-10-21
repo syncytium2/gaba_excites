@@ -22,9 +22,9 @@ Live at **https://gaba.tonydefazio.com**. The methods page, with every equation,
 is at [`/methods`](https://gaba.tonydefazio.com/methods) (source:
 `public/methods.html`).
 
-## Three cells
+## Four cells
 
-Three cell models, chosen from a menu:
+Four cell models, chosen from a menu:
 
 - **Cortical pyramidal (regular spiking):** Pospischil et al. (2008), ported
   from its ModelDB source (123623) and **checked spike-for-spike against
@@ -36,6 +36,15 @@ Three cell models, chosen from a menu:
   and **checked spike-for-spike against NEURON** the same way. It does not
   adapt: at 800 pA it fires at 101 Hz from start to finish, where the
   pyramidal cell falls from 43 to 10 Hz.
+- **Cortical pyramidal (low-threshold spike, rebound):** the LTS cell of the
+  same ModelDB entry (Destexhe, Contreras & Steriade 2001, via Pospischil et
+  al. 2008). The pyramidal cell's channels plus a T-type Ca²⁺ current and a
+  calcium shell, **checked spike-for-spike against NEURON**, rebounds
+  included. It teaches that hyperpolarization can excite. Held at −64 mV, a
+  500 ms step to −80 mV fires a spike 88 ms after release. From its own rest
+  at −84 mV, release from −95 mV fires nothing, because there the T channels
+  are already de-inactivated. From that rest it bursts on depolarization
+  instead.
 - **GnRH neuron (mouse, negative feedback):** Adams et al. (2018, J Neurosci
   38:1249). Ten currents, including a Markov fast Na⁺ scheme, and a calcium
   pool. Transcribed from the paper. There is no public code to compare against,
@@ -139,7 +148,8 @@ reason.
 
 - `src/core/` — the models, pure TypeScript, no DOM. `channels.ts` (every
   channel behind one `Channel` interface, with declarative gate builders and
-  the Markov Na⁺ scheme), `models.ts` (the models as data), `cell.ts`
+  the Markov Na⁺ scheme), `pools.ts` (calcium pools, behind one interface
+  likewise), `models.ts` (the models as data), `cell.ts`
   (whole-cell ↔ density mapping, the leak and the measured Rin, the calcium steady state),
   `synapses.ts`, `noise.ts`, `simulate.ts` (electrode circuit and
   integrator), `analysis.ts` (spikes, threshold, F–I, Rin), `protocol.ts`
@@ -147,8 +157,9 @@ reason.
 - `src/worker.ts` — the simulation runs in a Web Worker so the page never
   freezes; a 13-sweep, 1 s family takes ~0.2 s.
 - `src/App.tsx`, `src/ui/` — React and uPlot.
-- `tools/neuron_oracle.py` — regenerates the NEURON reference in
-  `src/core/oracle/neuron_rs.json`.
+- `tools/neuron_oracle.py` — regenerates the NEURON references in
+  `src/core/oracle/neuron_<cell>.json`, one each for the pyramidal (`rs`),
+  fast-spiking (`fs`) and LTS (`lts`) cells.
 - `scripts/deploy.sh` — the deploy runbook (after colonel_kernel's).
 - `scripts/screenshot.mjs` — renders the app headlessly and fails on console
   errors, third-party requests, or horizontal overflow at phone width.

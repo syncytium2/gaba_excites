@@ -29,7 +29,7 @@ describe("the siren stays silent in ordinary use", () => {
       const m = MODELS[preset.model];
       const cell = buildCell(publishedParams(preset.model));
       const proto = toProtocol(preset.protocol);
-      const inputs = { ihold: m.defaults.ihold, electrode: E, glu: preset.glu, gaba: { ...preset.gaba } };
+      const inputs = { ihold: preset.ihold ?? m.defaults.ihold, electrode: E, glu: preset.glu, gaba: { ...preset.gaba } };
       const sweeps = runFamily(cell, inputs, proto, { ...DEFAULT_SIM, settleMs: Math.min(m.settleMs, 3000) });
       for (const s of sweeps) {
         const w = new ExtremeWatch(limitsFor(cell, m, [preset.glu, preset.gaba]));
@@ -82,9 +82,10 @@ describe("each model's rheobase, which sets its current bound", () => {
     expect(Math.abs(hi - m.rheobase)).toBeLessThanOrEqual(1);
   });
 
-  it("every model declares one (the pyramidal and FS values are pinned in gaba.test.ts and fs.test.ts)", () => {
+  it("every model declares one (the pyramidal, FS and LTS values are pinned in gaba.test.ts, fs.test.ts and lts.test.ts)", () => {
     for (const m of MODEL_LIST) expect(m.rheobase).toBeGreaterThan(0);
     expect(MODELS.rs.rheobase).toBe(561);
     expect(MODELS.fs.rheobase).toBe(385);
+    expect(MODELS.lts.rheobase).toBe(39);
   });
 });

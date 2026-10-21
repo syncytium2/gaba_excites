@@ -8,18 +8,22 @@
 import {
   boltzmann,
   makeGated,
+  makeHuguenardT,
   makeKCa,
   makeKd,
   makeM,
   makeMarkovNa,
   makeNa,
+  nernstCa,
   sigmoidRate,
   tauBell,
   tauGauss,
   type Channel,
 } from "./channels.ts";
+import { adamsPool, destexheDecay, type CaPool } from "./pools.ts";
 
-export type ModelId = "rs" | "fs" | "gnrh";
+export type { CaPool } from "./pools.ts";
+export type ModelId = "rs" | "fs" | "lts" | "gnrh";
 
 export interface ModelChannel {
   channel: Channel;
@@ -29,17 +33,11 @@ export interface ModelChannel {
   erev: number;
   /** contributes to I_Ca, which feeds the calcium pool */
   carriesCa?: boolean;
-}
-
-/**
- * Cytosolic calcium (Adams 2018 Eq. 22):
- *   dCa/dt = f · (−α·I_Ca − kp·Ca² / (Kp² + Ca²))        Ca in µM, I in pA
- */
-export interface CaPool {
-  f: number;
-  alpha: number;
-  kp: number;
-  Kp: number;
+  /**
+   * a reversal that follows cytosolic calcium (µM → mV), replacing `erev`
+   * while the cell runs; `erev` is then its value at the resting calcium
+   */
+  erevCa?: (ca: number) => number;
 }
 
 export interface Range {
@@ -174,6 +172,59 @@ export const FS: ModelDef = {
   validation: "Spike counts match NEURON running the original ModelDB mechanisms exactly; spike times within 0.02 ms.",
 };
 
+// ---------------------------------------------------------------- LTS pyramidal
+
+/**
+ * Low-threshold-spike pyramidal cell, ModelDB 123623 `sPYr_template` with the
+ * parameters of `demo_PY_LTS.hoc` (Pospischil et al. 2008; originally
+ * Destexhe, Contreras & Steriade 2001, Neurocomputing 38:555). The pyramidal
+ * cell's Traub INa and IKd, a weaker M current (0.03 against 0.07 mS/cm²),
+ * and Huguenard's T-type Ca²⁺ current (0.4 mS/cm²) with E_Ca by Nernst from
+ * Destexhe's submembrane calcium shell (depth 1 µm, τ 5 ms, rest 0.24 µM;
+ * cao 2 mM). The same 96 µm sphere as the pyramidal cell. Leak g_pas =
+ * 0.01 mS/cm², 2.90 nS, reversing at −85 mV — far below the other cells'.
+ *
+ * At its own rest (−84 mV) the T channels are de-inactivated and a
+ * depolarizing step sets off a burst. Held near −65 mV they are inactivated;
+ * a hyperpolarizing step removes the inactivation, and on release the cell
+ * fires: rebound. src/core/oracle.test.ts holds both to NEURON running the
+ * template's own mechanisms (tools/neuron_oracle.py lts).
+ */
+const CELSIUS = 36;
+
+export const LTS: ModelDef = {
+  id: "lts",
+  label: "Cortical pyramidal (low-threshold spike, rebound)",
+  short: "LTS",
+  blurb: "Pospischil et al. 2008: the pyramidal cell plus a T-type Ca²⁺ current. Bursts from its own rest; held near −65 mV, it fires on release from hyperpolarization.",
+  citation: "Pospischil M, Toledo-Rodriguez M, Monier C, et al. (2008) Biol Cybern 99:427–441",
+  doi: "10.1007/s00422-008-0263-8",
+  cmRef: RS_CM,
+  eLeak: -85,
+  channels: () => {
+    const eCa = nernstCa(2, CELSIUS);
+    return [
+      { channel: makeNa(-55), gbar: 50 * RS_CM, erev: 50 },
+      { channel: makeKd(-55), gbar: 5 * RS_CM, erev: -100 },
+      { channel: makeM(1000), gbar: 0.03 * RS_CM, erev: -100 },
+      { channel: makeHuguenardT(CELSIUS, 2), gbar: 0.4 * RS_CM, erev: eCa(0.24), erevCa: eCa, carriesCa: true },
+    ];
+  },
+  pool: destexheDecay({ depth: 1, taur: 5, cainf: 0.24 }),
+  defaults: { cm: 289.53, gLeak: 0.01 * RS_CM, ihold: 0, eGaba: -80 },
+  eGabaSource: "−80 mV: a conventional hyperpolarizing GABA_A reversal for an adult cortical neuron, as for the pyramidal cell",
+  ranges: {
+    gLeak: { min: 0, max: 30, step: 0.1 },
+    cm: { min: 20, max: 600, step: 1 },
+    ihold: { min: -300, max: 500, step: 5 },
+    memNoise: { min: 0, max: 100, step: 1 },
+  },
+  rheobase: 39,
+  rheobaseTol: 1,
+  settleMs: 3000,
+  validation: "Spike counts match NEURON running the original ModelDB mechanisms exactly, rebounds included; spike times within 0.01 ms.",
+};
+
 // ---------------------------------------------------------------- GnRH
 
 /**
@@ -274,7 +325,7 @@ export const GNRH: ModelDef = {
     },
     { channel: makeKCa("kca", "IKCa", 1.0), gbar: 1.18, erev: EK_G },
   ],
-  pool: { f: 0.0025, alpha: 0.00185, kp: 0.265, Kp: 1.2 },
+  pool: adamsPool({ f: 0.0025, alpha: 0.00185, kp: 0.265, Kp: 1.2 }),
   // g_L = 1 nS (Table 1). Rin at rest of the published cell, active
   // conductances included, is then 505.9 MΩ; gnrh.test.ts recomputes it.
   // Ihold −6 pA is the paper's I_app, which holds the cell at −70 mV.
@@ -311,5 +362,5 @@ export const GNRH: ModelDef = {
     "Transcribed from the paper (no public code). Checked against the paper's reported rest (−70 mV at −6 pA) and its Fig. 7F spike counts.",
 };
 
-export const MODELS: Record<ModelId, ModelDef> = { rs: RS, fs: FS, gnrh: GNRH };
-export const MODEL_LIST: ModelDef[] = [RS, FS, GNRH];
+export const MODELS: Record<ModelId, ModelDef> = { rs: RS, fs: FS, lts: LTS, gnrh: GNRH };
+export const MODEL_LIST: ModelDef[] = [RS, FS, LTS, GNRH];

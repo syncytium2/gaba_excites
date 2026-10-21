@@ -13,7 +13,7 @@ background, is at https://gaba.tonydefazio.com/explainer (a first draft).
 
 ## What it does
 
-- Three models, chosen from a menu:
+- Four models, chosen from a menu:
   - the regular-spiking (RS) pyramidal cell of Pospischil et al. 2008
     (Biol Cybern 99:427, doi:10.1007/s00422-008-0263-8; ModelDB 123623): one
     compartment, Traub INa and IKd, slow M-type IK for adaptation;
@@ -21,6 +21,13 @@ background, is at https://gaba.tonydefazio.com/explainer (a first draft).
     (sIN_template): the same INa and IKd, twice the K+ density, no M current;
     it does not adapt, and like the pyramidal cell it is checked spike for
     spike against NEURON running the original mechanisms;
+  - the low-threshold-spike (LTS) pyramidal cell of the same ModelDB entry
+    (sPYr_template with demo_PY_LTS.hoc; originally Destexhe, Contreras &
+    Steriade 2001, Neurocomputing 38-40:555, doi:10.1016/S0925-2312(01)00348-4):
+    the pyramidal cell's INa, IKd and IM plus Huguenard's T-type ICa and
+    Destexhe's calcium shell, checked spike for spike against NEURON. Held at
+    -64 mV (60 pA) it fires on release from a hyperpolarizing step (rebound);
+    from its own rest at -84 mV it does not, and bursts on depolarization;
   - the mouse GnRH neuron of Adams et al. 2018 (J Neurosci 38:1249,
     doi:10.1523/JNEUROSCI.2988-17.2017), negative-feedback parameter set:
     Markov INaF, INaP, IA, IK, T-type and HVA ICa, IS, Ih, IKCa, calcium pool.

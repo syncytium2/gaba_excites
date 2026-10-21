@@ -69,6 +69,17 @@ await page.waitForTimeout(300);
 await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
 await page.screenshot({ path: `${out}/fs.png`, fullPage: true });
 
+// the LTS cell opens on its rebound preset, held at 60 pA; then its bursts from rest
+await page.selectOption("#model-select", "lts");
+await page.waitForTimeout(300);
+await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
+await page.screenshot({ path: `${out}/lts-rebound.png`, fullPage: true });
+if (await page.locator(".siren").count()) problems.push("siren: showing on the LTS rebound preset");
+await page.selectOption(presetSelect, "lts-burst");
+await page.waitForTimeout(300);
+await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
+await page.screenshot({ path: `${out}/lts-burst.png`, fullPage: true });
+
 // the GnRH model, with membrane noise
 await page.selectOption("#model-select", "gnrh");
 await page.waitForTimeout(300);

@@ -60,6 +60,8 @@ export interface Preset {
   protocol: ProtocolForm;
   glu: SynInput;
   gaba: SynInput;
+  /** holding current the preset needs, pA; when absent the preset leaves Ihold alone */
+  ihold?: number;
 }
 
 const FI: ProtocolForm = {
@@ -85,11 +87,13 @@ const GNRH_GABA: SynInput = { ...DEFAULT_GABA, erev: GNRH.defaults.eGaba, ...GNR
  * that makes one cell fire is far too big or too small for the other.
  * Pyramidal: 700 pA, above its 561 pA rheobase (gaba.test.ts). GnRH: 24 pA on
  * its −6 pA holding current, which fires 4 spikes in 500 ms (Adams et al.
- * 2018 Fig. 7F; gnrh.test.ts). Off until ticked.
+ * 2018 Fig. 7F; gnrh.test.ts). LTS: 100 pA from its own rest, which fires a
+ * pair (lts.test.ts). Off until ticked.
  */
 export const SCOPE_PULSE: Record<ModelId, Pulse> = {
   rs: { enabled: false, amp: 700, width: 500, period: 1500 },
   fs: { enabled: false, amp: 800, width: 500, period: 1500 },
+  lts: { enabled: false, amp: 100, width: 500, period: 1500 },
   gnrh: { enabled: false, amp: 24, width: 500, period: 1500 },
 };
 
@@ -165,6 +169,36 @@ export const PRESETS: Preset[] = [
     protocol: { ...FI, mode: "list", list: "800" },
     glu: DEFAULT_GLU,
     gaba: DEFAULT_GABA,
+  },
+  {
+    id: "lts-rebound",
+    model: "lts",
+    label: "Rebound: hyperpolarization excites",
+    note: "Held at −64 mV by 60 pA, where the T-type Ca²⁺ channels sit inactivated. Step down for 500 ms: nothing fires during any step. On release, −25 pA (to −70 mV) does nothing; −50 pA (to −80 mV) fires a spike 88 ms later; −75 and −100 pA fire two. The hyperpolarization removed the inactivation, and the T current fired the cell on the way back.",
+    protocol: { mode: "list", first: 0, delta: -25, count: 5, list: "0, -25, -50, -75, -100", sweepMs: 1500, stepStart: 200, stepDur: 500 },
+    glu: DEFAULT_GLU,
+    gaba: DEFAULT_GABA,
+    ihold: 60,
+  },
+  {
+    id: "lts-rebound-rest",
+    model: "lts",
+    label: "No rebound from its own rest",
+    note: "The same 500 ms steps down, from the cell's own rest at −84 mV (0 pA). Release from −95 mV fires nothing, though release from −80 mV fired the held cell. At −84 mV the T channels are already de-inactivated, so there is nothing for the hyperpolarization to remove. Whether hyperpolarization excites depends on where rest is.",
+    protocol: { mode: "list", first: 0, delta: -10, count: 4, list: "0, -10, -20, -30", sweepMs: 1500, stepStart: 200, stepDur: 500 },
+    glu: DEFAULT_GLU,
+    gaba: DEFAULT_GABA,
+    ihold: 0,
+  },
+  {
+    id: "lts-burst",
+    model: "lts",
+    label: "Bursts from rest",
+    note: "From its own rest (−84 mV) the T channels are ready, so depolarization sets off a calcium-driven burst. Rheobase is 39 pA. At 100 pA it fires a pair 25 ms apart, then nothing more. At 150 pA it fires a pair, then slows to a few spikes 200 ms apart. Rin at rest is 446 MΩ, with a leak reversing at −85 mV.",
+    protocol: { mode: "family", first: 0, delta: 50, count: 5, list: "", sweepMs: 1000, stepStart: 100, stepDur: 800 },
+    glu: DEFAULT_GLU,
+    gaba: DEFAULT_GABA,
+    ihold: 0,
   },
   {
     id: "gnrh-fi",

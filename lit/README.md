@@ -24,11 +24,11 @@ Where the cells come from.
 
 Pospischil M, Toledo-Rodriguez M, Monier C, Piwkowska Z, Bal T, Frégnac Y, et al. (2008). Minimal Hodgkin–Huxley type models for different classes of cortical and thalamic neurons. Biol Cybern 99(4-5):427–441.
 
-[doi:10.1007/s00422-008-0263-8](https://doi.org/10.1007/s00422-008-0263-8) · [PMID 19011929](https://pubmed.ncbi.nlm.nih.gov/19011929/) · *subscription* · models: pyramidal, fs
+[doi:10.1007/s00422-008-0263-8](https://doi.org/10.1007/s00422-008-0263-8) · [PMID 19011929](https://pubmed.ncbi.nlm.nih.gov/19011929/) · *subscription* · models: pyramidal, fs, LTS
 
-**Took:** The regular-spiking pyramidal cell and the fast-spiking interneuron: their currents (Traub INa and IKd, slow IM) and the published cells they make.
+**Took:** The regular-spiking pyramidal cell, the fast-spiking interneuron and the low-threshold-spike (LTS) pyramidal cell: their currents (Traub INa and IKd, slow IM; for the LTS cell, a T-type Ca²⁺ current and a calcium shell) and the published cells they make.
 
-**Used in:** [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/models.ts`](../src/core/models.ts)
+**Used in:** [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/models.ts`](../src/core/models.ts), [`src/core/pools.ts`](../src/core/pools.ts)
 
 **Notes:** [`notes/pospischil2008.md`](notes/pospischil2008.md)
 
@@ -36,11 +36,11 @@ Pospischil M, Toledo-Rodriguez M, Monier C, Piwkowska Z, Bal T, Frégnac Y, et a
 
 Destexhe A (2009). ModelDB 123623: minimal Hodgkin–Huxley models of cortical and thalamic neurons (NEURON code for Pospischil et al. 2008).
 
-[modeldb.science/123623](https://modeldb.science/123623) · [code @ 8dfc13f](https://github.com/ModelDBRepository/123623/tree/8dfc13fb03c162f5ad1b5e13f94225c983391af7) · *open (code)* · models: pyramidal, fs
+[modeldb.science/123623](https://modeldb.science/123623) · [code @ 8dfc13f](https://github.com/ModelDBRepository/123623/tree/8dfc13fb03c162f5ad1b5e13f94225c983391af7) · *open (code)* · models: pyramidal, fs, LTS
 
-**Took:** Every pyramidal-cell parameter, from sPY_template, and every fast-spiking-cell parameter, from sIN_template, with HH_traub.mod and IM_cortex.mod — and the mechanisms themselves, run in NEURON as the oracle each port is tested against.
+**Took:** Every pyramidal-cell parameter, from sPY_template; every fast-spiking-cell parameter, from sIN_template; every LTS-cell parameter, from sPYr_template with demo_PY_LTS.hoc's settings; with HH_traub.mod, IM_cortex.mod, IT_huguenard.mod and cadecay_destexhe.mod — and the mechanisms themselves, run in NEURON as the oracle each port is tested against.
 
-**Used in:** [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/models.ts`](../src/core/models.ts), [`tools/neuron_oracle.py`](../tools/neuron_oracle.py), [`src/core/oracle.test.ts`](../src/core/oracle.test.ts), [`src/core/oracle/neuron_fs.json`](../src/core/oracle/neuron_fs.json)
+**Used in:** [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/models.ts`](../src/core/models.ts), [`tools/neuron_oracle.py`](../tools/neuron_oracle.py), [`src/core/oracle.test.ts`](../src/core/oracle.test.ts), [`src/core/oracle/neuron_fs.json`](../src/core/oracle/neuron_fs.json), [`src/core/pools.ts`](../src/core/pools.ts), [`src/core/oracle/neuron_lts.json`](../src/core/oracle/neuron_lts.json), [`src/core/lts.test.ts`](../src/core/lts.test.ts)
 
 **Notes:** [`notes/pospischil2008.md`](notes/pospischil2008.md)
 
@@ -197,6 +197,42 @@ Wang L, DeFazio RA, Moenter SM (2016). Excitability and burst generation of AVPV
 ## Background
 
 What the models were built on, credited but not read for any number here.
+
+### `destexhe2001`
+
+Destexhe A, Contreras D, Steriade M (2001). LTS cells in cerebral cortex and their role in generating spike-and-wave oscillations. Neurocomputing 38–40:555–563.
+
+[doi:10.1016/S0925-2312(01)00348-4](https://doi.org/10.1016/S0925-2312(01)00348-4) · *subscription* · models: LTS
+
+**Took:** Credited as the original of the LTS cell, which sPYr_template says it is taken from. No number is read from the paper: every value is ModelDB 123623's code.
+
+**Used in:** [`src/core/models.ts`](../src/core/models.ts)
+
+**Notes:** [`notes/pospischil2008.md`](notes/pospischil2008.md)
+
+### `huguenard1992`
+
+Huguenard JR, McCormick DA (1992). Simulation of the currents involved in rhythmic oscillations in thalamic relay neurons. J Neurophysiol 68(4):1373–1383.
+
+[doi:10.1152/jn.1992.68.4.1373](https://doi.org/10.1152/jn.1992.68.4.1373) · *subscription* · models: LTS
+
+**Took:** Credited as the source of the T-type Ca²⁺ current's kinetics, as IT_huguenard.mod cites it. The equations used are the .mod file's, transcribed in the note; they have not been checked against the paper's text.
+
+**Used in:** [`src/core/channels.ts`](../src/core/channels.ts)
+
+**Notes:** [`notes/pospischil2008.md`](notes/pospischil2008.md)
+
+### `huguenard1992b`
+
+Huguenard JR, Prince DA (1992). A novel T-type current underlies prolonged Ca(2+)-dependent burst firing in GABAergic neurons of rat thalamic reticular nucleus. J Neurosci 12(10):3804–3817.
+
+[doi:10.1523/JNEUROSCI.12-10-03804.1992](https://doi.org/10.1523/JNEUROSCI.12-10-03804.1992) · [PMID 1403085](https://pubmed.ncbi.nlm.nih.gov/1403085/) · [PMC6575965](https://pmc.ncbi.nlm.nih.gov/articles/PMC6575965/) · *open (PubMed Central)* · models: LTS
+
+**Took:** Credited because IT_huguenard.mod names it beside Huguenard & McCormick 1992 as the data its T current is based on. Nothing is read from it here.
+
+**Used in:** [`src/core/channels.ts`](../src/core/channels.ts)
+
+**Notes:** [`notes/pospischil2008.md`](notes/pospischil2008.md)
 
 ### `destexhe1998`
 

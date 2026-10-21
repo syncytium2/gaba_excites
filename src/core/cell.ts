@@ -20,7 +20,8 @@
  */
 
 import type { Channel } from "./channels.ts";
-import { MODELS, RS, type CaPool, type ModelDef, type ModelId } from "./models.ts";
+import { MODELS, RS, type ModelDef, type ModelId } from "./models.ts";
+import type { CaPool } from "./pools.ts";
 
 export interface CellParams {
   model: ModelId;
@@ -45,6 +46,8 @@ export interface BuiltCell {
   /** absolute maximal conductances at this Cm, nS, aligned with `channels` */
   gbar: number[];
   erev: number[];
+  /** a reversal that follows calcium, where the channel has one (aligned with `channels`) */
+  erevCa: (((ca: number) => number) | undefined)[];
   carriesCa: boolean[];
   pool: CaPool | null;
   eLeak: number;
@@ -57,6 +60,8 @@ export interface BuiltCell {
   ip: number;
   /** leak conductance, nS, as set */
   gLeak: number;
+  /** capacitance, pF (= params.cm) */
+  cm: number;
   /** membrane area at 1 µF/cm², µm² */
   areaUm2: number;
   /** resting potential with no injected current, mV (NaN when there is no stable rest) */
@@ -69,7 +74,9 @@ interface ActiveSet {
   channels: Channel[];
   gbar: number[];
   erev: number[];
+  erevCa: (((ca: number) => number) | undefined)[];
   carriesCa: boolean[];
+  cm: number;
   pool: CaPool | null;
   eLeak: number;
 }
@@ -82,34 +89,45 @@ function activeSet(p: CellParams): ActiveSet {
     channels: chs.map((c) => c.channel),
     gbar: chs.map((c) => c.gbar * scale),
     erev: chs.map((c) => c.erev),
+    erevCa: chs.map((c) => c.erevCa),
     carriesCa: chs.map((c) => !!c.carriesCa),
+    cm: p.cm,
     pool: m.pool ?? null,
     eLeak: m.eLeak,
   };
 }
 
+/** Reversal of channel k at calcium ca. */
+function erevAt(a: ActiveSet, k: number, ca: number): number {
+  const f = a.erevCa[k];
+  return f ? f(ca) : a.erev[k];
+}
+
 /**
- * Steady-state calcium at V: the pump balances the steady-state influx.
- * kp·Ca²/(Kp² + Ca²) = −α·I_Ca  →  Ca = Kp·√(x/(1−x)),  x = −α·I_Ca / kp.
- * When the influx exceeds what the pump can clear (x ≥ 1) there is no steady
- * state; it is capped, which only matters far into the depolarized range.
+ * Steady-state calcium at V: the pool's steady state for the steady-state
+ * calcium current. Where a reversal follows calcium, the current depends on
+ * the calcium it makes, so iterate to the fixed point (a pool without such a
+ * reversal is done in one pass).
  */
 export function caSteady(a: ActiveSet, v: number): number {
   if (!a.pool) return 0;
-  let iCa = 0;
-  for (let k = 0; k < a.channels.length; k++)
-    if (a.carriesCa[k]) iCa += a.gbar[k] * a.channels[k].openInf(v, 0) * (v - a.erev[k]);
-  const x = (-a.pool.alpha * iCa) / a.pool.kp;
-  if (x <= 0) return 0;
-  if (x >= 0.9999) return 100;
-  return a.pool.Kp * Math.sqrt(x / (1 - x));
+  let ca = a.pool.steady(0, a.cm);
+  for (let it = 0; it < 50; it++) {
+    let iCa = 0;
+    for (let k = 0; k < a.channels.length; k++)
+      if (a.carriesCa[k]) iCa += a.gbar[k] * a.channels[k].openInf(v, ca) * (v - erevAt(a, k, ca));
+    const next = a.pool.steady(iCa, a.cm);
+    if (Math.abs(next - ca) < 1e-12 * (1 + ca)) return next;
+    ca = next;
+  }
+  return ca;
 }
 
 /** Steady-state membrane current (pA, outward positive) at v, every gate and the calcium at steady state. */
 export function iSteady(a: ActiveSet, gLeak: number, v: number): number {
   const ca = caSteady(a, v);
   let i = gLeak * (v - a.eLeak);
-  for (let k = 0; k < a.channels.length; k++) i += a.gbar[k] * a.channels[k].openInf(v, ca) * (v - a.erev[k]);
+  for (let k = 0; k < a.channels.length; k++) i += a.gbar[k] * a.channels[k].openInf(v, ca) * (v - erevAt(a, k, ca));
   return i;
 }
 
@@ -176,6 +194,7 @@ export function buildCell(p: CellParams): BuiltCell {
     channels: a.channels,
     gbar: a.gbar,
     erev: a.erev,
+    erevCa: a.erevCa,
     carriesCa: a.carriesCa,
     pool: a.pool,
     eLeak: a.eLeak,
@@ -185,6 +204,7 @@ export function buildCell(p: CellParams): BuiltCell {
     iv: n + 1,
     ip: n + 2,
     gLeak,
+    cm: p.cm,
     areaUm2: p.cm * 100, // 1 pF per 100 µm² at 1 µF/cm²
     vRest: steadyV(a, gLeak),
     rinRest: rinAt(a, gLeak),
@@ -192,7 +212,7 @@ export function buildCell(p: CellParams): BuiltCell {
 }
 
 function asActive(c: BuiltCell): ActiveSet {
-  return { channels: c.channels, gbar: c.gbar, erev: c.erev, carriesCa: c.carriesCa, pool: c.pool, eLeak: c.eLeak };
+  return { channels: c.channels, gbar: c.gbar, erev: c.erev, erevCa: c.erevCa, carriesCa: c.carriesCa, cm: c.cm, pool: c.pool, eLeak: c.eLeak };
 }
 
 /** Rin of a built cell at a given holding current, MΩ. */

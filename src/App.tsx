@@ -159,7 +159,7 @@ export function App() {
     const m = MODELS[id];
     const p = presetsFor(id)[0];
     setCell(publishedParams(id));
-    setIhold(m.defaults.ihold);
+    setIhold(p.ihold ?? m.defaults.ihold);
     setPulse({ ...SCOPE_PULSE[id], enabled: pulse.enabled }); // the pulse that suits this cell, still on if it was
     setPresetId(p.id);
     setForm(p.protocol);
@@ -188,6 +188,7 @@ export function App() {
     setForm(p.protocol);
     setGlu(p.glu);
     setGaba(p.gaba);
+    if (p.ihold !== undefined) setIhold(p.ihold);
     setSelected(null);
   };
 

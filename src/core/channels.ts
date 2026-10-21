@@ -322,3 +322,61 @@ export function makeKCa(id: string, label: string, kHalf: number): Channel {
     },
   };
 }
+
+// ---------------------------------------------------------------- calcium reversal
+
+/**
+ * E_Ca by Nernst from the live cytosolic calcium, as IT_huguenard.mod computes
+ * its `carev` (ModelDB 123623): 1e3·RT/(2F)·ln(cao/cai). R and F are NEURON
+ * 9's (2019 SI) values, which that file's UNITS block resolves to.
+ * `cai` in µM, as everywhere here; `caoMM` in mM.
+ */
+export function nernstCa(caoMM: number, celsius: number): (caiUM: number) => number {
+  const k = (1e3 * 8.31446261815324 * (celsius + 273.15)) / (2 * 96485.33212331001);
+  const cao = caoMM * 1000;
+  return (cai) => k * Math.log(cao / Math.max(cai, 1e-9));
+}
+
+// ---------------------------------------------------------------- Huguenard T current
+
+/**
+ * Low-threshold (T-type) Ca²⁺ current, I = g m∞² h (V − E_Ca), transcribed
+ * from IT_huguenard.mod (Destexhe 1993/1995, after Huguenard & McCormick 1992
+ * and Huguenard & Prince 1992), ModelDB 123623. Activation is instantaneous;
+ * inactivation relaxes with τ_h/φ_h, φ_h = 3^((T − 24)/10). Both act at
+ * V + shift, shift = 2 mV for 2 mM external Ca²⁺.
+ *
+ * m is kept in the state vector, set to m∞ at each gate advance, because the
+ * .mod file computes m_inf in its state block and the current uses the value
+ * from the last state update — NEURON's order, which the oracle holds us to.
+ */
+export function makeHuguenardT(celsius = 36, shift = 2): Channel {
+  const phiH = Math.pow(3, (celsius - 24) / 10);
+  const mInf = (v: number) => 1 / (1 + Math.exp(-(v + shift + 57) / 6.2));
+  const hInf = (v: number) => 1 / (1 + Math.exp((v + shift + 81) / 4));
+  const tauH = (v: number) => {
+    const vm = v + shift;
+    return (30.8 + (211.4 + Math.exp((vm + 113.2) / 5)) / (1 + Math.exp((vm + 84) / 3.2))) / phiH;
+  };
+  return {
+    id: "t",
+    label: "IT (T-type Ca²⁺)",
+    nGates: 2,
+    gateNames: ["m", "h"],
+    init(v, s, o) {
+      s[o] = mInf(v);
+      s[o + 1] = hInf(v);
+    },
+    advance(v, dt, s, o) {
+      s[o] = mInf(v);
+      s[o + 1] = relax(s[o + 1], hInf(v), tauH(v), dt);
+    },
+    open(s, o) {
+      return s[o] * s[o] * s[o + 1];
+    },
+    openInf(v) {
+      const m = mInf(v);
+      return m * m * hInf(v);
+    },
+  };
+}

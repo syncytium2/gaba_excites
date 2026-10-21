@@ -127,10 +127,14 @@ export function step(cell: BuiltCell, e: Electrode, s: Float64Array, iCmd: numbe
 
   let G = cell.gLeak + syn.gGlu + syn.gGaba;
   let GE = cell.gLeak * cell.eLeak + syn.gGlu * syn.eGlu + syn.gGaba * syn.eGaba + iMem;
+  let iCa0 = 0; // calcium current at the start of the step, for a pool that reads it there
   for (let k = 0; k < cell.channels.length; k++) {
     const g = cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca);
+    const f = cell.erevCa[k];
+    const er = f ? f(ca) : cell.erev[k];
     G += g;
-    GE += g * cell.erev[k];
+    GE += g * er;
+    if (cell.carriesCa[k]) iCa0 += g * (v0 - er);
   }
 
   const cdt = cell.params.cm / dt;
@@ -140,7 +144,7 @@ export function step(cell: BuiltCell, e: Electrode, s: Float64Array, iCmd: numbe
     const v1 = (cTot * v0 + GE + iCmd) / (cTot + G);
     s[iv] = v1;
     s[iv + 1] = v1 + iCmd * e.rs * 1e-3;
-    advanceGates(cell, s, v1, dt);
+    advanceGates(cell, s, v1, dt, iCa0);
     return;
   }
   // [ cdt + G + ge   −ge       ] [V1]   [ cdt·V0 + GE ]
@@ -154,25 +158,30 @@ export function step(cell: BuiltCell, e: Electrode, s: Float64Array, iCmd: numbe
   const det = a11 * a22 - ge * ge;
   s[iv] = (b1 * a22 + ge * b2) / det;
   s[iv + 1] = (a11 * b2 + ge * b1) / det;
-  advanceGates(cell, s, s[iv], dt);
+  advanceGates(cell, s, s[iv], dt, iCa0);
 }
 
 /**
  * Gates move after V, at the new V — NEURON's order (fadvance: solve V, then
- * nrn_state). Then calcium, from the calcium current at the new V and gates:
- * forward Euler, which is ample — with f = 0.0025 the pool moves by well under
- * 0.1% of itself per 0.01 ms step.
+ * nrn_state). Then calcium, by the model's pool (pools.ts), from the calcium
+ * current it reads: the one at the start of the step (`iCa0`, NEURON's
+ * order) or the one at the new V and gates.
  */
-function advanceGates(cell: BuiltCell, s: Float64Array, v: number, dt: number): void {
+function advanceGates(cell: BuiltCell, s: Float64Array, v: number, dt: number, iCa0: number): void {
   for (let k = 0; k < cell.channels.length; k++) cell.channels[k].advance(v, dt, s, cell.offsets[k]);
   const pool = cell.pool;
   if (!pool) return;
   const ca = s[cell.iCa];
-  let iCa = 0;
-  for (let k = 0; k < cell.channels.length; k++)
-    if (cell.carriesCa[k]) iCa += cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca) * (v - cell.erev[k]);
-  const pump = (pool.kp * ca * ca) / (pool.Kp * pool.Kp + ca * ca);
-  s[cell.iCa] = Math.max(0, ca + dt * pool.f * (-pool.alpha * iCa - pump));
+  let iCa = iCa0;
+  if (pool.reads === "after") {
+    iCa = 0;
+    for (let k = 0; k < cell.channels.length; k++) {
+      if (!cell.carriesCa[k]) continue;
+      const f = cell.erevCa[k];
+      iCa += cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca) * (v - (f ? f(ca) : cell.erev[k]));
+    }
+  }
+  s[cell.iCa] = pool.advance(ca, iCa, cell.params.cm, dt);
 }
 
 /** Run one sweep from a settled state. */

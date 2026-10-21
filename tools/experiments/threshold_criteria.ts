@@ -76,7 +76,7 @@ export interface Condition {
   edits: Edits;
 }
 
-const NA: Record<ModelId, string> = { rs: "na", fs: "na", gnrh: "naf" };
+const NA: Record<ModelId, string> = { rs: "na", fs: "na", lts: "na", gnrh: "naf" };
 
 /** The conditions run on each cell: control, three Na⁺ edits, and the K⁺ edits that cell has channels for. */
 export function conditions(model: ModelId): Condition[] {
@@ -89,6 +89,11 @@ export function conditions(model: ModelId): Condition[] {
   ];
   const k: Record<ModelId, Condition[]> = {
     rs: [
+      { id: "kd-half", label: "gKd × 0.5", kind: "K", edits: { kd: { g: 0.5 } } },
+      { id: "kd-0", label: "Kd blocked", kind: "K", edits: { kd: { g: 0 } } },
+      { id: "m-0", label: "M blocked", kind: "K", edits: { m: { g: 0 } } },
+    ],
+    lts: [
       { id: "kd-half", label: "gKd × 0.5", kind: "K", edits: { kd: { g: 0.5 } } },
       { id: "kd-0", label: "Kd blocked", kind: "K", edits: { kd: { g: 0 } } },
       { id: "m-0", label: "M blocked", kind: "K", edits: { m: { g: 0 } } },

@@ -39,6 +39,7 @@
 <ol>
   <li><a href="#model">The pyramidal cell</a></li>
   <li><a href="#fs">The fast-spiking interneuron</a></li>
+  <li><a href="#lts">The LTS cell: rebound</a></li>
   <li><a href="#gnrh">The GnRH neuron</a></li>
   <li><a href="#passive">Leak, Cm, Ihold, and the measured Rin</a></li>
   <li><a href="#electrode">The electrode: Rs, bridge balance, pipette capacitance</a></li>
@@ -112,8 +113,33 @@ same threshold. Rheobase is 385 pA, and the rate climbs steeply above it: 191 Hz
 3.2 nA. Like the pyramidal cell, it is checked spike for spike against NEURON (see
 <a href="#validation">Checked against NEURON</a>).</p>
 
-<h2 id="gnrh">1b. The GnRH neuron</h2>
-<p>The second model, chosen from the <strong>Model</strong> menu, is a mouse <strong>gonadotropin-releasing
+<h2 id="lts">1b. The LTS cell: when hyperpolarization excites</h2>
+<p>The third cell of the same ModelDB entry: the low-threshold-spike (LTS) pyramidal cell, <code>sPYr_template</code>
+with the parameters of <code>demo_PY_LTS.hoc</code>, originally Destexhe, Contreras &amp; Steriade (2001). It is the
+pyramidal cell's 96 µm sphere and its Traub I<sub>Na</sub> and I<sub>Kd</sub>, a weaker M current (0.03 mS/cm²), a
+small leak (0.01 mS/cm², 2.90 nS) reversing at −85 mV, and Huguenard's T-type Ca²⁺ current (0.4 mS/cm²) with a
+submembrane calcium shell:</p>
+<span class="eq">I_T   = g m∞² h (V − E_Ca)                m instantaneous; both gates at V + 2 mV
+m∞    = 1 / (1 + exp(−(V + 2 + 57)/6.2))
+h∞    = 1 / (1 + exp((V + 2 + 81)/4))
+τ_h   = (30.8 + (211.4 + exp((V + 2 + 113.2)/5)) / (1 + exp((V + 2 + 84)/3.2))) / 3^((36 − 24)/10)
+E_Ca  = (RT/2F) ln(Ca_o / Ca_i),   Ca_o = 2 mM            Nernst, from the live Ca_i
+
+dCa_i/dt = max(0, −I_Ca / (2F · depth)) + (0.24 µM − Ca_i) / 5 ms     depth 1 µm, I_Ca per area</span>
+<p>It rests at −84.0 mV with Rin = <strong>446 MΩ</strong>. At that rest the T channels are de-inactivated, so
+depolarization sets off a calcium-driven burst: rheobase is 39 pA, and 100 pA fires a pair 25 ms apart. Held at
+−64 mV by 60 pA, the T channels sit inactivated. A 500 ms step to −80 mV removes the inactivation, and on release the
+T current fires the cell 88 ms later. A step to −70 mV is not enough, and from the cell's own rest even release from
+−95 mV fires nothing. Whether hyperpolarization excites depends on where rest is.</p>
+<p>What can do the hyperpolarizing matters too. The rebound needs Vm near −78 mV or below for long enough. A train of
+GABA PSCs cannot take Vm past E_GABA, and against the holding current it falls short of it. With E_GABA at −80 mV, a
+100 Hz train does not rebound the held cell at any size up to 40 nS per event. At −85 mV it takes 10 nS; at −90 mV,
+5 nS; at −95 mV, near E_K, where a GABA_B response reverses, 3 nS (<code>tools/experiments/lts_gaba_rebound.ts</code>).
+Like the other two Pospischil cells it is checked spike for spike against NEURON, rebounds included (see
+<a href="#validation">Checked against NEURON</a>).</p>
+
+<h2 id="gnrh">1c. The GnRH neuron</h2>
+<p>Another model, chosen from the <strong>Model</strong> menu, is a mouse <strong>gonadotropin-releasing
 hormone (GnRH) neuron</strong>. Specifically, it is the negative-feedback (OVX+E, morning) parameter set of Adams et al. (2018), which
 adapted the GnRH model of Moran et al. (2016), itself built on LeBeau et al. (2000). It is a single compartment with
 Cm = 20 pF, a 1 nS leak reversing at −65 mV, and ten currents:</p>
@@ -337,8 +363,8 @@ criterion comes from the cell itself, and they are the owner's choice of three:<
   <li><strong>Vm beyond the reversal potentials:</strong> Vm outside the span of the reversal potentials in play, those of
   the channels, the leak and any PSCs that are on. No conductance can take Vm there; only injected current can.</li>
   <li><strong>Current:</strong> injected current more than 10 times the published cell's rheobase (800 ms step) away from
-  its published holding current. That is ±5.6 nA for the pyramidal cell, ±3.9 nA for the fast-spiking cell, and
-  −6 ± 170 pA for the GnRH cell.</li>
+  its published holding current. That is ±5.6 nA for the pyramidal cell, ±3.9 nA for the fast-spiking cell, ±390 pA
+  for the LTS cell, and −6 ± 170 pA for the GnRH cell.</li>
 </ul>
 <p>In the step protocol it reports which steps tripped it; in the oscilloscope it stays on while anything tripped in the
 last second of simulated time. The test suite runs every preset of every cell and requires the siren to stay silent,
@@ -393,6 +419,12 @@ Every other spike agrees to within 0.09 ms. This comparison is part of the test 
 <p>The fast-spiking interneuron is checked the same way, against <code>sIN_template</code> with the same mechanisms
 and protocol. Spike counts agree exactly at every amplitude from 250 to 3200 pA, 526 spikes in all at up to about
 300 Hz, and every spike time agrees to within 0.015 ms.</p>
+<p>The LTS cell is checked against <code>sPYr_template</code> with <code>demo_PY_LTS.hoc</code>'s parameters, with
+<code>IT_huguenard.mod</code> and <code>cadecay_destexhe.mod</code> compiled beside the other two. There are four families
+of 500 ms steps, each settled 3 s at its own holding current: depolarizing steps from rest (−84 mV), and hyperpolarizing
+steps held at 60, 50 and 30 pA (−64, −66 and −71 mV). Spike counts agree exactly on all 12 sweeps, bursts and rebounds
+alike, and every spike time agrees to within 0.010 ms. The calcium shell reads the calcium current from the start of
+each step, before the voltage solve, as NEURON's does.</p>
 <p class="note">The electrode and synapse models are not part of the published cell, so NEURON cannot check them.
 The test suite checks them separately. With Cp = 0, changing Rs leaves Vm identical to the last bit. An unbalanced
 bridge offsets the record by exactly I·Rs. A single PSC peaks at exactly its set conductance. GABA reversing at the
