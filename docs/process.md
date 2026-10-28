@@ -321,6 +321,56 @@ the leak held at 28.95 nS, it reads 569, 561 and 584 pA at Cm = 145, 290 and
 still holds: the leak sets rheobase and Cm does not. The CLI's `--rin` is now
 `--gleak`.
 
+## 2026-09-28 — a GHK calculator, and what "activity" hid in 2000
+
+Asked to evaluate an interactive tool for the GHK voltage equation with
+divalents. The zero-current condition for any mix of valences ±1 and ±2 is a
+quadratic in exp(−FV/RT) with exactly one positive root, so the answer is
+exact, with no search and no root to choose. That was checked against brute
+force. The shortcut of adding "4·P_Ca·[Ca]" to the monovalent formula was off
+by 7 mV in a test case. The tool is not built yet. It is planned as a teaching
+page separate from the simulator (`docs/roadmap.md`).
+
+The owner then raised an old observation: outside-out calibrations of pipette
+chloride never matched unless the extracellular chloride was scaled down, and
+"at the time we mistakenly thought we were correcting for activity. but that's
+wrong I think". The paper is DeFazio, Keros, Quick & Hablitz (2000). The owner
+supplied the PDF. Its patch data are refitted in
+`tools/experiments/chloride_calibration.ts`, with the reading in
+`lit/notes/defazio2000.md`.
+
+The owner is right. The paper's 0.76 is applied to one side only, which makes
+it a constant 7.2 mV shift, not an activity correction. The patch gaps are 16.6
+and 8.1 mV, not constant. They fit a 7.5 mV offset plus a small permeant
+pipette anion (P_glu/P_Cl ≈ 0.004). The offset is about half the junction
+potential the solutions should have had (+16.3 mV at 1 mM, Henderson). The
+paper says its junction potentials were measured and corrected, but prints no
+value; the owner recalls they were measured by hand over about a week. The
+experiment predicts the 40 mM patch point in Fig. 2A at about −24 mV, a check
+not yet made. The paper's conclusions stand, because they compare patches with
+whole cells and a shared offset cancels. The owner suggested this become the
+teaching tool: "an activity correction tool could be very educational".
+
+Later the same day, the owner read the 40 mM patch point off Fig. 2A: "actually
+under the theory line". It reads −26.8 mV, not the −24.0 the two-point fit
+predicted. With three points, a constant offset alone fails (χ² 28). A voltage
+error plus a permeant pipette anion fits: 6.1 mV plus P_glu/P_Cl 0.005, or,
+slightly better, 46% of each pipette's own junction potential plus 0.004. The
+error shrinks as pipette Cl⁻ rises, so the paper's single activity factor
+over-corrects at 40 mM and under-corrects at 1 mM. The experiment and notes
+now use all three points, and the failed prediction is recorded in the notes.
+
+The owner: the junction potentials were measured against a 3 M KCl bridge, "we
+thought we were being careful". That rules out a dilute-bridge loss. The
+experiment now has an error budget. Take out the 3 M bridge's residual in a
+Neher measurement (about 2 mV), the puffer's lower Cl⁻ (1.5 mV) and, if the
+junction potentials were measured at room temperature, 0.4 mV. What is left is
+about 2.2 mV plus about 0.7 mM of permeant anion. The 2.2 mV is within the
+uncertainty of the junction potential calculation itself (the published
+gluconate mobilities alone move it by 2 mV). There is no gross error, only a
+sum of small ones. The anion, which the paper had diagnosed, dominates at
+1 mM.
+
 ## 2026-10-14 — what it is for, said up front
 
 The owner asked that the README say what the site was built for: a teaching
@@ -1026,3 +1076,12 @@ The owner asked for a link to ionhomie (ionhomie.tonydefazio.com, his ion-homeos
 explainer, placed beside the ion-gradient sentence rather than in the closing note. It joins the OpenStax pointer in
 that sentence's parenthesis: "to watch how cells build and keep these differences: ionhomie". The page's own words
 are otherwise unchanged.
+
+## 2026-10-28 — the chloride calibration joins main
+
+The DeFazio et al. 2000 chloride-calibration work (the 2026-09-28 entry above) was pushed on
+`claude/sweet-wozniak-4s1xef` and never merged. It is merged now, ahead of the v0.2.6 deploy, so that one release
+carries it with the cursor fix and the ionhomie link. The conflicts were both sides adding at the same place
+(`lit/sources.json`, `lit/references.bib`, `src/experiments.test.ts`, this log); both were kept, and `public/lit.html`
+was regenerated with `node scripts/lit.ts`. On the site it shows only as a new entry on /lit; the experiment stays
+out of the app.
