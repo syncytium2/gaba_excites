@@ -1000,3 +1000,22 @@ scope-only, so every switch to the step protocol flipped the page from dark to l
   to 1952 px. `.tip-body` now wraps whatever its context; the screenshot check fails on overflow in the step view.
 - The screenshot check now asserts the Old school opening and that a mode switch keeps it, then unticks it to run the
   plain-look checks as before.
+
+## 2026-10-21 — the stacked plots share one drawing area
+
+The owner caught the measure cursor's dashed line off on the conductance plot (v0.2.5). The cause predates the
+cursor: uPlot pads the right of a plot that draws time labels, so the last label is not clipped, and only the bottom
+plot draws them. That plot was 25 px narrower than the ones above, so its time scale disagreed with theirs: the
+traces, the synced cursor and the time axis itself misaligned (a 2 ms error at the right edge of a 800 ms sweep).
+Every stacked plot now gets the same fixed right padding (24 px). The screenshot check fails if their drawing areas
+differ; it reported 950 against 925 px with the fix taken out.
+
+## 2026-10-28 — the cursor fix, recovered from the Mac
+
+The session that made the fix above ("mac gaba lts") committed it on the Mac (3f6de01, branch `lts-cell`), asked
+whether to deploy it as v0.2.6, and was archived before anyone answered; it never pushed. A cloud session found it
+from the old transcript and confirmed it through a live Mac session, but that session's permissions refused the push
+and it had no way to message back. The cloud session reapplied the same three edits from the transcript instead,
+re-ran the checks (141 tests; the screenshot check clean with the fix, and failing at 950 against 925 px without it)
+and pushed them on `claude/eager-newton-3e2353`. The Mac's `lts-cell` holds the same change under another hash and
+can be dropped once this lands on main. Still not deployed; deploying needs the Mac's Cloudflare login.
