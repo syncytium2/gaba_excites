@@ -1019,3 +1019,10 @@ and it had no way to message back. The cloud session reapplied the same three ed
 re-ran the checks (141 tests; the screenshot check clean with the fix, and failing at 950 against 925 px without it)
 and pushed them on `claude/eager-newton-3e2353`. The Mac's `lts-cell` holds the same change under another hash and
 can be dropped once this lands on main. Still not deployed; deploying needs the Mac's Cloudflare login.
+
+## 2026-10-28 — the explainer links ionhomie
+
+The owner asked for a link to ionhomie (ionhomie.tonydefazio.com, his ion-homeostasis teaching site) on the
+explainer, placed beside the ion-gradient sentence rather than in the closing note. It joins the OpenStax pointer in
+that sentence's parenthesis: "to watch how cells build and keep these differences: ionhomie". The page's own words
+are otherwise unchanged.
