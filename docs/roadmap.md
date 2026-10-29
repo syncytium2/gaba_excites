@@ -53,25 +53,35 @@ The owner's words are quoted where the item came from them.
   computation starts in `tools/experiments/chloride_calibration.ts`; reasoning
   in `lit/notes/defazio2000.md`.
 
-- **Pancreatic beta cells, mouse and human** (owner, 2026-10-29: "consider adding a pancreatic beta cell as a side
-  quest"; "i'd like both mouse and human ephys"). Two model entries, each with its own test against its source and
-  its own presets. Not started.
-  - **Human:** Riz, Braun & Pedersen 2014 (PLoS Comput Biol, doi:10.1371/journal.pcbi.1003389), which adds SK
-    channels and Ca²⁺ dynamics to Pedersen 2010 (Biophys J, doi:10.1016/j.bpj.2010.09.004). The reason it belongs
-    here: GABA depolarizes human beta cells and drives their firing (Braun et al. 2010, Diabetes,
-    doi:10.2337/db09-0797), so the E_GABA slider applies outside the brain.
-  - **Mouse:** model not chosen. Ashcroft & Rorsman 1989 (Prog Biophys Mol Biol 54:87–143) is the reference for
-    what it must do: K_ATP sets rest near −70 mV, Na⁺ channels are inactivated at rest so TTX has no effect,
-    spikes are L-type Ca²⁺, and glucose drives bursts. The contrast with human (where Na⁺ block changes firing)
-    is the lesson.
+- **Pancreatic beta cells, mouse first, then human** (owner, 2026-10-29: "consider adding a pancreatic beta cell
+  as a side quest"; "i'd like both mouse and human ephys"; mouse first at beta_max's request, relayed with the
+  owner's agreement). Two model entries, each with its own test against its source and its own presets. Not started.
+  - **Mouse, first.** Ashcroft & Rorsman 1989 (Prog Biophys Mol Biol 54:87–143) is the reference for what it must
+    do: K_ATP sets rest near −70 mV, Na⁺ channels are inactivated at rest so TTX has no effect, spikes are L-type
+    Ca²⁺, and glucose drives bursts. beta_max is extracting its numbers, with quotes and pages, into Dropbox
+    `01-lit/beta_max/ashcroft1989-extraction.md`; reuse that rather than re-reading the review. Candidate model:
+    the Bertram/Sherman Integrated Oscillator Model, whose XPP code is public (NIDDK LBM page;
+    github.com/artielbm/artielbm.github.io/Models). That repository states no license, so ask the owner before
+    vendoring any of it, and keep it out of this public repository regardless. Check its .ode files for the
+    conventions beta_max found in the same authors' Chen 2008 files (an initial value that is a typo for the
+    steady state, per-file time units).
+  - **Human, second.** Riz, Braun & Pedersen 2014 (PLoS Comput Biol, doi:10.1371/journal.pcbi.1003389), which adds
+    SK channels and Ca²⁺ dynamics to Pedersen 2010 (Biophys J, doi:10.1016/j.bpj.2010.09.004). It belongs here
+    because GABA depolarizes human beta cells and drives their firing (Braun et al. 2010, Diabetes,
+    doi:10.2337/db09-0797), so the E_GABA slider applies outside the brain. The mouse/human difference in Na⁺
+    channels is a lesson in itself.
   - **What is new for the app:** K_ATP as the "glucose" control; a ~10 pF, high-resistance cell, so ranges, noise
     and electrode defaults need their own values; spikes the detector may miss (it re-arms below −40 mV); and
-    spontaneous firing, which suits the oscilloscope better than F–I families. No code oracle: each model's check
-    is its paper's numbers, as with the GnRH cell. The channels are new `Channel` objects; the solver should not
-    need to change.
-  - **Neighbor project:** beta_max (sources in Dropbox `01-lit/beta_max/`) is porting Chen, Wang & Sherman 2008,
-    granule secretion driven by a square voltage. These models could later supply its voltage. Keep the two
-    separate until both work; PDFs stay out of this public repository.
+    spontaneous firing, which suits the oscilloscope better than F–I families. No code oracle beyond whatever the
+    authors' code allows: each model's check is its paper's numbers, as with the GnRH cell. The channels are new
+    `Channel` objects; the solver should not need to change. The Integrated Oscillator Model's slow metabolic
+    variables may not be channels at all; decide where they live before porting.
+  - **Neighbor project:** beta_max (github.com/syncytium2/beta_max, private) ports Chen, Wang & Sherman 2008,
+    granule secretion fitted to mouse and rat islets. It builds no membrane model (its ADR-0006: an averaged
+    glucose → K_ATP → plateau voltage). Its engine takes voltage as input, `Drive = { Vmd, Vi, G }` in
+    `src/core/chen08.ts` (the voltage the L-type and R-type channels see, and a glucose factor); a mouse V(t) from
+    here can feed both voltages later. That is why mouse comes first: it can drive that engine without mixing
+    species. Keep the two apps separate until both work. PDFs stay out of this public repository.
 
 ## Later
 

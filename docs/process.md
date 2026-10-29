@@ -1098,3 +1098,11 @@ beta_max, a separate project ("065 secretion"), is porting Chen, Wang & Sherman 
 square wave. At the owner's request the overlap was announced to it twice: through the armory broadcast inbox
 (`darkroom/claude-link/inbox/`, which the Mac laptop reads; whether 065 does is not documented) and by a direct
 message. Neither side can reply to the other, so answers come through the owner.
+
+beta_max answered the same day, by direct message, at the owner's request: **mouse first, then human.** Its granule
+engine is fitted to mouse and rat islets, so only a mouse membrane model can drive it later without mixing species.
+It builds no membrane model of its own (an averaged front end, its ADR-0006) and takes voltage as input
+(`Drive = { Vmd, Vi, G }`). It suggested the Bertram/Sherman Integrated Oscillator Model for mouse, whose code has
+no stated license, and is extracting Ashcroft & Rorsman 1989 into `01-lit/beta_max/ashcroft1989-extraction.md` for
+reuse. The roadmap entry now says all of this. Correction to the paragraph above: the 065 session could reply after
+all, so a cloud session and a 065 session can message each other directly.
