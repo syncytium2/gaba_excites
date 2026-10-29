@@ -1085,3 +1085,16 @@ carries it with the cursor fix and the ionhomie link. The conflicts were both si
 (`lit/sources.json`, `lit/references.bib`, `src/experiments.test.ts`, this log); both were kept, and `public/lit.html`
 was regenerated with `node scripts/lit.ts`. On the site it shows only as a new entry on /lit; the experiment stays
 out of the app.
+
+## 2026-10-29 — beta cells, mouse and human, on the roadmap
+
+The owner suggested a pancreatic beta cell "as a side quest", then asked for "both mouse and human ephys". Recorded on
+the roadmap, not started. Human is Riz, Braun & Pedersen 2014 (on Pedersen 2010); it fits this site because GABA
+excites human beta cells (Braun et al. 2010). The mouse model is not chosen; the owner pointed to Ashcroft & Rorsman
+1989 in the beta_max literature folder as its reference. The citations were checked on PubMed, not recalled; none is
+in `lit/sources.json` yet, because no number has been taken.
+
+beta_max, a separate project ("065 secretion"), is porting Chen, Wang & Sherman 2008, whose voltage is a prescribed
+square wave. At the owner's request the overlap was announced to it twice: through the armory broadcast inbox
+(`darkroom/claude-link/inbox/`, which the Mac laptop reads; whether 065 does is not documented) and by a direct
+message. Neither side can reply to the other, so answers come through the owner.
