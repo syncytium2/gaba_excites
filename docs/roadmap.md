@@ -62,7 +62,13 @@ The owner's words are quoted where the item came from them.
     `01-lit/beta_max/ashcroft1989-extraction.md`; reuse that rather than re-reading the review. Candidate model:
     the Bertram/Sherman Integrated Oscillator Model, whose XPP code is public (NIDDK LBM page;
     github.com/artielbm/artielbm.github.io/Models). That repository states no license, so ask the owner before
-    vendoring any of it, and keep it out of this public repository regardless. Check its .ode files for the
+    vendoring any of it, and keep it out of this public repository regardless. **Port, do not copy:** take the
+    equations and parameters from the paper into `lit/notes/`, write the TypeScript from those notes, and use the
+    authors' code only to check the port (numbers produced by running it may go into tests, cited as such). A value
+    found only in the code is cited to the code in `lit/sources.json`. **Permission:** on 2026-10-29 Arthur Sherman
+    approved, by email to the owner, use of Chen, Wang & Sherman 2008 in an educational web app with attribution
+    (the email is in the owner's beta_max literature folder). That covers beta_max's model; the Integrated
+    Oscillator Model was not named, so ask before relying on it. Check its .ode files for the
     conventions beta_max found in the same authors' Chen 2008 files (an initial value that is a typo for the
     steady state, per-file time units).
   - **Human, second.** Riz, Braun & Pedersen 2014 (PLoS Comput Biol, doi:10.1371/journal.pcbi.1003389), which adds

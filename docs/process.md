@@ -1106,3 +1106,9 @@ It builds no membrane model of its own (an averaged front end, its ADR-0006) and
 no stated license, and is extracting Ashcroft & Rorsman 1989 into `01-lit/beta_max/ashcroft1989-extraction.md` for
 reuse. The roadmap entry now says all of this. Correction to the paragraph above: the 065 session could reply after
 all, so a cloud session and a 065 session can message each other directly.
+
+Later that day the owner emailed Arthur Sherman and saved the reply in the beta_max literature folder. Sherman
+approved use of Chen, Wang & Sherman 2008 "for an educational webapp" with proper attribution. The request named that
+model only, so it covers beta_max, not the Integrated Oscillator Model a gaba_excites mouse cell would port; that
+still needs asking. Recorded on the roadmap, with the rule for any port: equations and parameters from the paper,
+the authors' code only as a check, none of their files in this public repository.
