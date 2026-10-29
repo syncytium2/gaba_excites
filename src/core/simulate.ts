@@ -101,7 +101,17 @@ export function settle(cell: BuiltCell, e: Electrode, ihold: number, ms: number,
   s[cell.iCa] = ca0;
   cell.pool?.initExtra?.(ca0, s, cell.ix);
   s[cell.iv] = v0;
-  s[cell.ip] = v0 + ihold * e.rs * 1e-3;
+  const st = cell.model.start;
+  if (st) {
+    s[cell.iv] = st.v;
+    s[cell.iCa] = st.ca;
+    for (let k = 0; k < cell.channels.length; k++) {
+      const g = st.gates?.[cell.channels[k].id];
+      if (g) for (let j = 0; j < g.length; j++) s[cell.offsets[k] + j] = g[j];
+    }
+    st.extra?.forEach((x, j) => (s[cell.ix + j] = x));
+  }
+  s[cell.ip] = s[cell.iv] + ihold * e.rs * 1e-3;
   const n = Math.round(ms / dt);
   const noSyn = { gGlu: 0, gGaba: 0, eGlu: 0, eGaba: 0 };
   for (let i = 0; i < n; i++) step(cell, e, s, ihold, 0, dt, noSyn);

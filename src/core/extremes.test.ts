@@ -82,8 +82,8 @@ describe("each model's rheobase, which sets its current bound", () => {
     expect(Math.abs(hi - m.rheobase)).toBeLessThanOrEqual(1);
   });
 
-  it("every model declares one (the pyramidal, FS and LTS values are pinned in gaba.test.ts, fs.test.ts and lts.test.ts)", () => {
-    for (const m of MODEL_LIST) expect(m.rheobase).toBeGreaterThan(0);
+  it("every model declares one, or a current scale where rheobase is undefined (the pyramidal, FS and LTS values are pinned in gaba.test.ts, fs.test.ts and lts.test.ts; the beta cell's scale in beta-app.test.ts)", () => {
+    for (const m of MODEL_LIST) expect(m.currentScale ?? m.rheobase).toBeGreaterThan(0);
     expect(MODELS.rs.rheobase).toBe(561);
     expect(MODELS.fs.rheobase).toBe(385);
     expect(MODELS.lts.rheobase).toBe(39);

@@ -56,8 +56,8 @@ The owner's words are quoted where the item came from them.
 - **Pancreatic beta cells, mouse first, then human** (owner, 2026-10-29: "consider adding a pancreatic beta cell
   as a side quest"; "i'd like both mouse and human ephys"; mouse first at beta_max's request, relayed with the
   owner's agreement). Two model entries, each with its own test against its source and its own presets. **Mouse
-  ported 2026-10-29** (Bertram et al. 2004, `src/core/beta.ts`; checked against the paper, not yet in the app: it
-  needs presets, a glucose control and its own ranges). Human not started.
+  ported 2026-10-29** (Bertram et al. 2004, `src/core/beta.ts`; checked against the paper) **and in the app the
+  same day**, on the oscilloscope with a glucose control and the paper's patterns. Human not started.
   - **Mouse, first.** Ashcroft & Rorsman 1989 (Prog Biophys Mol Biol 54:87–143) is the reference for what it must
     do: K_ATP sets rest near −70 mV, Na⁺ channels are inactivated at rest so TTX has no effect, spikes are L-type
     Ca²⁺, and glucose drives bursts. beta_max is extracting its numbers, with quotes and pages, into Dropbox

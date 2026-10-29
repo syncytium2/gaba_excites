@@ -51,7 +51,7 @@ export function limitsFor(cell: BuiltCell, model: ModelDef, syn: SynInput[] = []
     vMin: Math.min(...es) - RANGE_MARGIN,
     vMax: Math.max(...es) + RANGE_MARGIN,
     iCenter: model.defaults.ihold,
-    iBound: CURRENT_RHEOBASES * model.rheobase,
+    iBound: CURRENT_RHEOBASES * (model.currentScale ?? model.rheobase),
   };
 }
 

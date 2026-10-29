@@ -41,6 +41,7 @@
   <li><a href="#fs">The fast-spiking interneuron</a></li>
   <li><a href="#lts">The LTS cell: rebound</a></li>
   <li><a href="#gnrh">The GnRH neuron</a></li>
+  <li><a href="#beta">The mouse pancreatic beta cell</a></li>
   <li><a href="#passive">Leak, Cm, Ihold, and the measured Rin</a></li>
   <li><a href="#electrode">The electrode: Rs, bridge balance, pipette capacitance</a></li>
   <li><a href="#synapses">PSCs</a></li>
@@ -197,6 +198,53 @@ hundreds of picoamps move the pyramidal cell. The step presets are sized accordi
 protocol: 500 ms steps of 0–30 pA in 2 pA increments. Integration uses the same scheme and the same dt as the pyramidal
 cell. The Markov sodium states are advanced by the exact matrix exponential at fixed V, and at dt = 0.01 ms every spike
 is within 0.13 ms of a run at dt = 0.0025 ms.</p>
+
+<h2 id="beta">1d. The mouse pancreatic beta cell</h2>
+<p>The fifth model is not a neuron. A <strong>mouse pancreatic beta cell</strong> fires on its own once glucose is high
+enough, in bursts whose rhythm is set by calcium and by metabolism, and that electrical activity is what releases
+insulin. The model is Bertram, Satin, Zhang, Smolen &amp; Sherman (2004), the one later papers call the Dual Oscillator
+Model. One compartment with Cm = 5.3 pF and no leak, four currents, two calcium compartments, and the metabolism behind
+the K<sub>ATP</sub> channel:</p>
+<span class="eq">Cm dV/dt = −(I_K + I_Ca + I_K(Ca) + I_K(ATP))
+
+I_K      = 2.7 nS · n (V + 75)          n∞ = 1/(1 + exp(−(16 + V)/5)),  τn = 20 ms
+I_Ca     = 1.0 nS · m∞(V) (V − 25)      m∞ = 1/(1 + exp(−(20 + V)/12)), instantaneous
+I_K(Ca)  = ḡ Ca²/(0.5² + Ca²) (V + 75)  ḡ = 0.6 nS (Table 1)
+I_K(ATP) = ḡ o∞(ADP, ATP) (V + 75)      ḡ = 25 nS (Table 1); o∞ from Magnus &amp; Keizer (1998)
+
+Calcium:     dCa/dt = f_cyt (J_mem + J_er),   J_mem = −(α I_Ca + k_PMCA Ca),   J_er = p_leak (Ca_er − Ca) − k_SERCA Ca
+             dCa_er/dt = −f_er (V_cyt/V_er) J_er
+Glycolysis:  dG6P/dt = κ (R_GK − R_PFK),   dFBP/dt = κ (R_PFK − R_GPDH/2),   F6P = 0.3 G6P
+Mitochondria: dADP/dt = (ATP − ADP exp((r + γ)(1 − Ca/r₁))) / τa,   τa = 5 min;   γ rises with glycolytic flux
+Nucleotides: AMP + ADP + ATP = 3000 µM,   AMP = ADP²/ATP</span>
+<p>Two oscillators share the cell. <strong>Calcium</strong>: each burst lets Ca²⁺ in, which opens K(Ca) channels and,
+more slowly, raises ADP (calcium slows ATP production), which opens K<sub>ATP</sub> channels; the cell falls silent, both
+recover, and it fires again. <strong>Glycolysis</strong>: the enzyme PFK is activated by its own product, so glycolysis
+can oscillate by itself, about every 5 min, and each pulse of it raises ATP and closes K<sub>ATP</sub>. The paper's
+stand-in for glucose is R<sub>GK</sub>, the glucokinase rate. At R<sub>GK</sub> = 0.4 glycolysis is steady and the cell
+bursts regularly, every 32.4 s here (the paper says ≈ 30 s). At 0.2 glycolysis oscillates and paces the bursts into
+compound, accordion or slow glycolytic patterns, depending on the two K⁺ conductances. At 0.3 it can do either,
+depending on where it starts.</p>
+<p><strong>How it was checked.</strong> Equations 1–24 and Table 1 were transcribed from the paper, with the authors'
+errata. The one piece the paper does not print, the PFK rate law (Smolen 1995), was written from the authors' published
+code and is cited to it (<a href="/lit">Sources</a>). The port reproduces what the paper reports: glycolysis alone
+oscillates at R<sub>GK</sub> 0.2 and not at 0.4; at 0.3 it is bistable, resting at F6P 63.7 µM, FBP 9.0 µM (the paper:
+≈ 64, ≈ 9.1) from one start and oscillating every 5.2 min (∼5) from another; and the whole cell gives the regular,
+compound, accordion and glycolytic bursting and the subthreshold oscillations of Figs. 3 and 5–8, with ADP in and out of
+phase with calcium as in Fig. 9. The authors' equations, integrated separately by a stiff solver from the same start,
+give 345 spikes in 6 min and burst periods of 30.3–31.6 s; the port gives 340 spikes and 32.4 s. The tests are
+<code>src/core/beta.test.ts</code>, <code>beta-bursts.test.ts</code>, <code>beta-glycolytic.test.ts</code> and
+<code>beta-app.test.ts</code>.</p>
+<p><strong>In the app</strong> the beta cell lives on the oscilloscope: its rhythms run from 30 s to 5 min, longer than
+any step sweep, and rheobase is not defined for a cell that fires on its own. A <strong>Glucose &amp; K⁺</strong> row on
+the amplifier sets R<sub>GK</sub> and the two K⁺ conductances, and a pattern menu picks one of the paper's figures, with
+a time base and speed to watch it at. Changing either keeps the cell running from where it is, as a dish would when the
+bath changes: turn glucose down and back up and you may find glycolysis no longer oscillating, the experiment of the
+paper's Fig. 11. The cell starts from the authors' compound-bursting starting point rather than its steady state, which
+at low glucose is unstable. With no leak its input resistance is about 26 GΩ, so 0.9 pA (the rheobase of the
+glucose-free cell, R<sub>GK</sub> = 0) sets the siren's current scale, and the leak control can add the leak a real
+recording would have. E<sub>GABA</sub> for this cell is the app's generic −80 mV, a placeholder: GABA's action on beta
+cells is the human cell's lesson (Braun et al. 2010), next on the roadmap.</p>
 
 <h2 id="passive">2. Leak, Cm, Ihold, and the measured Rin</h2>
 <p>A model file specifies densities per unit area. An experimenter reads whole-cell quantities off the amplifier. The
@@ -357,9 +405,11 @@ to fire, or switch GABA on mid-burst.</p>
   A stored trace is shown only at the time base it was stored at.</li>
   <li><strong>Readouts</strong> are measured on true Vm, as everywhere else: firing rate over the last 2 s of simulated
   time (spikes counted with the same −20/−40 mV detector), mean Vm over the last 1 s, and Vm now.</li>
-  <li><strong>Speed.</strong> The simulation keeps pace with the wall clock at 0.1×, 1× or 10×. On an Apple M4 Pro the
+  <li><strong>Speed.</strong> The simulation keeps pace with the wall clock at 0.1×, 1×, 10× or 30×, and the time base
+  runs from 10 ms to 1 min a division, for the beta cell's minutes-long rhythms. On an Apple M4 Pro the
   pyramidal cell runs 68–98× faster than real time and the GnRH cell 19–21×, with and without PSCs and noise, so 1× has
-  a wide margin. After a stall, such as a hidden tab, it resumes where it was rather than racing to catch up. If a device
+  a wide margin. The beta cell runs about 17× in Node on a cloud machine and 6.7× in a headless browser there, so 30× is
+  a request a device may not meet. After a stall, such as a hidden tab, it resumes where it was rather than racing to catch up. If a device
   cannot keep up, the Speed readout shows the speed actually achieved instead of letting the trace stutter.</li>
   <li><strong>A scope run cannot be replayed.</strong> Rheobase and the F–I curve belong to the step protocol.</li>
 </ul>

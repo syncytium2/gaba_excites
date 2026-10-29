@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AmpDial, AmpFront, AmpRow, AmpSection, AmpSlot } from "./AmpFront.tsx";
 import type { CellParams } from "../core/cell.ts";
-import { MODELS } from "../core/models.ts";
+import { MODELS, type ModelId } from "../core/models.ts";
 import { describe as describeTrip, ExtremeWatch, type Limits } from "../core/extremes.ts";
 import type { StreamInputs } from "../core/stream.ts";
 import type { ScopeRequest, ScopeResponse } from "../scope-worker.ts";
@@ -13,8 +13,10 @@ import { Monitor } from "./audio.ts";
 import { HMeter } from "./Meter.tsx";
 import type { MonitorMode } from "../core/monitor.ts";
 
-const TIMEBASES = [10, 20, 50, 100, 200, 500, 1000, 2000];
-const SPEEDS = [0.1, 1, 10];
+// up to a minute a division: the beta cell's glycolytic rhythm takes about 5 min
+const TIMEBASES = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 30000, 60000];
+// 30×: a 5 min beta-cell cycle in 10 s, where the device keeps up (the readout says when it does not)
+const SPEEDS = [0.1, 1, 10, 30];
 /** stored screens kept at once; the oldest goes first */
 const MAX_STORED = 3;
 /** windows the live readouts (firing rate, mean Vm) can average over, in simulated ms */
@@ -22,11 +24,19 @@ const READ_WINDOWS = [100, 200, 500, 1000, 2000];
 
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 
-/** full scale of the old-school rate meter, per cell: each cell's own working range */
-const RATE_SCALE: Record<string, number[]> = {
+/**
+ * Full scale of the old-school rate meter, per cell: each cell's own working
+ * range. Keyed by ModelId so that a new model cannot be left out: the LTS cell
+ * was, from v0.2.3 to v0.2.6, and choosing it on the oscilloscope blanked the
+ * page (docs/process.md, 2026-10-29).
+ */
+const RATE_SCALE: Record<ModelId, number[]> = {
   rs: [0, 20, 40, 60, 80, 100],
   fs: [0, 100, 200, 300, 400, 500],
+  lts: [0, 20, 40, 60, 80, 100],
   gnrh: [0, 10, 20, 30, 40, 50],
+  // a few spikes a second, averaged over the readout's window
+  betamouse: [0, 2, 4, 6, 8, 10],
 };
 
 interface Readout {
@@ -47,7 +57,7 @@ interface Readout {
 /** the siren stays on while anything tripped within this much simulated time */
 const SIREN_WINDOW = 1000;
 
-export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false, amp, ampLastRow, ampControls, readoutSlot, screenH = 460 }: {
+export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false, amp, ampLastRow, ampControls, readoutSlot, screenH = 460, view }: {
   cell: CellParams; inputs: StreamInputs; seed: number; limits: Limits; onExtremes: (reasons: string[]) => void; oldSchool?: boolean;
   /** the amplifier rows the app supplies (cell, synapses) */
   amp?: React.ReactNode;
@@ -59,11 +69,13 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
   screenH?: number;
   /** where the one-line readouts go: the mode bar, beside Step / Oscilloscope */
   readoutSlot?: HTMLElement | null;
+  /** a time base and speed a preset asks for; applied whenever its key changes */
+  view?: { key: string; msPerDiv: number; speed: number };
 }) {
   const scope = useRef<ScopeHandle>(null);
   const worker = useRef<Worker | null>(null);
-  const [msPerDiv, setMsPerDiv] = useState(200);
-  const [speed, setSpeed] = useState(1);
+  const [msPerDiv, setMsPerDiv] = useState(view?.msPerDiv ?? 200);
+  const [speed, setSpeed] = useState(view?.speed ?? 1);
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
   const [showVm, setShowVm] = useState(false);
@@ -190,6 +202,12 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
     setSpeed(s);
     worker.current?.postMessage({ kind: "update", speed: s } satisfies ScopeRequest);
   };
+  useEffect(() => {
+    if (!view) return;
+    setMsPerDiv(view.msPerDiv);
+    changeSpeed(view.speed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view?.key]);
   const togglePause = () => {
     worker.current?.postMessage({ kind: paused ? "resume" : "pause" } satisfies ScopeRequest);
     pausedRef.current = !paused;

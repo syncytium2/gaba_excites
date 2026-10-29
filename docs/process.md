@@ -1145,3 +1145,33 @@ one code file per figure plus errata, so each of its five firing patterns can be
   Before it is offered: presets for its patterns, a control for R_GK (the paper's glucose), ranges suited to a 5.3 pF
   cell with no leak, and a decision on how the step protocol and rheobase apply to a cell that fires on its own.
   Its E_GABA default is a placeholder until the GABA lesson for this cell is sourced.
+
+## 2026-10-29 — the beta cell in the app, on the oscilloscope; an LTS crash found
+
+The owner said to start the app side. The beta cell is now in the model menu.
+
+- **Oscilloscope only** (`ModelDef.scopeOnly`). Its rhythms run 30 s to 5 min, longer than any step sweep, and
+  rheobase is undefined for a cell that fires on its own: a 10 s step sweep at the defaults showed nothing but the
+  silent phase. Choosing it switches to the scope and disables the Step protocol button, whose tooltip says why. A
+  placeholder step preset exists only so model switching and reset have one to hold.
+- **Knobs** (`ModelDef.knobs`, `CellParams.knobs`), a general mechanism: a model may declare settings beyond leak and
+  Cm, and its `channels()` receives their values. The beta cell's are glucose (R_GK), gK(ATP) and gK(Ca), on a
+  "Glucose & K⁺" row of the amplifier. Changing one keeps the scope running from the current state (the stream keeps
+  state for the same model), so removing and restoring glucose is the paper's Fig. 11 experiment.
+- **Patterns** (`SCOPE_PATTERNS`): presets for the oscilloscope, each the knob values of one of the paper's figures
+  plus a time base and speed. Regular bursting (Fig. 3) at 5 s/div and 10×; compound, accordion and glycolytic
+  bursting (Figs. 5–7) at 1 min/div and 30×. Their notes quote numbers the tests pin. The scope gained time bases of
+  5, 10 and 30 s and 1 min per division, and a 30× speed; the beta cell runs about 17× in Node and 6.7× in a
+  headless browser on a cloud machine, so 30× is a request the readout may report unmet.
+- **A published start** (`ModelDef.start`): the cell starts from the authors' compound-bursting start (Fig5.ode),
+  then a 2 s settle, because at low glucose its steady state is unstable and glycolysis would sit on it for minutes.
+- **Current scale** (`ModelDef.currentScale`): the siren's bound is 10× rheobase, undefined here; the beta cell uses
+  the rheobase of its glucose-free cell, 0.9 pA (`beta-app.test.ts`). The model has no leak, so Rin is about 26 GΩ.
+- **E_GABA** for the beta cell is the generic −80 mV, labeled a placeholder: GABA's action on beta cells is the human
+  cell's lesson (Braun et al. 2010).
+
+**A crash on the live site, found on the way.** The scope's rate meter takes its full scale from a per-model table
+that listed rs, fs and gnrh only. Choosing the LTS cell on the oscilloscope, where the app opens, threw and blanked
+the page; confirmed on gaba.tonydefazio.com (v0.2.6). It has been there since the LTS cell shipped in v0.2.3. The
+table is now typed by ModelId, so leaving a model out fails the typecheck, and the screenshot check chooses every
+model on the oscilloscope and fails if the page breaks.

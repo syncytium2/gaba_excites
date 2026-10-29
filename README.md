@@ -24,7 +24,7 @@ is at [`/methods`](https://gaba.tonydefazio.com/methods) (source:
 
 ## Four cells
 
-Four cell models, chosen from a menu:
+Five cell models, chosen from a menu:
 
 - **Cortical pyramidal (regular spiking):** Pospischil et al. (2008), ported
   from its ModelDB source (123623) and **checked spike-for-spike against
@@ -50,6 +50,15 @@ Four cell models, chosen from a menu:
   pool. Transcribed from the paper. There is no public code to compare against,
   so it is checked against what the paper reports: −6 pA holds it at −70 mV,
   and it fires 0, 0, 0, 1, 4 and 6 spikes at 0–30 pA, as in the paper's Fig. 7F.
+- **Pancreatic beta cell (mouse):** Bertram et al. (2004, Biophys J 87:3074),
+  the Dual Oscillator Model. Four currents, cytosolic and ER calcium, and the
+  metabolism behind the K_ATP channel: glycolysis that oscillates on its own
+  about every 5 min, and ATP production that calcium slows. It fires on its own
+  in glucose, so it is shown on the oscilloscope, with a glucose control and
+  the paper's patterns: regular bursting every 32.4 s (the paper: ≈ 30 s), and
+  compound, accordion and slow glycolytic bursting. Transcribed from the paper
+  (the PFK rate law from the authors' code) and checked against what it
+  reports.
 
 Side by side, they make the course's point. A large, leaky cell needs hundreds
 of picoamps to fire (561 pA). A small cell with an input resistance near
@@ -85,7 +94,7 @@ mean rate). An editor that lets you change each channel is next on the
 
 | Control | What it does |
 |---|---|
-| **Oscilloscope** | The same cell run continuously, with every control live: turn the holding current and watch it start to fire, or switch GABA on mid-burst. A repeating pulse sits on top of the holding current, and sweeps trigger on its onset. Store keeps the screen as a reference trace behind the live one, for before-and-after comparison. Nothing resets the cell, so slow currents show; only switching models starts again. Live firing rate and mean Vm, measured on true Vm. At 0.1×, 1× or 10× real time. |
+| **Oscilloscope** | The same cell run continuously, with every control live: turn the holding current and watch it start to fire, or switch GABA on mid-burst. A repeating pulse sits on top of the holding current, and sweeps trigger on its onset. Store keeps the screen as a reference trace behind the live one, for before-and-after comparison. Nothing resets the cell, so slow currents show; only switching models starts again. Live firing rate and mean Vm, measured on true Vm. At 0.1×, 1×, 10× or 30× real time, 10 ms to 1 min a division. A cell with rhythms of its own (the beta cell) adds a pattern menu that sets its knobs, time base and speed. |
 | **Sound and Old school** | In the oscilloscope: an audio monitor, either hiss and a pop per spike or a tone whose pitch follows Vm. The app opens in Old school, in both modes: a dark instrument panel with knurled knobs for every control, the step view's charts in a palette stepped for the dark surface, and in the scope a green-phosphor tube and analog meters for rate and Vm. Untick it for the light, slide-ready look. |
 | **Step protocol** | A family (first, increment, count) or any list of steps; step onset, duration, sweep length. Presets for an F–I family, fine threshold steps, a synaptic barrage, and three GABA demonstrations. |
 | **Rs, bridge, pipette C** | Series resistance changes the *record*, not Vm: an I·Rs offset (removed by bridge balance) and, with pipette capacitance, a low-pass on spikes. |

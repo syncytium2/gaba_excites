@@ -31,6 +31,26 @@ const setDial = async (name, v) => {
 // The app opens on the guided tour's first part: the GnRH cell in the scope.
 await page.waitForTimeout(2500);
 await page.screenshot({ path: `${out}/opening.png`, fullPage: true });
+// Every model on the oscilloscope, where the app opens: a per-model table that left one out blanked the page
+// (the LTS cell's rate-meter scale, v0.2.3–v0.2.6). The page must still be there after each.
+const modelIds = await page.locator("#model-select option").evaluateAll((os) => os.map((o) => o.value));
+for (const id of modelIds) {
+  await page.selectOption("#model-select", id);
+  await page.waitForTimeout(1500);
+  if (!(await page.locator("#model-select").count())) { problems.push(`scope: choosing ${id} broke the page`); await page.goto(url); await page.waitForTimeout(2500); }
+}
+// The beta cell lives on the oscilloscope: the step button is off, and its patterns are offered.
+if (modelIds.includes("betamouse")) {
+  await page.selectOption("#model-select", "betamouse");
+  await page.waitForTimeout(1500);
+  if (!(await page.locator("#mode-steps").isDisabled())) problems.push("beta: the step protocol is not disabled");
+  if (!(await page.locator("#pattern-select").count())) problems.push("beta: no pattern selector");
+  await page.waitForTimeout(6000);
+  await page.screenshot({ path: `${out}/beta-scope.png`, fullPage: true });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) problems.push("beta: horizontal overflow");
+}
+await page.selectOption("#model-select", "gnrh");
+await page.waitForTimeout(1500);
 // It opens in Old school, and Old school dresses the step protocol too, so a mode switch keeps the theme
 // (the owner, 2026-10-21). Then untick it: the rest of this script checks the plain look, and the Old school
 // section below ticks it again.

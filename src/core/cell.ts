@@ -29,6 +29,15 @@ export interface CellParams {
   cm: number;
   /** linear leak conductance, nS (whole cell, not scaled by Cm) */
   gLeak: number;
+  /** the model's own settings (ModelDef.knobs) by id; any left out take the published value */
+  knobs?: Record<string, number>;
+}
+
+/** Every knob of the model, at the given values or the published ones. */
+export function knobValues(m: ModelDef, set?: Record<string, number>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const k of m.knobs ?? []) out[k.id] = set?.[k.id] ?? k.value;
+  return out;
 }
 
 /** The published regular-spiking cell (the app's opening model). */
@@ -86,7 +95,7 @@ interface ActiveSet {
 
 function activeSet(p: CellParams, m: ModelDef = MODELS[p.model]): ActiveSet {
   const scale = p.cm / m.cmRef;
-  const chs = m.channels();
+  const chs = m.channels(knobValues(m, p.knobs));
   return {
     channels: chs.map((c) => c.channel),
     gbar: chs.map((c) => c.gbar * scale),

@@ -41,6 +41,41 @@ export interface ModelChannel {
   erevCa?: (ca: number) => number;
 }
 
+/**
+ * A model's own setting, beyond the leak and Cm every model has: for the beta
+ * cell, the glucokinase rate (the paper's stand-in for glucose) and the two
+ * K⁺ conductances its figures vary. The app shows one slider per knob.
+ */
+export interface KnobDef {
+  id: string;
+  label: string;
+  unit: string;
+  min: number;
+  max: number;
+  step: number;
+  /** the published value */
+  value: number;
+  /** one sentence: what it is and where its value comes from */
+  note: string;
+}
+
+/**
+ * A published point to start from, written over the steady state before the
+ * settle. For a cell whose steady state is unstable (the beta cell's
+ * glycolysis at low glucose), starting there would leave it balanced on the
+ * fixed point for minutes before the oscillation grew.
+ */
+export interface StartState {
+  v: number;
+  ca: number;
+  /** gate values by channel id, in the channel's gate order */
+  gates?: Record<string, number[]>;
+  /** the pool's extra state (e.g. ER calcium) */
+  extra?: number[];
+  /** where these values come from */
+  source: string;
+}
+
 export interface Range {
   min: number;
   max: number;
@@ -59,8 +94,24 @@ export interface ModelDef {
   /** capacitance at which `gbar` values are stated, pF. Scaling Cm scales every gbar. */
   cmRef: number;
   eLeak: number;
-  channels: () => ModelChannel[];
+  /** the channels, given the model's knob values (models without knobs ignore them) */
+  channels: (knobs?: Record<string, number>) => ModelChannel[];
   pool?: CaPool;
+  knobs?: KnobDef[];
+  /** the amplifier section's name for the knobs */
+  knobsTitle?: string;
+  start?: StartState;
+  /**
+   * Set for a cell the step protocol does not suit, with the reason, shown on
+   * the disabled Step protocol button. The app opens such a cell on the
+   * oscilloscope.
+   */
+  scopeOnly?: string;
+  /**
+   * The current scale for the siren's bound (10× this), pA, where rheobase is
+   * not defined for the published cell; otherwise the bound uses rheobase.
+   */
+  currentScale?: number;
   /**
    * published whole-cell values. `gLeak` is the model's own leak conductance in
    * nS at its published Cm; Rin is not a default because it is not an input —
@@ -364,9 +415,5 @@ export const GNRH: ModelDef = {
 };
 
 export const MODELS: Record<ModelId, ModelDef> = { rs: RS, fs: FS, lts: LTS, gnrh: GNRH, betamouse: BETA_MOUSE };
-/**
- * The models the app offers. The mouse beta cell (beta.ts) is registered above
- * so the core, the tests and the CLI can run it, but stays out of the app until
- * it has presets and its own controls (docs/roadmap.md).
- */
-export const MODEL_LIST: ModelDef[] = [RS, FS, LTS, GNRH];
+/** The models the app offers, in the selector's order. */
+export const MODEL_LIST: ModelDef[] = [RS, FS, LTS, GNRH, BETA_MOUSE];

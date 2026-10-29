@@ -117,8 +117,10 @@ export const SCOPE_PULSE: Record<ModelId, Pulse> = {
   fs: { enabled: false, amp: 800, width: 500, period: 1500 },
   lts: { enabled: false, amp: 100, width: 500, period: 1500 },
   gnrh: { enabled: false, amp: 24, width: 500, period: 1500 },
-  // the beta cell bursts on its own; a pulse is not its lesson (it is not in the app yet)
-  betamouse: { enabled: false, amp: 5, width: 500, period: 1500 },
+  // Beta cell: 1 pA, just above the 0.9 pA rheobase of the glucose-free cell
+  // (R_GK = 0; beta-app.test.ts). It bursts on its own in glucose, so the
+  // pulse is not its lesson; off until ticked.
+  betamouse: { enabled: false, amp: 1, width: 500, period: 1500 },
 };
 
 export const PRESETS: Preset[] = [
@@ -251,8 +253,82 @@ export const PRESETS: Preset[] = [
     glu: DEFAULT_GLU,
     gaba: GNRH_GABA,
   },
+  {
+    // The beta cell is the oscilloscope's (ModelDef.scopeOnly): its rhythms run
+    // 30 s to 5 min, longer than any step sweep. This preset exists so the
+    // app's model switch and reset have a protocol to hold; it is never run.
+    id: "beta-none",
+    model: "betamouse",
+    label: "None: this cell is shown on the oscilloscope",
+    note: "The beta cell fires on its own in glucose, with rhythms from 30 s to 5 min, so it is shown on the oscilloscope, not in step sweeps.",
+    protocol: { mode: "list", first: 0, delta: 1, count: 1, list: "0", sweepMs: 1000, stepStart: 0, stepDur: 0 },
+    glu: DEFAULT_GLU,
+    gaba: DEFAULT_GABA,
+    ihold: 0,
+  },
 ];
 
 export function presetsFor(model: ModelId): Preset[] {
   return PRESETS.filter((p) => p.model === model);
+}
+
+/**
+ * The oscilloscope's presets for a cell whose lessons are its own rhythms: a
+ * setting of the model's knobs, and a time base and speed to watch them at.
+ * Like the step presets, each belongs to one model and quotes numbers the
+ * tests measure (beta.test.ts, beta-bursts.test.ts, beta-glycolytic.test.ts),
+ * all from Bertram et al. (2004).
+ */
+export interface ScopePattern {
+  id: string;
+  model: ModelId;
+  label: string;
+  /** what to look at; it quotes measured numbers */
+  note: string;
+  knobs: Record<string, number>;
+  msPerDiv: number;
+  speed: number;
+}
+
+export const SCOPE_PATTERNS: ScopePattern[] = [
+  {
+    id: "beta-fast",
+    model: "betamouse",
+    label: "Regular bursting (Fig. 3)",
+    note: "Glucose high enough (R_GK 0.4) that glycolysis holds steady. Bursts of spikes every 32 s, set by calcium alone: each burst raises Ca²⁺, which opens K(Ca) channels and, more slowly, raises ADP to open K_ATP channels, until the cell falls silent and both recover.",
+    knobs: { rGK: 0.4, gKATP: 25, gKCa: 0.6 },
+    msPerDiv: 5000,
+    speed: 10,
+  },
+  {
+    id: "beta-compound",
+    model: "betamouse",
+    label: "Compound bursting (Fig. 5)",
+    note: "Lower glucose (R_GK 0.2) and glycolysis oscillates on its own, about every 5 min. Each pulse of glycolysis raises ATP, closes K_ATP and starts an episode of a few bursts about 32 s apart; then a long silence until the next pulse.",
+    knobs: { rGK: 0.2, gKATP: 25, gKCa: 0.6 },
+    msPerDiv: 60000,
+    speed: 30,
+  },
+  {
+    id: "beta-accordion",
+    model: "betamouse",
+    label: "Accordion bursting (Fig. 6)",
+    note: "As compound bursting, with a little less K_ATP (23 nS): the bursts never stop, but their spacing swells and shrinks, between about 18 and 30 s, with each glycolytic pulse.",
+    knobs: { rGK: 0.2, gKATP: 23, gKCa: 0.6 },
+    msPerDiv: 60000,
+    speed: 30,
+  },
+  {
+    id: "beta-glycolytic",
+    model: "betamouse",
+    label: "Glycolytic bursting (Fig. 7)",
+    note: "Less K(Ca) (100 pS) than calcium needs to end a burst, so each glycolytic pulse sets off one long burst, about every 5.6 min, which ends only when calcium has slowed ATP production enough to reopen K_ATP.",
+    knobs: { rGK: 0.2, gKATP: 27, gKCa: 0.1 },
+    msPerDiv: 60000,
+    speed: 30,
+  },
+];
+
+export function patternsFor(model: ModelId): ScopePattern[] {
+  return SCOPE_PATTERNS.filter((p) => p.model === model);
 }

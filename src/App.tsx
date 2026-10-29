@@ -1,12 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type uPlot from "uplot";
-import { buildCell, cellRinAt, publishedParams, type CellParams } from "./core/cell.ts";
+import { buildCell, cellRinAt, knobValues, publishedParams, type CellParams } from "./core/cell.ts";
 import { MODELS, MODEL_LIST, type ModelId } from "./core/models.ts";
 import { DEFAULT_NOISE, type NoiseParams } from "./core/noise.ts";
 import { FILTER_KHZ } from "./core/filter.ts";
 import { DEFAULT_ELECTRODE, type Electrode, type Sweep } from "./core/simulate.ts";
 import type { FamilySummary } from "./core/analysis.ts";
-import { PRESETS, presetsFor, toProtocol, MAX_SWEEPS, SCOPE_PULSE, INC_DIAL, INC_RANGES, incRangeFor, type IncRange, type ProtocolForm } from "./core/protocol.ts";
+import { PRESETS, presetsFor, patternsFor, toProtocol, MAX_SWEEPS, SCOPE_PULSE, INC_DIAL, INC_RANGES, incRangeFor, type IncRange, type ProtocolForm } from "./core/protocol.ts";
 import type { SynInput } from "./core/synapses.ts";
 import type { Pulse } from "./core/stream.ts";
 import type { CellInfo, Request, Response } from "./worker.ts";
@@ -85,6 +85,10 @@ export function App() {
   const [runNonce, setRunNonce] = useState(0);
   // Step protocol, or the oscilloscope: the cell running continuously, every control live
   const [mode, setMode] = useState<"steps" | "scope">(OPENING.mode);
+  // a scope pattern (a cell's own rhythm, e.g. the beta cell's) and the time base and speed it asks for
+  const [patternId, setPatternId] = useState("custom");
+  const [view, setView] = useState<{ key: string; msPerDiv: number; speed: number } | undefined>(undefined);
+  const viewNonce = useRef(0);
   const [pulse, setPulse] = useState<Pulse>(SCOPE_PULSE[OPENING.model]);
   // Old school: the oscilloscope as a green-phosphor instrument, with knobs and meters.
   // Remembered in this browser as a convenience only; every access is guarded.
@@ -172,7 +176,11 @@ export function App() {
   const switchModel = (id: ModelId) => {
     const m = MODELS[id];
     const p = presetsFor(id)[0];
-    setCell(publishedParams(id));
+    const pat = patternsFor(id)[0];
+    setCell(pat ? { ...publishedParams(id), knobs: pat.knobs } : publishedParams(id));
+    setPatternId(pat ? pat.id : "custom");
+    if (pat) setView({ key: `${pat.id}#${++viewNonce.current}`, msPerDiv: pat.msPerDiv, speed: pat.speed });
+    if (m.scopeOnly) setMode("scope");
     setIhold(p.ihold ?? m.defaults.ihold);
     setPulse({ ...SCOPE_PULSE[id], enabled: pulse.enabled }); // the pulse that suits this cell, still on if it was
     setPresetId(p.id);
@@ -195,6 +203,16 @@ export function App() {
     setGlu(t.glu);
     setGaba(t.gaba);
     setPresetId("custom");
+  };
+
+  // a scope pattern: the model's knobs, and the time base and speed to watch them at;
+  // the cell keeps running from where it is, as a dish would when the bath changes
+  const applyPattern = (id: string) => {
+    const pat = patternsFor(cell.model).find((x) => x.id === id);
+    if (!pat) return;
+    setPatternId(id);
+    setCell({ ...cell, knobs: pat.knobs });
+    setView({ key: `${pat.id}#${++viewNonce.current}`, msPerDiv: pat.msPerDiv, speed: pat.speed });
   };
 
   const applyPreset = (id: string) => {
@@ -268,6 +286,12 @@ export function App() {
   const synOn = glu.enabled || gaba.enabled;
   const model = MODELS[cell.model];
   const presets = presetsFor(cell.model);
+  const patterns = patternsFor(cell.model);
+  const pattern = patterns.find((x) => x.id === patternId);
+  // a cell the step protocol does not suit lives on the oscilloscope, however it was reached
+  useEffect(() => {
+    if (model.scopeOnly && mode === "steps") setMode("scope");
+  }, [model.scopeOnly, mode]);
   // Rin is measured from the cell the leak and channels make, so τm is too.
   // Computed here rather than taken from the last run, so it is right in either mode.
   const built = useMemo(() => {
@@ -423,6 +447,29 @@ export function App() {
           <AmpDial label="τ" unit="ms" value={noise.memTau} min={0.5} max={100} step={0.5} digits={1} onChange={(memTau) => setNoise({ ...noise, memTau })} />
         </AmpSection>
       </AmpRow>
+      {model.knobs && (
+      <AmpRow>
+        <AmpSection name={model.knobsTitle ?? "MODEL SETTINGS"}>
+              {patterns.length > 0 && (
+                <AmpSlot label="Pattern">
+                  <Tip text={pattern ? pattern.note : "Your own setting. Pick a pattern to return to one of the paper's."}>
+                    <select id="pattern-select" aria-label="Pattern" value={pattern ? pattern.id : "custom"} onChange={(e) => applyPattern(e.target.value)}>
+                      {patterns.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+                      {!pattern && <option value="custom">Custom</option>}
+                    </select>
+                  </Tip>
+                </AmpSlot>
+              )}
+              {model.knobs.map((k) => {
+                const vals = knobValues(model, cell.knobs);
+                return (
+                  <AmpDial key={k.id} label={k.label} unit={k.unit} value={vals[k.id]} min={k.min} max={k.max} step={k.step} digits={k.step < 0.1 ? 2 : 1} hint={k.note}
+                    onChange={(v) => { setCell({ ...cell, knobs: { ...vals, [k.id]: v } }); setPatternId("custom"); }} />
+                );
+              })}
+        </AmpSection>
+      </AmpRow>
+      )}
       <AmpRow>
         {synDials("GABA PSC", gaba, setGaba, true)}
         {synDials("GLUTAMATE PSC", glu, setGlu, false)}
@@ -467,7 +514,7 @@ export function App() {
         </AmpSection>
         ) : (
         <AmpSection name="PULSES" power={{ on: pulse.enabled, onChange: (on) => setPulse({ ...pulse, enabled: on }) }}>
-          <AmpDial label="Amplitude" unit="pA" value={pulse.amp} min={-3 * limits.iBound} max={3 * limits.iBound} step={cell.model === "gnrh" ? 1 : 10} digits={0} disabled={!pulse.enabled} onChange={(amp) => setPulse({ ...pulse, amp })} />
+          <AmpDial label="Amplitude" unit="pA" value={pulse.amp} min={-3 * limits.iBound} max={3 * limits.iBound} step={cell.model === "gnrh" ? 1 : cell.model === "betamouse" ? 0.1 : 10} digits={cell.model === "betamouse" ? 1 : 0} disabled={!pulse.enabled} onChange={(amp) => setPulse({ ...pulse, amp })} />
           <AmpDial label="Width" unit="ms" value={pulse.width} min={1} max={2000} step={10} digits={0} disabled={!pulse.enabled} onChange={(width) => setPulse({ ...pulse, width })} />
           <AmpDial label="Period" unit="ms" value={pulse.period} min={10} max={10000} step={50} digits={0} disabled={!pulse.enabled} onChange={(period) => setPulse({ ...pulse, period })} />
         </AmpSection>
@@ -487,7 +534,8 @@ export function App() {
   const ampControls = (
     <>
       <div className="seg" role="radiogroup" aria-label="Mode">
-        <button id="mode-steps" role="radio" aria-checked={mode === "steps"} className={mode === "steps" ? "on" : ""} onClick={() => setMode("steps")}>
+        <button id="mode-steps" role="radio" aria-checked={mode === "steps"} className={mode === "steps" ? "on" : ""} onClick={() => setMode("steps")}
+          disabled={!!model.scopeOnly} title={model.scopeOnly}>
           Step protocol
         </button>
         <button id="mode-scope" role="radio" aria-checked={mode === "scope"} className={mode === "scope" ? "on" : ""} onClick={() => setMode("scope")}>
@@ -536,7 +584,7 @@ export function App() {
 
           {mode === "scope" ? (
             <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} limits={limits} onExtremes={setScopeReasons} oldSchool={oldSchool}
-              amp={ampSections} ampLastRow={ampLastRow} ampControls={ampControls} readoutSlot={readoutSlot} screenH={screenH} />
+              amp={ampSections} ampLastRow={ampLastRow} ampControls={ampControls} readoutSlot={readoutSlot} screenH={screenH} view={view} />
           ) : (
             <>
 

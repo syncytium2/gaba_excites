@@ -13,7 +13,7 @@ background, is at https://gaba.tonydefazio.com/explainer (a first draft).
 
 ## What it does
 
-- Four models, chosen from a menu:
+- Five models, chosen from a menu:
   - the regular-spiking (RS) pyramidal cell of Pospischil et al. 2008
     (Biol Cybern 99:427, doi:10.1007/s00422-008-0263-8; ModelDB 123623): one
     compartment, Traub INa and IKd, slow M-type IK for adaptation;
@@ -30,7 +30,13 @@ background, is at https://gaba.tonydefazio.com/explainer (a first draft).
     from its own rest at -84 mV it does not, and bursts on depolarization;
   - the mouse GnRH neuron of Adams et al. 2018 (J Neurosci 38:1249,
     doi:10.1523/JNEUROSCI.2988-17.2017), negative-feedback parameter set:
-    Markov INaF, INaP, IA, IK, T-type and HVA ICa, IS, Ih, IKCa, calcium pool.
+    Markov INaF, INaP, IA, IK, T-type and HVA ICa, IS, Ih, IKCa, calcium pool;
+  - the mouse pancreatic beta cell of Bertram et al. 2004 (Biophys J 87:3074,
+    doi:10.1529/biophysj.104.049262), the Dual Oscillator Model: IK, ICa,
+    IK(Ca), IK(ATP), cytosolic and ER calcium, oscillating glycolysis and
+    calcium-slowed ATP production. It fires on its own in glucose, so it runs
+    on the oscilloscope only, with a glucose control (the glucokinase rate) and
+    the paper's patterns.
 - The user sets whole-cell passive properties — the leak conductance gL in nS,
   Cm (sets cell size; channel densities stay fixed) and holding current — and
   electrode properties: series resistance, bridge balance, pipette capacitance.
@@ -76,6 +82,13 @@ within 0.2 ms (dt = 0.01 ms).
 GnRH neuron: transcribed from the paper (no public code exists to compare
 against). It reproduces what the paper reports: -6 pA holds it at -70 mV, and
 500 ms steps of 0/6/12/18/24/30 pA give 0/0/0/1/4/6 spikes, as in its Fig. 7F.
+
+Beta cell: transcribed from the paper, the PFK rate law from the authors' code.
+It reproduces what the paper reports: glycolysis alone oscillates at R_GK 0.2
+(about 5 min) and not at 0.4, and is bistable at 0.3; the whole cell bursts
+every 32.4 s at R_GK 0.4 (the paper: about 30 s) and gives the compound,
+accordion, glycolytic and subthreshold patterns of its Figs. 5-8. The authors'
+equations integrated by a stiff solver give 30.3-31.6 s from the same start.
 
 ## The result it is named for
 

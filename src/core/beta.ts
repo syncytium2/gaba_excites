@@ -240,6 +240,7 @@ const VK = -75;
 const VCA = 25;
 
 export function betaMouse(set: DomSet = DOM_SETS.fast): ModelDef {
+  const knob = (k: Record<string, number> | undefined, id: keyof DomSet) => k?.[id] ?? set[id];
   return {
     id: "betamouse",
     label: "Pancreatic beta cell (mouse)",
@@ -252,7 +253,40 @@ export function betaMouse(set: DomSet = DOM_SETS.fast): ModelDef {
     // The model has no leak. The app's leak control starts at 0 nS; this is
     // the reversal it opens on if it is turned up.
     eLeak: -70,
-    channels: () => [
+    knobsTitle: "GLUCOSE & K⁺",
+    knobs: [
+      {
+        id: "rGK",
+        label: "Glucose",
+        unit: "µM/s",
+        min: 0,
+        max: 0.6,
+        step: 0.01,
+        value: set.rGK,
+        note: "R_GK, the glucokinase rate: the paper's stand-in for glucose. Glycolysis oscillates at 0.2 and is steady at 0.4; at 0.3 it can do either (Bertram et al. 2004, Figs. 2 and 10).",
+      },
+      {
+        id: "gKATP",
+        label: "gK(ATP)",
+        unit: "nS",
+        min: 10,
+        max: 40,
+        step: 0.5,
+        value: set.gKATP,
+        note: "ḡK(ATP), the maximal K_ATP conductance at the published 5.3 pF: 25 nS in Table 1; 23, 27 and 30 nS in Figs. 6–8.",
+      },
+      {
+        id: "gKCa",
+        label: "gK(Ca)",
+        unit: "nS",
+        min: 0,
+        max: 1.5,
+        step: 0.05,
+        value: set.gKCa,
+        note: "ḡK(Ca), the maximal Ca²⁺-activated K⁺ conductance at the published 5.3 pF: 600 pS in Table 1, 100 pS in Figs. 7–8.",
+      },
+    ],
+    channels: (k) => [
       // Eqs. 2, 7–8: n∞ = 1/(1 + exp(−(16 + V)/5)), τn = 20 ms; gK = 2700 pS
       {
         channel: makeGated("kdr", "IK (delayed rectifier)", [{ name: "n", inf: boltzmann(-16, -5), tau: 20 }], (g, o) => g[o]),
@@ -269,16 +303,17 @@ export function betaMouse(set: DomSet = DOM_SETS.fast): ModelDef {
         carriesCa: true,
       },
       // Eq. 6: gK(Ca) = ḡ·Ca²/(K_D² + Ca²), K_D = 0.5 µM
-      { channel: makeKCa("kca", "IK(Ca)", 0.5), gbar: set.gKCa, erev: VK },
+      { channel: makeKCa("kca", "IK(Ca)", 0.5), gbar: knob(k, "gKCa"), erev: VK },
       // Eqs. 5, 10–11, 18–24
-      { channel: makeKatpDOM(set.rGK), gbar: set.gKATP, erev: VK },
+      { channel: makeKatpDOM(knob(k, "rGK")), gbar: knob(k, "gKATP"), erev: VK },
     ],
     // Eqs. 12–17 and Table 1: α = 4.5e-6 fA⁻¹ µM ms⁻¹ = 4.5e-3 pA⁻¹ µM ms⁻¹
     pool: bertramPool({ fcyt: 0.01, fer: 0.01, alpha: 4.5e-3, kPMCA: 0.2, kSERCA: 0.4, pleak: 0.0002, sigmaV: 31 }),
-    defaults: { cm: BETA_CM, gLeak: 0, ihold: 0, eGaba: -40 },
-    // Not yet sourced for mouse beta cells: a placeholder until the GABA
-    // lesson for this cell is written, with its own citation.
-    eGabaSource: "placeholder, not yet sourced for mouse beta cells",
+    // E_GABA: the app's generic default, a placeholder. It is not sourced for
+    // mouse beta cells; the GABA lesson belongs to the human cell (Braun et al.
+    // 2010), which is next on the roadmap.
+    defaults: { cm: BETA_CM, gLeak: 0, ihold: 0, eGaba: -80 },
+    eGabaSource: "−80 mV: the app's generic default, a placeholder; not sourced for mouse beta cells",
     ranges: {
       gLeak: { min: 0, max: 2, step: 0.05 },
       cm: { min: 2, max: 15, step: 0.1 },
@@ -286,10 +321,25 @@ export function betaMouse(set: DomSet = DOM_SETS.fast): ModelDef {
       memNoise: { min: 0, max: 5, step: 0.1 },
     },
     // Rheobase is not defined for a cell that fires on its own in
-    // stimulatory glucose; the model is not in the app's list yet.
+    // stimulatory glucose. The current scale is instead the rheobase of the
+    // glucose-free cell (R_GK = 0), 0.9 pA by an 800 ms step from the start:
+    // tiny, because the model has no leak and its input resistance is ~26 GΩ.
     rheobase: 0,
+    currentScale: 0.9,
+    scopeOnly: "This cell fires on its own in glucose, with rhythms from 30 s to 5 min, longer than any step sweep: it is shown on the oscilloscope.",
     rheobaseTol: 0.1,
-    settleMs: 60000,
+    // Start on the paper's compound-bursting cycle rather than at the steady
+    // state, which at low glucose is unstable: glycolysis would sit on it for
+    // minutes before oscillating. Then a short settle; the cell keeps moving
+    // from there, as it would in a dish.
+    start: {
+      v: -61,
+      ca: 0.07,
+      gates: { kdr: [0.0001], cav: [1 / (1 + Math.exp(-(20 - 61) / 12))], katp: [804, 196, 0.0076] },
+      extra: [144],
+      source: "the authors' Fig5.ode (artielbm.github.io/Models/DOM1.0), the start of the paper's compound-bursting figure",
+    },
+    settleMs: 2000,
     validation:
       "Transcribed from the paper, the PFK rate law from the authors' code. Checked against the paper's reported glycolytic periods, its bistability point, and its burst patterns; not yet against the authors' code run in XPP.",
   };

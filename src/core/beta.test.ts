@@ -87,9 +87,10 @@ describe("beta cell: the pieces hold their equations", () => {
     expect(x[0]).toBeCloseTo(ca * 2001, 9);
   });
 
-  it("is registered for the core but not offered in the app yet", () => {
+  it("is offered in the app, on the oscilloscope only, with its patterns' knobs matching the paper's sets", () => {
     expect(MODELS.betamouse.id).toBe("betamouse");
-    expect(MODEL_LIST.map((m) => m.id)).not.toContain("betamouse");
+    expect(MODEL_LIST.map((m) => m.id)).toContain("betamouse");
+    expect(MODELS.betamouse.scopeOnly).toBeTruthy();
   });
 });
 
