@@ -1175,3 +1175,30 @@ that listed rs, fs and gnrh only. Choosing the LTS cell on the oscilloscope, whe
 the page; confirmed on gaba.tonydefazio.com (v0.2.6). It has been there since the LTS cell shipped in v0.2.3. The
 table is now typed by ModelId, so leaving a model out fails the typecheck, and the screenshot check chooses every
 model on the oscilloscope and fails if the page breaks.
+
+## 2026-10-29 — voltage clamp, the core: checked against NEURON
+
+Les Satin (a collaborator of Arthur Sherman's) asked for a voltage-clamp mode for every model. The owner's decisions:
+**measure the recorded current**, with the true current shown behind it as an option; **the pyramidal cell first**,
+checked against NEURON; and **no model curves**: activation and inactivation exist only once a protocol has been run
+and the experimenter has chosen where to measure (peak, sustained, or a cursor), as on a rig. Estimated at 8–10
+hours in six pieces.
+
+- **The circuit** (`stepVC`, simulate.ts): the amplifier holds the pipette at the command and the cell sits behind
+  Rs; the same conductances, gate order and calcium update as current clamp, by backward Euler. Rs = 0 is the ideal
+  clamp. Pipette capacitance is taken as compensated.
+- **Rs matters at once on this cell.** The 290 pF pyramidal soma carries ~270 nA of sodium current at 0 mV; behind
+  15 MΩ the clamp loses it and the cell fires an unclamped action current to +47 mV. That is what a real rig does
+  with a cell this size. The mode will open with an ideal clamp so the first view is clean, with the Rs dial beside
+  it.
+- **Protocols** (`vclamp.ts`): a holding potential, a list of segments, and one varied segment (its potential or its
+  duration), which covers activation, inactivation, tails and recovery. **Measurements** on the recorded current in
+  a window of one segment: peak inward, peak outward, mean (sustained), or a cursor; each point carries the true Vm
+  too. A Boltzmann fit for normalized curves. **Channel blocking** (`CellParams.block`), in either clamp.
+- **Checked against NEURON** (`tools/neuron_oracle_vc.py`, SEClamp on ModelDB 123623's mechanisms): activation and
+  inactivation families at rs = 0.001 MΩ, and activation at 2 MΩ, where the cell escapes. Every 0.2 ms sample
+  within 10 pA and 0.01 mV, and full-resolution peaks within 0.05%; measured, the worst differences are 1 pA (near
+  ideal) and 3 pA on 58 nA (2 MΩ). NEURON's 0.001 MΩ is not ideal: 262 nA through it is a 0.26 mV error, which on
+  the steep sodium current is a 60 nA difference from a true ideal clamp, so like is compared with like.
+- **Voltage-clamp storage is every 0.02 ms**, an exact multiple of dt, so sample times are exact; current clamp's
+  0.025 ms rounds to 0.03 (a known roadmap item), which first made the comparison look wrong.

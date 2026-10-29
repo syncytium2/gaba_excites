@@ -174,6 +174,56 @@ export function step(cell: BuiltCell, e: Electrode, s: Float64Array, iCmd: numbe
 }
 
 /**
+ * One voltage-clamp step, in place: the same cell, conductances and gate
+ * order as `step`, with the pipette held at `vCmd` instead of driven by a
+ * current. The cell sits behind Rs (MΩ):
+ *
+ *     amplifier holds P at V_cmd ──[ Rs ]──► cell V ──[ membrane ]──► ground
+ *
+ * so Cm dV/dt = (V_cmd − V)/Rs − I_membrane, by backward Euler with the
+ * conductances frozen over the step, as in current clamp. The pipette
+ * capacitance is taken as fully compensated (the amplifier's fast
+ * capacitance neutralization), so it draws nothing here. With rs = 0 the
+ * clamp is ideal: V = V_cmd, and the current includes Cm·ΔV/dt at each
+ * command step, a one-step capacitive spike.
+ *
+ * Returns the current the amplifier passes into the cell, pA, at the end of
+ * the step: what a voltage-clamp amplifier records. A net outward membrane
+ * current is positive, by the usual convention.
+ */
+export function stepVC(cell: BuiltCell, s: Float64Array, vCmd: number, rs: number, iMem: number, dt: number, syn: SynNow): number {
+  const iv = cell.iv;
+  const v0 = s[iv];
+  const ca = s[cell.iCa];
+  let G = cell.gLeak + syn.gGlu + syn.gGaba;
+  let GE = cell.gLeak * cell.eLeak + syn.gGlu * syn.eGlu + syn.gGaba * syn.eGaba + iMem;
+  let iCa0 = 0;
+  for (let k = 0; k < cell.channels.length; k++) {
+    const g = cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca);
+    const f = cell.erevCa[k];
+    const er = f ? f(ca) : cell.erev[k];
+    G += g;
+    GE += g * er;
+    if (cell.carriesCa[k]) iCa0 += g * (v0 - er);
+  }
+  const cdt = cell.params.cm / dt;
+  let v1: number;
+  let iIn: number;
+  if (rs <= 0) {
+    v1 = vCmd;
+    iIn = cdt * (v1 - v0) + G * v1 - GE;
+  } else {
+    const ge = 1000 / rs; // nS
+    v1 = (cdt * v0 + GE + ge * vCmd) / (cdt + G + ge);
+    iIn = ge * (vCmd - v1);
+  }
+  s[iv] = v1;
+  s[iv + 1] = vCmd;
+  advanceGates(cell, s, v1, dt, iCa0);
+  return iIn;
+}
+
+/**
  * Gates move after V, at the new V — NEURON's order (fadvance: solve V, then
  * nrn_state). Then calcium, by the model's pool (pools.ts), from the calcium
  * current it reads: the one at the start of the step (`iCa0`, NEURON's

@@ -31,6 +31,11 @@ export interface CellParams {
   gLeak: number;
   /** the model's own settings (ModelDef.knobs) by id; any left out take the published value */
   knobs?: Record<string, number>;
+  /**
+   * channels blocked, by id: their conductance is zero, as with a saturating
+   * dose of a selective blocker (TTX for Na⁺, TEA for K⁺). Works in either clamp.
+   */
+  block?: string[];
 }
 
 /** Every knob of the model, at the given values or the published ones. */
@@ -98,7 +103,7 @@ function activeSet(p: CellParams, m: ModelDef = MODELS[p.model]): ActiveSet {
   const chs = m.channels(knobValues(m, p.knobs));
   return {
     channels: chs.map((c) => c.channel),
-    gbar: chs.map((c) => c.gbar * scale),
+    gbar: chs.map((c) => (p.block?.includes(c.channel.id) ? 0 : c.gbar * scale)),
     erev: chs.map((c) => c.erev),
     erevCa: chs.map((c) => c.erevCa),
     carriesCa: chs.map((c) => !!c.carriesCa),

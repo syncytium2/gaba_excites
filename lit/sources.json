@@ -55,7 +55,7 @@
         "fs",
         "lts"
       ],
-      "took": "Every pyramidal-cell parameter, from sPY_template; every fast-spiking-cell parameter, from sIN_template; every LTS-cell parameter, from sPYr_template with demo_PY_LTS.hoc's settings; with HH_traub.mod, IM_cortex.mod, IT_huguenard.mod and cadecay_destexhe.mod — and the mechanisms themselves, run in NEURON as the oracle each port is tested against.",
+      "took": "Every pyramidal-cell parameter, from sPY_template; every fast-spiking-cell parameter, from sIN_template; every LTS-cell parameter, from sPYr_template with demo_PY_LTS.hoc's settings; with HH_traub.mod, IM_cortex.mod, IT_huguenard.mod and cadecay_destexhe.mod — and the mechanisms themselves, run in NEURON as the oracle each port is tested against, in current clamp and, for the pyramidal cell, in voltage clamp (SEClamp).",
       "usedIn": [
         "src/core/channels.ts",
         "src/core/models.ts",
@@ -64,7 +64,10 @@
         "src/core/oracle/neuron_fs.json",
         "src/core/pools.ts",
         "src/core/oracle/neuron_lts.json",
-        "src/core/lts.test.ts"
+        "src/core/lts.test.ts",
+        "tools/neuron_oracle_vc.py",
+        "src/core/oracle/neuron_vc_rs.json",
+        "src/core/vclamp.test.ts"
       ],
       "notes": "notes/pospischil2008.md"
     },
