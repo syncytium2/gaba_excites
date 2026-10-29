@@ -9,6 +9,7 @@ import { GNRH, type ModelId } from "./models.ts";
 import type { StepProtocol } from "./simulate.ts";
 import type { Pulse } from "./stream.ts";
 import { DEFAULT_GABA, DEFAULT_GLU, type SynInput } from "./synapses.ts";
+import type { VCMeasure, VCProtocol } from "./vclamp.ts";
 
 export interface ProtocolForm {
   mode: "family" | "list";
@@ -332,3 +333,68 @@ export const SCOPE_PATTERNS: ScopePattern[] = [
 export function patternsFor(model: ModelId): ScopePattern[] {
   return SCOPE_PATTERNS.filter((p) => p.model === model);
 }
+
+// ---------------------------------------------------------------- voltage clamp
+
+/**
+ * A voltage-clamp preset: a protocol and where to measure it, as an
+ * experimenter would set them up. These are the standard protocols, so they
+ * apply to every model; their notes say what to look at and quote no measured
+ * number, so no cell's number shows on another (the rule for step presets).
+ * Nothing is drawn until the protocol runs: the curves come only from what is
+ * measured (the owner's choice, 2026-10-29).
+ */
+export interface VCPreset {
+  id: string;
+  label: string;
+  note: string;
+  protocol: VCProtocol;
+  /** one or two measurements: the first is the one normalized and fitted */
+  measures: VCMeasure[];
+  /** how the first measurement is normalized: by its largest value (I/Imax) or as a conductance (G/Gmax) */
+  norm: "I" | "G";
+  /** the reversal G = I/(V − E_rev) uses, mV */
+  erev?: number;
+  /** fit a Boltzmann to the normalized first measurement (not for a tail family, which is linear) */
+  fit?: boolean;
+}
+
+export const VC_PRESETS: VCPreset[] = [
+  {
+    id: "vc-act",
+    label: "Activation (I–V)",
+    note: "Steps from −80 mV to +40 mV. The first measurement takes the peak inward current early in each step (Na⁺, where the cell has it); the second, the sustained current at the end (mostly K⁺). Normalized as G/Gmax, with E_rev = +50 mV, the sodium reversal of the cortical cells.",
+    protocol: { hold: -80, segments: [{ dur: 10, v: -80 }, { dur: 50, v: 0 }, { dur: 20, v: -80 }], vary: { seg: 1, what: "v", first: -80, delta: 10, count: 13 } },
+    measures: [
+      { seg: 1, from: 0.2, to: 10, kind: "peakIn" },
+      { seg: 1, from: 40, to: 50, kind: "mean" },
+    ],
+    norm: "G",
+    erev: 50,
+  },
+  {
+    id: "vc-inact",
+    label: "Steady-state inactivation",
+    note: "A 100 ms prepulse from −120 to −10 mV, then the same test step to 0 mV. The peak current at the test shrinks as the prepulse inactivates the channels; normalized to its largest, it traces the availability curve. After the most depolarized prepulses the K⁺ current, still open, outweighs what sodium is left: block the K⁺ channels, as TEA or Cs⁺ would, for a clean curve.",
+    protocol: { hold: -80, segments: [{ dur: 10, v: -80 }, { dur: 100, v: -120 }, { dur: 10, v: 0 }, { dur: 10, v: -80 }], vary: { seg: 1, what: "v", first: -120, delta: 10, count: 12 } },
+    measures: [{ seg: 2, from: 0.2, to: 5, kind: "peakIn" }],
+    norm: "I",
+  },
+  {
+    id: "vc-tails",
+    label: "Tail currents",
+    note: "A step to +20 mV opens the channels; then a family of tail potentials. Measured just after the step back, before the channels close, the tail current is linear in the tail potential, and where it crosses zero is the reversal potential of what was open.",
+    protocol: { hold: -80, segments: [{ dur: 10, v: -80 }, { dur: 20, v: 20 }, { dur: 50, v: -100 }, { dur: 10, v: -80 }], vary: { seg: 2, what: "v", first: -100, delta: 10, count: 9 } },
+    measures: [{ seg: 2, from: 0.5, to: 1.5, kind: "mean" }],
+    norm: "I",
+    fit: false,
+  },
+  {
+    id: "vc-recovery",
+    label: "Recovery from inactivation",
+    note: "Two steps to 0 mV with a gap at −80 mV that lengthens from sweep to sweep. The second step's peak grows back as the channels recover during the gap; its time course is the recovery. Fast channels recover in a few milliseconds, so the gaps start short.",
+    protocol: { hold: -80, segments: [{ dur: 10, v: -80 }, { dur: 20, v: 0 }, { dur: 0.2, v: -80 }, { dur: 10, v: 0 }, { dur: 10, v: -80 }], vary: { seg: 2, what: "dur", first: 0.2, delta: 0.4, count: 12 } },
+    measures: [{ seg: 3, from: 0.2, to: 5, kind: "peakIn" }],
+    norm: "I",
+  },
+];

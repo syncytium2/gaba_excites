@@ -51,6 +51,7 @@
   <li><a href="#scope">The oscilloscope</a></li>
   <li><a href="#siren">The siren</a></li>
   <li><a href="#oldschool">Old school, and the audio monitor</a></li>
+  <li><a href="#vclamp">Voltage clamp</a></li>
   <li><a href="#validation">Checked against NEURON</a></li>
   <li><a href="#gaba">When GABA excites</a></li>
   <li><a href="#limits">What it leaves out</a></li>
@@ -459,8 +460,43 @@ surface (sweeps run dim to bright with step amplitude), and, in the oscilloscope
   an analog rate meter is a low-pass filter.</li>
 </ul>
 
+<h2 id="vclamp">6e. Voltage clamp</h2>
+<p>The third mode holds the cell at a command and records the current, on the same cells, channels and integrator as
+current clamp. The amplifier holds the pipette at the command; the cell sits behind the series resistance Rs, so
+Cm dV/dt = (V<sub>cmd</sub> − V)/Rs − I<sub>membrane</sub>, solved by backward Euler with the conductances frozen over
+each 0.01 ms step, and the gates moved afterwards at the new V, exactly as in current clamp. With Rs = 0 the clamp is
+ideal: V is the command, and each command step carries a one-step capacitive spike, Cm·ΔV/dt. Pipette capacitance is
+taken as compensated.</p>
+<ul>
+  <li><strong>Nothing is drawn from the model's equations.</strong> No activation or inactivation curve appears until a
+  protocol has run and you have said where to measure: peak inward, peak outward, the mean over a window (sustained),
+  or a cursor, in a window of one segment. Up to two measurements; the first is normalized (I/Imax, or G/Gmax with
+  G = I/(V − E_rev)) and fitted with a Boltzmann, or, for a tail family, read for where it reverses.</li>
+  <li><strong>Measured on the recorded current</strong>, through the amplifier's filter and with its noise, as on a rig.
+  (Current clamp measures true Vm; this is the owner's choice for voltage clamp.) The true current and the cell's true
+  Vm can be shown behind the record, and the I–V plotted against true Vm as well as against the command.</li>
+  <li><strong>Protocols</strong> are a holding potential, a list of segments, and one segment that varies across the
+  family, in voltage or in duration: activation (I–V), steady-state inactivation, tail currents and recovery from
+  inactivation are presets, and the segments can be edited.</li>
+  <li><strong>Channels can be blocked</strong>, one by one, as a saturating dose of a selective blocker would; the block
+  carries over to current clamp. Blocking K⁺ cleans up an inactivation curve, as TEA or Cs⁺ does on a rig.</li>
+  <li><strong>The pyramidal cell is too big to clamp.</strong> Its 290 pF soma carries about 270 nA of sodium current
+  at 0 mV. Behind even 2 MΩ the clamp loses it: at a −40 mV command the cell fires an unclamped action current past
+  +30 mV, and the measured I–V is the classic escape. The mode therefore opens with an ideal clamp, Rs = 0, and the Rs
+  dial shows the escape; shrinking Cm (channel densities stay fixed) brings the currents down, as a smaller cell would.</li>
+  <li><strong>The filter distorts the fast sodium peak.</strong> On the activation preset the fitted G–V has V½ −20.5 mV
+  and k −8.5 mV unfiltered, −17.3 and −10.6 mV through the 10 kHz filter (the default), and −11.1 and −14.6 mV at
+  5 kHz: the fastest peaks, at the most depolarized commands, are blunted most.</li>
+</ul>
+
 <h2 id="validation">7. Checked against NEURON</h2>
-<p>The port was run against NEURON 9.0.2 executing the <em>original</em> ModelDB mechanisms (repository commit
+<p><strong>Voltage clamp</strong> was checked the same way, with NEURON's own clamp, SEClamp: an ideal source behind
+a series resistance, the circuit the port solves. Activation and inactivation families at 0.001 MΩ, and activation at
+2 MΩ, where the cell escapes the clamp: every sample 0.2 ms apart agrees within 10 pA and 0.01 mV, and every peak at
+full resolution within 0.05%; the largest differences seen were 1 pA, and 3 pA on 58 nA at 2 MΩ
+(<code>tools/neuron_oracle_vc.py</code>, <code>src/core/vclamp.test.ts</code>). NEURON's 0.001 MΩ is not quite ideal:
+262 nA of sodium current through it is a 0.26 mV error, which the port reproduces at the same resistance.</p>
+<p>In current clamp, the port was run against NEURON 9.0.2 executing the <em>original</em> ModelDB mechanisms (repository commit
 <code>8dfc13f</code>): the same cell, a 3 s settle, then an 800 ms step, with dt = 0.01 ms and implicit Euler in both.
 Spike counts agree exactly at every amplitude, and every spike time agrees to within 0.2 ms:</p>
 <div class="tablewrap"><table>

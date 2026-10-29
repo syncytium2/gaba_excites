@@ -16,10 +16,12 @@ import { PhasePlot } from "./ui/PhasePlot.tsx";
 import { Panel, usePanels } from "./ui/Panel.tsx";
 import { Tip } from "./ui/Tip.tsx";
 import { ScopeMode } from "./ui/ScopeMode.tsx";
+import { VClampMode } from "./ui/VClampMode.tsx";
 import { Siren } from "./ui/Siren.tsx";
 import { KnobContext } from "./ui/Knob.tsx";
 import { describe as describeTrip, ExtremeWatch, limitsFor, type ExtremeKind } from "./core/extremes.ts";
 import { DARK_CHART, LIGHT_CHART, rampIn, type ChartColors } from "./ui/palette.ts";
+import { axisOpts } from "./ui/axis.ts";
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 import { Notebook } from "./ui/Notebook.tsx";
 import { Tour } from "./ui/Tour.tsx";
@@ -84,7 +86,7 @@ export function App() {
   // bumped to re-run an unchanged protocol, so a tour part can always play it
   const [runNonce, setRunNonce] = useState(0);
   // Step protocol, or the oscilloscope: the cell running continuously, every control live
-  const [mode, setMode] = useState<"steps" | "scope">(OPENING.mode);
+  const [mode, setMode] = useState<"steps" | "scope" | "vc">(OPENING.mode);
   // a scope pattern (a cell's own rhythm, e.g. the beta cell's) and the time base and speed it asks for
   const [patternId, setPatternId] = useState("custom");
   const [view, setView] = useState<{ key: string; msPerDiv: number; speed: number } | undefined>(undefined);
@@ -197,7 +199,7 @@ export function App() {
   // The published cell at its default holding current, with both PSC generators
   // back to this cell's defaults: off, with its own kinetics and E_GABA.
   const resetCell = () => {
-    const t = tourInputs({ model: cell.model, mode, ihold: MODELS[cell.model].defaults.ihold });
+    const t = tourInputs({ model: cell.model, mode: mode === "vc" ? "steps" : mode, ihold: MODELS[cell.model].defaults.ihold });
     setCell(t.cell);
     setIhold(t.ihold);
     setGlu(t.glu);
@@ -409,9 +411,8 @@ export function App() {
       </AmpSection>
     );
   };
-  const ampSections = (
-    <>
-      <AmpRow>
+  // The amplifier's model, cell and knob sections, shared by all three modes; voltage clamp has no holding current.
+  const modelSection = (
         <AmpSection name="MODEL">
           <AmpSlot label="Cell">
             <select id="model-select" aria-label="Cell model" value={cell.model} onChange={(e) => switchModel(e.target.value as ModelId)}>
@@ -422,8 +423,10 @@ export function App() {
             <button type="button" onClick={resetCell} title="The published cell at its default holding current; both PSC generators back to this cell's defaults (off)">Cell + PSCs</button>
           </AmpSlot>
         </AmpSection>
+  );
+  const cellSection = (withIhold: boolean) => (
         <AmpSection name="CELL">
-          <AmpDial label="Ihold" unit="pA" value={ihold} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 0.5 : model.ranges.ihold.step} digits={1} onChange={setIhold} />
+{withIhold && (<AmpDial label="Ihold" unit="pA" value={ihold} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 0.5 : model.ranges.ihold.step} digits={1} onChange={setIhold} />)}
           <AmpDial label="gL (leak)" unit="nS" value={cell.gLeak} min={model.ranges.gLeak.min} max={model.ranges.gLeak.max} step={model.ranges.gLeak.step} digits={2} onChange={(gLeak) => setCell({ ...cell, gLeak })} />
           <AmpDial label="Cm (size)" unit="pF" value={cell.cm} min={model.ranges.cm.min} max={model.ranges.cm.max} step={model.ranges.cm.step} digits={1} onChange={(cm) => setCell({ ...cell, cm })} />
           <AmpSlot label="Rin · τm at rest">
@@ -437,16 +440,9 @@ export function App() {
             </Tip>
           </AmpSlot>
         </AmpSection>
-        <AmpSection name="ELECTRODE">
-          <AmpDial label="Rs" unit="MΩ" value={electrode.rs} min={0} max={100} step={1} digits={0} onChange={(rs) => setElectrode({ ...electrode, rs })} />
-          <AmpDial label="Bridge" unit="%" value={Math.round(electrode.bridge * 100)} min={0} max={100} step={5} digits={0} onChange={(b) => setElectrode({ ...electrode, bridge: b / 100 })} />
-          <AmpDial label="Pipette C" unit="pF" value={electrode.cp} min={0} max={20} step={0.5} digits={1} onChange={(cp) => setElectrode({ ...electrode, cp })} />
-        </AmpSection>
-        <AmpSection name="MEMBRANE NOISE">
-          <AmpDial label="σ" unit="pA" value={noise.memSigma} min={model.ranges.memNoise.min} max={model.ranges.memNoise.max} step={model.ranges.memNoise.step} digits={1} onChange={(memSigma) => setNoise({ ...noise, memSigma })} />
-          <AmpDial label="τ" unit="ms" value={noise.memTau} min={0.5} max={100} step={0.5} digits={1} onChange={(memTau) => setNoise({ ...noise, memTau })} />
-        </AmpSection>
-      </AmpRow>
+  );
+  const knobsRow = (
+    <>
       {model.knobs && (
       <AmpRow>
         <AmpSection name={model.knobsTitle ?? "MODEL SETTINGS"}>
@@ -470,6 +466,24 @@ export function App() {
         </AmpSection>
       </AmpRow>
       )}
+    </>
+  );
+  const ampSections = (
+    <>
+      <AmpRow>
+        {modelSection}
+        {cellSection(true)}
+        <AmpSection name="ELECTRODE">
+          <AmpDial label="Rs" unit="MΩ" value={electrode.rs} min={0} max={100} step={1} digits={0} onChange={(rs) => setElectrode({ ...electrode, rs })} />
+          <AmpDial label="Bridge" unit="%" value={Math.round(electrode.bridge * 100)} min={0} max={100} step={5} digits={0} onChange={(b) => setElectrode({ ...electrode, bridge: b / 100 })} />
+          <AmpDial label="Pipette C" unit="pF" value={electrode.cp} min={0} max={20} step={0.5} digits={1} onChange={(cp) => setElectrode({ ...electrode, cp })} />
+        </AmpSection>
+        <AmpSection name="MEMBRANE NOISE">
+          <AmpDial label="σ" unit="pA" value={noise.memSigma} min={model.ranges.memNoise.min} max={model.ranges.memNoise.max} step={model.ranges.memNoise.step} digits={1} onChange={(memSigma) => setNoise({ ...noise, memSigma })} />
+          <AmpDial label="τ" unit="ms" value={noise.memTau} min={0.5} max={100} step={0.5} digits={1} onChange={(memTau) => setNoise({ ...noise, memTau })} />
+        </AmpSection>
+      </AmpRow>
+      {knobsRow}
       <AmpRow>
         {synDials("GABA PSC", gaba, setGaba, true)}
         {synDials("GLUTAMATE PSC", glu, setGlu, false)}
@@ -541,6 +555,10 @@ export function App() {
         <button id="mode-scope" role="radio" aria-checked={mode === "scope"} className={mode === "scope" ? "on" : ""} onClick={() => setMode("scope")}>
           Oscilloscope
         </button>
+        <button id="mode-vc" role="radio" aria-checked={mode === "vc"} className={mode === "vc" ? "on" : ""} onClick={() => setMode("vc")}
+          title="Voltage clamp: hold the cell at a command and record the current">
+          Voltage clamp
+        </button>
       </div>
       {(
         <label className="check oldschool-toggle">
@@ -565,7 +583,7 @@ export function App() {
       </header>
 
       <KnobContext.Provider value={oldSchool}>
-      <div className="layout">
+      <div className={"layout" + (mode === "vc" ? " vc-wide" : "")}>
         <aside className="tools">
           <Panel title="Guided tour" open={panels.open.tour} onToggle={() => panels.toggle("tour")} className="tour-panel"
             summary="Why does GABA excite GnRH neurons? Open to start.">
@@ -582,7 +600,10 @@ export function App() {
             {error && <div className="warn" role="alert">Simulation failed: {error}</div>}
           </div>
 
-          {mode === "scope" ? (
+          {mode === "vc" ? (
+            <VClampMode cell={cell} setCell={setCell} ampControls={ampControls} pal={pal} screenH={screenH}
+              ampTop={<><AmpRow>{modelSection}{cellSection(false)}</AmpRow>{knobsRow}</>} />
+          ) : mode === "scope" ? (
             <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} limits={limits} onExtremes={setScopeReasons} oldSchool={oldSchool}
               amp={ampSections} ampLastRow={ampLastRow} ampControls={ampControls} readoutSlot={readoutSlot} screenH={screenH} view={view} />
           ) : (
@@ -684,8 +705,10 @@ export function App() {
       <footer>
         <p>
           Model: {model.label} — {model.citation}, <a href={`https://doi.org/${model.doi}`}>doi:{model.doi}</a>. {model.validation}{" "}
-          Measurements are taken on the true membrane potential, not on the recorded trace, so electrode settings and recording noise
-          never move them.
+          {mode === "vc"
+            ? <>In voltage clamp, measurements are taken on the recorded current, through the amplifier's filter and with its noise, as on a rig.</>
+            : <>Measurements are taken on the true membrane potential, not on the recorded trace, so electrode settings and recording noise
+          never move them.</>}
         </p>
         <p>
           By <a href="https://tonydefazio.com/">Tony DeFazio</a> · MIT licensed · <a href="https://github.com/syncytium2/gaba_excites">github.com/syncytium2/gaba_excites</a> ·
@@ -716,18 +739,6 @@ function uPlotSyncKey() {
   return "t";
 }
 
-function axisOpts(pal: ChartColors, label: string, size = 50): uPlot.Axis {
-  return {
-    label,
-    stroke: pal.ink2,
-    size,
-    labelSize: 18,
-    font: "11px system-ui, -apple-system, sans-serif",
-    labelFont: "12px system-ui, -apple-system, sans-serif",
-    grid: { stroke: pal.grid, width: 1 },
-    ticks: { stroke: pal.axis, width: 1, size: 4 },
-  };
-}
 
 /**
  * The step view's zoom, Igor style: x is shared by the stacked plots (they share time), y belongs to one plot

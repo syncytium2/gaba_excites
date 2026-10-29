@@ -8,9 +8,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { buildCell, publishedParams } from "./cell.ts";
+import { MODEL_LIST } from "./models.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "./synapses.ts";
 import { DEFAULT_NOISE } from "./noise.ts";
-import { fitBoltzmann, measureSweep, runVCFamily, type VCInputs, type VCProtocol, type VCSweep } from "./vclamp.ts";
+import { fitBoltzmann, measureSweep, runVCFamily, variedValue, zeroCrossing, type VCInputs, type VCProtocol, type VCSweep } from "./vclamp.ts";
+import { VC_PRESETS } from "./protocol.ts";
 import { runFamily } from "./simulate.ts";
 import { detectSpikes } from "./analysis.ts";
 
@@ -136,6 +138,37 @@ describe("voltage clamp: the ideal clamp and the measurements", () => {
     }
   });
 
+  it("finds where a measured current reverses, and steps durations without float noise", () => {
+    expect(zeroCrossing([-100, -90, -80, -70], [-4, -2, 2, 6])).toBeCloseTo(-85, 9);
+    expect(zeroCrossing([-80, -100, -90], [2, -4, -2])).toBeCloseTo(-85, 9); // order of x, not of input
+    expect(zeroCrossing([1, 2, 3], [1, 2, 3])).toBeNaN();
+    expect(variedValue({ hold: 0, segments: [], vary: { seg: 0, what: "dur", first: 0.2, delta: 0.4, count: 3 } }, 1)).toBe(0.6);
+  });
+
+  it("the tail preset finds E_K: on the pyramidal cell (E_K −100 mV, leak −70 mV) its tails reverse between −95 and −80 mV", () => {
+    const pr = VC_PRESETS.find((p) => p.id === "vc-tails")!;
+    const pts = runVCFamily(cell, { rs: 0, ...OFF }, pr.protocol).map((s) => measureSweep(s, pr.measures[0]));
+    const e = zeroCrossing(pts.map((p) => p.value), pts.map((p) => p.i));
+    expect(e).toBeGreaterThan(-95);
+    expect(e).toBeLessThan(-80);
+  });
+
+  it("the amplifier's filter blunts the fast sodium peak and moves the fitted G–V: V½ −20.5 mV unfiltered, −17.3 at 10 kHz, −11.1 at 5 kHz", () => {
+    const pr = VC_PRESETS.find((p) => p.id === "vc-act")!;
+    const fit = (recFilter: 0 | 5 | 10) => {
+      const noise = { ...DEFAULT_NOISE, recSigma: 2, recFilter };
+      const pts = runVCFamily(cell, { rs: 0, noise, ...OFF }, pr.protocol).map((s) => measureSweep(s, pr.measures[0]));
+      const g = pts.map((p) => p.i / (p.value - pr.erev!));
+      const big = g.reduce((a, r) => (Math.abs(r) > Math.abs(a) ? r : a), 0);
+      return fitBoltzmann(pts.map((p) => p.value), g.map((r) => r / big));
+    };
+    for (const [f, vh, k] of [[0, -20.5, -8.5], [10, -17.3, -10.6], [5, -11.1, -14.6]] as const) {
+      const r = fit(f);
+      expect(r.vHalf).toBeCloseTo(vh, 0);
+      expect(r.k).toBeCloseTo(k, 0);
+    }
+  });
+
   it("blocking a channel removes its current, in voltage clamp and in current clamp", () => {
     const step0 = { ...ACT, vary: { ...ACT.vary, first: 0, count: 1 } };
     const ctl = runVCFamily(cell, { rs: 0, ...OFF }, step0)[0];
@@ -159,4 +192,17 @@ describe("voltage clamp: the ideal clamp and the measurements", () => {
     expect(Array.from(clean.iRec)).toEqual(Array.from(clean.iTrue)); // no noise, filter bypassed: the record is the current
     expect(Array.from(noisy.iRec)).not.toEqual(Array.from(clean.iRec));
   });
+});
+
+describe("voltage clamp on every model", () => {
+  for (const m of MODEL_LIST) {
+    it(`${m.short}: every preset runs and every measurement is finite`, () => {
+      const cell = buildCell(publishedParams(m.id));
+      for (const pr of VC_PRESETS) {
+        const sw = runVCFamily(cell, { rs: 0, ...OFF }, pr.protocol, { dt: 0.01, sampleMs: 0.02, seed: 1, settleMs: 500 });
+        expect(sw.length).toBe(pr.protocol.vary.count);
+        for (const s of sw) for (const meas of pr.measures) expect(Number.isFinite(measureSweep(s, meas).i), `${m.id} ${pr.id} ${s.value}`).toBe(true);
+      }
+    });
+  }
 });

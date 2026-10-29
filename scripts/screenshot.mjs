@@ -264,6 +264,36 @@ await page.waitForTimeout(1500);
 await page.screenshot({ path: `${out}/scope-phone.png`, fullPage: true });
 if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) problems.push("scope: horizontal overflow at 390 px");
 
+// Voltage clamp: the tour folds away, every preset runs and draws what it measured, blocking a channel re-runs,
+// and nothing overflows a phone.
+await page.setViewportSize({ width: 1440, height: 1000 });
+const vcRan = async (what) => {
+  try {
+    await page.waitForFunction(() => /sweeps simulated/.test(document.querySelector(".vc-traces .status")?.textContent ?? ""), null, { timeout: 30000 });
+  } catch { problems.push(`vc: ${what} never finished`); }
+};
+await page.click("#mode-vc");
+await vcRan("the opening run");
+if (!(await page.locator(".layout.vc-wide").count()) || (await page.locator(".tools").isVisible())) problems.push("vc: the tour did not fold away");
+for (const id of await page.locator("#vc-preset option").evaluateAll((os) => os.map((o) => o.value).filter((v) => v !== "custom"))) {
+  await page.selectOption("#vc-preset", id);
+  await page.waitForTimeout(300);
+  await vcRan(id);
+  if (!(await page.locator(".vc-side .svgplot svg").count())) problems.push(`vc: ${id} drew no measured curve`);
+  await page.screenshot({ path: `${out}/vc-${id}.png`, fullPage: true });
+}
+await page.selectOption("#vc-preset", "vc-act");
+await vcRan("activation again");
+await page.locator(".vc-block input").first().uncheck();
+await page.waitForTimeout(300);
+await vcRan("a blocked run");
+if (!(await page.locator(".vc-model-note").innerText()).includes("1 blocked")) problems.push("vc: blocking a channel did not take");
+await page.locator(".vc-block input").first().check();
+await page.setViewportSize({ width: 390, height: 900 });
+await page.waitForTimeout(800);
+await page.screenshot({ path: `${out}/vc-phone.png`, fullPage: true });
+if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) problems.push("vc: horizontal overflow at 390 px");
+
 await browser.close();
 if (problems.length) { console.error(problems.join("\n")); process.exit(1); }
 console.log("clean: no console errors, no third-party requests, no phone overflow");

@@ -57,7 +57,8 @@ export interface VCProtocol {
 
 /** The varied value of sweep k. */
 export function variedValue(p: VCProtocol, k: number): number {
-  return p.vary.first + k * p.vary.delta;
+  // rounded to 1e-6, so 0.2 + 0.4·k reads 0.6, not 0.6000000000000001
+  return Math.round((p.vary.first + k * p.vary.delta) * 1e6) / 1e6;
 }
 
 /** The segments of sweep k, with the varied one set. */
@@ -294,6 +295,22 @@ export function measureSweep(sw: VCSweep, m: VCMeasure): VCPoint {
     return { value: sw.value, vCmd: sw.vCmd[a], i: sum / cnt, t: ((a + b) / 2) * sw.sampleMs, vm: vs / cnt };
   }
   return { value: sw.value, vCmd: sw.vCmd[j], i, t: j * sw.sampleMs, vm: sw.vm[j] };
+}
+
+/**
+ * Where y changes sign along x, by linear interpolation between the two points
+ * that straddle zero (the first such pair, in order of x); NaN if it never
+ * does. For a tail family this is the reversal potential of what was open.
+ */
+export function zeroCrossing(x: number[], y: number[]): number {
+  const s = x.map((v, i) => [v, y[i]] as const).filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b)).sort((a, b) => a[0] - b[0]);
+  for (let i = 1; i < s.length; i++) {
+    const [x0, y0] = s[i - 1];
+    const [x1, y1] = s[i];
+    if (y0 === 0) return x0;
+    if (Math.sign(y0) !== Math.sign(y1) && y1 !== y0) return x0 + ((0 - y0) / (y1 - y0)) * (x1 - x0);
+  }
+  return s.length && s[s.length - 1][1] === 0 ? s[s.length - 1][0] : NaN;
 }
 
 /**

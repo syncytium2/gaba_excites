@@ -1202,3 +1202,27 @@ hours in six pieces.
   the steep sodium current is a 60 nA difference from a true ideal clamp, so like is compared with like.
 - **Voltage-clamp storage is every 0.02 ms**, an exact multiple of dt, so sample times are exact; current clamp's
   0.025 ms rounds to 0.03 (a known roadmap item), which first made the comparison look wrong.
+
+## 2026-10-29 — voltage clamp in the app
+
+A third mode, "Voltage clamp", beside Step protocol and Oscilloscope (`src/ui/VClampMode.tsx`, its own worker
+`src/vc-worker.ts`). The tour folds away in this mode, as the owner suggested, so the traces take the left of the
+page and what was measured the right.
+
+- **What is on screen.** The recorded current of the family over the command, with each measurement's window shaded
+  and the capacitive transients left out of the autoscale; the true current and Vm dashed behind on request. On the
+  right, the measured points (M1, M2), M1 normalized with its Boltzmann fit or, for a tail family, where it reverses,
+  and a table. Nothing appears until a protocol has run.
+- **The amplifier.** Model and cell size and leak as in the other modes (no holding current); CLAMP (Rs, 0–30 MΩ);
+  CHANNELS (one switch each, shared with current clamp through `CellParams.block`); RECORDING (filter, RMS in pA);
+  PROTOCOL (preset, hold, up to eight segments, which one varies and how); MEASURE M1 and M2 (segment, peak in/out,
+  mean or cursor, window); ANALYSIS (I/Imax or G/Gmax with E_rev, fit on or off, x as command or true Vm).
+- **Presets** are protocols, not claims: activation, inactivation, tails, recovery. They apply to every model and
+  quote no measured number, so no cell's number shows on another.
+- **Two findings while building it.** The x of an inactivation curve is the prepulse, not the potential where the
+  measurement is taken: the first version plotted every point at the test potential. True Vm can stand in for the
+  command only when the measurement is in the varied segment. And the amplifier's filter moves the fitted G–V of a
+  fast sodium current: V½ −20.5 mV unfiltered, −17.3 at 10 kHz, −11.1 at 5 kHz (pinned in vclamp.test.ts). The mode
+  opens at 10 kHz, like current clamp; 5 kHz was the first choice and was wrong for sodium.
+- **Defaults**: ideal clamp (Rs 0), filter 10 kHz, 2 pA RMS noise. Up to 30 sweeps of up to 3 s.
+- **Not yet**: Rs compensation (prediction/correction), P/N leak subtraction, ramps, a CSV of the measured points.
