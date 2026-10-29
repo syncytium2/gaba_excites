@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AmpDial, AmpFront, AmpRow, AmpSection, AmpSlot } from "./AmpFront.tsx";
+import { AmpDial, AmpRow, AmpSection, AmpSlot, RigPanels } from "./AmpFront.tsx";
 import type { CellParams } from "../core/cell.ts";
 import { MODELS, type ModelId } from "../core/models.ts";
 import { describe as describeTrip, ExtremeWatch, type Limits } from "../core/extremes.ts";
@@ -57,12 +57,10 @@ interface Readout {
 /** the siren stays on while anything tripped within this much simulated time */
 const SIREN_WINDOW = 1000;
 
-export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false, amp, ampLastRow, ampControls, readoutSlot, screenH = 460, view }: {
+export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false, rig, ampControls, readoutSlot, screenH = 460, view }: {
   cell: CellParams; inputs: StreamInputs; seed: number; limits: Limits; onExtremes: (reasons: string[]) => void; oldSchool?: boolean;
-  /** the amplifier rows the app supplies (cell, synapses) */
-  amp?: React.ReactNode;
-  /** sections that open the amplifier's last row, before the audio monitor */
-  ampLastRow?: React.ReactNode;
+  /** the rig's panels as the app supplies them: amplifier sections (this adds the audio monitor), acquisition and simulation rows */
+  rig: { amp: React.ReactNode; ampSummary: string; acq: React.ReactNode; acqSummary: string; sim: React.ReactNode; simSummary: string };
   /** the mode switch and Old school, in the amplifier's name strip */
   ampControls?: React.ReactNode;
   /** the screen card's height, px: the same in both modes, so the amplifier below stays put */
@@ -321,10 +319,8 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
         </p>
       </figure>
 
-      <AmpFront controls={ampControls}>
-        {amp}
-        <AmpRow>
-        {ampLastRow}
+      <RigPanels controls={ampControls}
+        amplifier={{ rows: <AmpRow>{rig.amp}
         <AmpSection name="MONITOR">
           <AmpSlot label={(speed !== 1 || paused) && sound !== "off" ? "Sound (plays at 1× while running)" : "Sound"}>
             <span className="seg small" role="radiogroup" aria-label="Audio monitor">
@@ -342,8 +338,9 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
           </AmpSlot>
           {sound !== "off" && <AmpDial label="Volume" unit="%" value={volume} min={0} max={100} step={5} digits={0} onChange={setVolume} />}
         </AmpSection>
-        </AmpRow>
-      </AmpFront>
+        </AmpRow>, summary: rig.ampSummary + (sound !== "off" ? ` · sound: ${sound === "pop" ? "hiss & pop" : "tone"}` : "") }}
+        acquisition={{ rows: rig.acq, summary: rig.acqSummary }}
+        simulation={{ rows: rig.sim, summary: rig.simSummary }} />
     </>
   );
 }

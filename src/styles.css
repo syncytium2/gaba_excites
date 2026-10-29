@@ -520,3 +520,11 @@ body:has(.page.old-school) { background: #1a1b19; }
 .vc-seg-btns button[aria-pressed="true"] { background: #ffb547; color: #1b1b18; }
 .vc-block { font-size: 11px; white-space: nowrap; }
 .vc-model-note { margin: 4px 0 0; }
+
+/* ---------------------------------------------------------------- the rig's three panels, each folding to one line */
+.rig { display: flex; flex-direction: column; gap: 10px; }
+.rig-fold { height: 22px; min-width: 26px; padding: 0 6px; margin-right: 6px; font-size: 12px; line-height: 1; }
+.rig-summary { margin-left: auto; font: 12px ui-monospace, Menlo, Consolas, monospace; color: #ffb547; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 70%; }
+.rig-panel.folded .amp-badge { margin-bottom: 0; }
+.rig-acq .amp-brand, .rig-sim .amp-brand { letter-spacing: 0.12em; }
+@media (max-width: 760px) { .rig-summary { max-width: 100%; flex-basis: 100%; margin-left: 0; white-space: normal; } }

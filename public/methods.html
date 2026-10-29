@@ -433,6 +433,14 @@ last second of simulated time. The test suite runs every preset of every cell an
 and requires each criterion to trip where it should. For example, the pyramidal cell at 12.8 nA fires at 400 Hz with
 overshooting spikes, past the current limit; both Pospischil cells are in depolarization block by 25.6 nA.</p>
 
+<p><strong>The controls</strong> sit in three panels directly below the recording window, in every mode, each folding to one
+line: the <strong>amplifier</strong> (clamp mode, holding current, Rs, bridge and pipette capacitance, the output filter, and on
+the oscilloscope the audio monitor), the <strong>acquisition</strong> software (step protocol, pulse train, or the voltage-clamp
+protocol and measurement windows), and the <strong>simulation</strong>: the cell, its leak and Cm, channel blocks, a model's
+own settings, PSCs, membrane and recording noise. The split keeps a property of the simulated cell from being read as an
+amplifier control: the cell's leak g<sub>L</sub> is not leak compensation, and the filter is on the amplifier, not among the
+noise sources.</p>
+
 <h2 id="oldschool">6d. Old school, and the audio monitor</h2>
 <p><strong>The audio monitor</strong> is in the oscilloscope, off until asked for. Listening to the cell was how a rig was
 run, and it still teaches: you hear the rate climb as you turn up the holding current, GABA change sides as E_GABA

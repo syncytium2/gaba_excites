@@ -39,6 +39,17 @@ for (const id of modelIds) {
   await page.waitForTimeout(1500);
   if (!(await page.locator("#model-select").count())) { problems.push(`scope: choosing ${id} broke the page`); await page.goto(url); await page.waitForTimeout(2500); }
 }
+// The fastest time base in Old school must not lock the page: stroking each phosphor column with its own glow
+// once cost more than a second per second at 10 ms/div, and the page fell further behind until it froze.
+await page.selectOption("#model-select", "gnrh");
+await page.selectOption("#timebase-select", "10");
+await page.waitForTimeout(4000);
+{
+  const t0 = Date.now();
+  await page.evaluate(() => 1);
+  if (Date.now() - t0 > 1000) problems.push(`scope: 10 ms/div in Old school left the page ${Date.now() - t0} ms behind`);
+}
+await page.selectOption("#timebase-select", "200");
 // The beta cell lives on the oscilloscope: the step button is off, and its patterns are offered.
 if (modelIds.includes("betamouse")) {
   await page.selectOption("#model-select", "betamouse");
@@ -287,7 +298,7 @@ await vcRan("activation again");
 await page.locator(".vc-block input").first().uncheck();
 await page.waitForTimeout(300);
 await vcRan("a blocked run");
-if (!(await page.locator(".vc-model-note").innerText()).includes("1 blocked")) problems.push("vc: blocking a channel did not take");
+if (!(await page.locator(".vc-block").first().innerText()).includes("blocked")) problems.push("vc: blocking a channel did not take");
 await page.locator(".vc-block input").first().check();
 await page.setViewportSize({ width: 390, height: 900 });
 await page.waitForTimeout(800);

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type uPlot from "uplot";
-import { buildCell, type CellParams } from "../core/cell.ts";
-import { MODELS } from "../core/models.ts";
+import type { CellParams } from "../core/cell.ts";
 import { DEFAULT_NOISE, type NoiseParams } from "../core/noise.ts";
 import { FILTER_KHZ } from "../core/filter.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "../core/synapses.ts";
@@ -9,7 +8,7 @@ import { VC_PRESETS } from "../core/protocol.ts";
 import { fitBoltzmann, measureSweep, zeroCrossing, type VCMeasure, type VCPoint, type VCProtocol, type VCSweep } from "../core/vclamp.ts";
 import { linePlot, type PlotTheme, type Series } from "../core/svgplot.ts";
 import type { VCRequest, VCResponse } from "../vc-worker.ts";
-import { AmpChoice, AmpDial, AmpFront, AmpRow, AmpSection, AmpSlot } from "./AmpFront.tsx";
+import { AmpChoice, AmpDial, AmpRow, AmpSection, AmpSlot, RigPanels } from "./AmpFront.tsx";
 import { Plot } from "./Plot.tsx";
 import { Tip } from "./Tip.tsx";
 import { axisOpts } from "./axis.ts";
@@ -37,17 +36,17 @@ function currentUnit(maxAbs: number): { div: number; unit: string } {
  * they are measured on the RECORDED current (filtered, with noise), with the
  * true current and Vm available behind it (the owner's choices, 2026-10-29).
  */
-export function VClampMode({ cell, setCell, ampTop, ampControls, pal, screenH = 460 }: {
+export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH = 460 }: {
   cell: CellParams;
-  setCell: (c: CellParams) => void;
-  /** the amplifier rows the app supplies: model, cell size and leak, a model's own knobs */
-  ampTop: React.ReactNode;
+  /** the simulation panel's one-line summary, as the app writes it; this adds the noise */
+  simSummary: string;
+  /** the simulation rows the app supplies: model, cell size and leak, channel blocks, a model's own knobs */
+  simTop: React.ReactNode;
   /** the mode switch and Old school, in the amplifier's name strip */
   ampControls: React.ReactNode;
   pal: ChartColors;
   screenH?: number;
 }) {
-  const model = MODELS[cell.model];
   const [presetId, setPresetId] = useState(VC_PRESETS[0].id);
   const [proto, setProto] = useState<VCProtocol>(VC_PRESETS[0].protocol);
   const [measures, setMeasures] = useState<VCMeasure[]>(VC_PRESETS[0].measures);
@@ -177,7 +176,7 @@ export function VClampMode({ cell, setCell, ampTop, ampControls, pal, screenH = 
       const order = pts.map((p, i) => [xOf(p, j), i] as const).sort((a, b) => a[0] - b[0]);
       return { x: order.map(([x]) => x), y: order.map(([, i]) => pts[i].i / u.div), color: colors[j], dots: true, label: `M${j + 1}: ${KINDS.find((k) => k[0] === measures[j].kind)![1].toLowerCase()}` };
     });
-    return linePlot({ series, xlabel: xLabel, ylabel: `measured current (${u.unit})`, hlines: [{ y: 0, color: pal.muted }], legend: true, theme, width: 520, height: 260 });
+    return linePlot({ series, xlabel: xLabel, ylabel: `measured current (${u.unit})`, hlines: [{ y: 0, color: pal.muted }], legend: true, theme, width: 520, height: 150 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [points, xAxis, pal, u.div]);
   const normSvg = useMemo(() => {
@@ -192,19 +191,11 @@ export function VClampMode({ cell, setCell, ampTop, ampControls, pal, screenH = 
       for (let v = lo; v <= hi; v += (hi - lo) / 100 || 1) xs.push(v);
       series.push({ x: xs, y: xs.map((v) => 1 / (1 + Math.exp((v - f.vHalf) / f.k))), color: pal.blue, label: "Boltzmann fit" });
     }
-    return linePlot({ series, xlabel: xLabel, ylabel: norm === "G" && varied === "v" ? "G / Gmax" : "I / Imax", yrange: [-0.1, 1.1], legend: true, theme, width: 520, height: 260 });
+    return linePlot({ series, xlabel: xLabel, ylabel: norm === "G" && varied === "v" ? "G / Gmax" : "I / Imax", yrange: [-0.1, 1.1], legend: true, theme, width: 520, height: 150 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalized, pal, norm]);
 
   // ------------------------------------------------------------ controls
-  const channels = useMemo(() => buildCell(cell).channels.map((c) => ({ id: c.id, label: c.label })), [cell]);
-  const blocked = new Set(cell.block ?? []);
-  const toggleBlock = (id: string, on: boolean) => {
-    const next = new Set(blocked);
-    if (on) next.delete(id);
-    else next.add(id);
-    setCell({ ...cell, block: [...next] });
-  };
   const segs = proto.segments;
   const setSeg = (i: number, patch: Partial<{ dur: number; v: number }>) => putProto({ ...proto, segments: segs.map((s, j) => (j === i ? { ...s, ...patch } : s)) });
   const num = (v: number, set: (n: number) => void, w = 52, step = 1) => (
@@ -250,7 +241,7 @@ export function VClampMode({ cell, setCell, ampTop, ampControls, pal, screenH = 
           <figure className="card">
             <figcaption>
               <span>M1 normalized{normalized?.fit && Number.isFinite(normalized.fit.vHalf) ? `: V½ ${fmt(normalized.fit.vHalf)} mV, k ${fmt(normalized.fit.k)} mV` : ""}
-                {normalized && Number.isFinite(normalized.zero) ? `${normalized.fit ? ";" : ":"} M1 reverses at ${fmt(normalized.zero)} mV` : ""}</span>
+                {normalized && !normalized.fit && Number.isFinite(normalized.zero) ? `: M1 reverses at ${fmt(normalized.zero)} mV` : ""}</span>
             </figcaption>
             {normSvg ? <div className="svgplot" dangerouslySetInnerHTML={{ __html: normSvg }} /> : null}
             <p className="legendline">
@@ -260,49 +251,28 @@ export function VClampMode({ cell, setCell, ampTop, ampControls, pal, screenH = 
               {xAxis === "vm" && !vmOk(0) && " True Vm applies where M1 is taken in the varied segment; here it is plotted against the command."}
             </p>
           </figure>
-          {sweeps.length > 0 && (
-            <div className="tablewrap vc-table">
-              <table>
-                <thead><tr><th>{varied === "dur" ? "ms" : "mV"}</th>{points.map((_, j) => <th key={j}>M{j + 1} ({u.unit})</th>)}<th>true Vm (mV)</th></tr></thead>
-                <tbody>
-                  {sweeps.map((sw, k) => (
-                    <tr key={k}><td>{sw.value}</td>{points.map((pts, j) => <td key={j}>{fmt(pts[k].i / u.div, u.div > 1 ? 2 : 1)}</td>)}<td>{fmt(points[0]?.[k]?.vm ?? NaN, 1)}</td></tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       </div>
 
-      <AmpFront controls={ampControls}>
-        {ampTop}
-        <AmpRow>
+      <RigPanels controls={ampControls}
+        amplifier={{
+          rows: (
+            <AmpRow>
           <AmpSection name="CLAMP">
             <AmpDial label="Rs" unit="MΩ" value={rs} min={0} max={30} step={0.5} digits={1} onChange={setRs}
               hint="Series resistance between the amplifier and the cell. 0 is an ideal clamp. Any Rs lets a large current pull the cell away from the command: turn it up on the activation protocol and watch the sodium current escape." />
           </AmpSection>
-          <AmpSection name="CHANNELS">
-            {channels.map((c) => (
-              <AmpSlot key={c.id} label={c.label.split(" ")[0]}>
-                <label className="check vc-block" title={blocked.has(c.id) ? `${c.label}: blocked` : `${c.label}: on`}>
-                  <input type="checkbox" checked={!blocked.has(c.id)} onChange={(e) => toggleBlock(c.id, e.target.checked)} />
-                  {blocked.has(c.id) ? "blocked" : "on"}
-                </label>
-              </AmpSlot>
-            ))}
-          </AmpSection>
-          <AmpSection name="RECORDING">
+              <AmpSection name="FILTER">
             <AmpChoice label="Filter, kHz" value={noise.recFilter} options={FILTER_KHZ.map((f) => [f, f === 0 ? "Bypass" : String(f)] as const)} onChange={(recFilter) => setNoise({ ...noise, recFilter })} />
-            <AmpDial label="RMS" unit="pA" value={noise.recSigma} min={0} max={50} step={0.5} digits={1}
-              hint="Current noise as it reads through a 10 kHz filter. Measurements are made on the recorded current, so noise moves them, as it would on a rig." onChange={(recSigma) => setNoise({ ...noise, recSigma })} />
-            <AmpSlot label="Draw">
-              <span className="amp-readout">#{seed}</span>
-              <button type="button" onClick={() => setSeed(seed + 1)} title="A new draw of the noise; the cell is unchanged">New</button>
-            </AmpSlot>
-          </AmpSection>
-        </AmpRow>
-        <AmpRow>
+              </AmpSection>
+            </AmpRow>
+          ),
+          summary: `Voltage clamp · Rs ${rs} MΩ${rs === 0 ? " (ideal)" : ""} · filter ${noise.recFilter ? `${noise.recFilter} kHz` : "bypass"}`,
+        }}
+        acquisition={{
+          rows: (
+            <>
+              <AmpRow>
           <AmpSection name="PROTOCOL">
             <AmpSlot label="Preset">
               <Tip text={preset ? preset.note : "Your own protocol."}>
@@ -339,8 +309,8 @@ export function VClampMode({ cell, setCell, ampTop, ampControls, pal, screenH = 
             <AmpSlot label="Increment">{num(proto.vary.delta, (delta) => putProto({ ...proto, vary: { ...proto.vary, delta } }))}</AmpSlot>
             <AmpSlot label="Sweeps">{num(proto.vary.count, (count) => putProto({ ...proto, vary: { ...proto.vary, count: Math.max(1, Math.min(MAX_SWEEPS, Math.round(count))) } }), 44)}</AmpSlot>
           </AmpSection>
-        </AmpRow>
-        <AmpRow>
+              </AmpRow>
+              <AmpRow>
           {measures.map((m, j) => (
             <AmpSection key={j} name={`MEASURE M${j + 1}`} power={j === 1 ? { on: true, onChange: () => { setMeasures(measures.slice(0, 1)); setPresetId("custom"); } } : undefined}>
               <AmpSlot label="In segment">
@@ -364,9 +334,41 @@ export function VClampMode({ cell, setCell, ampTop, ampControls, pal, screenH = 
             <AmpChoice label="Boltzmann fit" value={fitOn ? "on" : "off"} options={[["on", "On"], ["off", "Off"]] as const} onChange={(v) => setFitOn(v === "on")} />
             <AmpChoice label="Plot against" value={xAxis} options={[["cmd", "Command"], ["vm", "True Vm"]] as const} onChange={setXAxis} />
           </AmpSection>
-        </AmpRow>
-      </AmpFront>
-      <p className="legendline vc-model-note">{model.short}: {channels.length} channels, {blocked.size ? `${blocked.size} blocked` : "none blocked"}.</p>
+              </AmpRow>
+            </>
+          ),
+          summary: `${preset ? preset.label : "Custom protocol"} · hold ${proto.hold} mV · ${proto.vary.count} sweeps · ` + measures.map((m, j) => `M${j + 1} ${KINDS.find((k) => k[0] === m.kind)![1].toLowerCase()} in segment ${m.seg + 1}`).join(", "),
+        }}
+        simulation={{
+          rows: (
+            <>
+              {simTop}
+              <AmpRow>
+                <AmpSection name="RECORDING NOISE">
+            <AmpDial label="RMS" unit="pA" value={noise.recSigma} min={0} max={50} step={0.5} digits={1}
+              hint="Current noise as it reads through a 10 kHz filter. Measurements are made on the recorded current, so noise moves them, as it would on a rig." onChange={(recSigma) => setNoise({ ...noise, recSigma })} />
+            <AmpSlot label="Draw">
+              <span className="amp-readout">#{seed}</span>
+              <button type="button" onClick={() => setSeed(seed + 1)} title="A new draw of the noise; the cell is unchanged">New</button>
+            </AmpSlot>
+                </AmpSection>
+              </AmpRow>
+            </>
+          ),
+          summary: `${simSummary} · noise ${noise.recSigma} pA RMS`,
+        }} />
+      {sweeps.length > 0 && (
+            <div className="tablewrap vc-table">
+              <table>
+                <thead><tr><th>{varied === "dur" ? "ms" : "mV"}</th>{points.map((_, j) => <th key={j}>M{j + 1} ({u.unit})</th>)}<th>true Vm (mV)</th></tr></thead>
+                <tbody>
+                  {sweeps.map((sw, k) => (
+                    <tr key={k}><td>{sw.value}</td>{points.map((pts, j) => <td key={j}>{fmt(pts[k].i / u.div, u.div > 1 ? 2 : 1)}</td>)}<td>{fmt(points[0]?.[k]?.vm ?? NaN, 1)}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
     </>
   );
 }

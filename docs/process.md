@@ -1226,3 +1226,30 @@ page and what was measured the right.
   opens at 10 kHz, like current clamp; 5 kHz was the first choice and was wrong for sodium.
 - **Defaults**: ideal clamp (Rs 0), filter 10 kHz, 2 pA RMS noise. Up to 30 sweeps of up to 3 s.
 - **Not yet**: Rs compensation (prediction/correction), P/N leak subtraction, ramps, a CSV of the measured points.
+
+## 2026-10-29 — the rig in three panels; a scope lockup fixed
+
+The owner asked whether the amplifier could fold away, sit directly below the recording window, and be split so that
+simulation parameters (gL beside a real amplifier's leak compensation) and the filter beside the noise sources stop
+confusing. Done for all three modes (`RigPanels`, src/ui/AmpFront.tsx):
+
+- **Amplifier**: clamp mode (the mode switch and Old school stay in its name strip), HOLDING (Ihold, moved out of CELL),
+  ELECTRODE, FILTER, and on the oscilloscope MONITOR. In voltage clamp: CLAMP (Rs) and FILTER.
+- **Acquisition**: STEPS, or PULSES on the scope, or the voltage-clamp PROTOCOL, MEASURE and ANALYSIS.
+- **Simulation**: MODEL, CELL (gL, Cm, measured Rin and τm), CHANNELS (block switches, now in every mode), a model's
+  own knobs, MEMBRANE NOISE, RECORDING NOISE (RMS, hum, mains; the filter left it for the amplifier), RANDOM DRAW, and
+  the PSC generators.
+- Each folds to a one-line summary (`▸`/`▾` in its name strip), remembered per browser. The panels sit directly under
+  the recording window: in voltage clamp the analysis plots were made shorter (and the table moved below the panels)
+  so that the right column no longer pushed them 250 px down; they now start 29 px below the traces.
+- In voltage clamp, "M1 reverses at" shows only when the fit is off (tails): on an activation curve it read the leak's
+  crossing near rest as if it were a reversal.
+
+**A lockup, found by the owner, on the live site too.** On the oscilloscope in Old school (the default), choosing
+10 ms/div made the page fall further and further behind until it froze: measured, it answered in 0.9 s after 1 s,
+8.5 s after 3 s and 80 s after 6 s, here and on gaba.tonydefazio.com. The phosphor drew every newly written column as
+its own stroke with a shadow blur, for each trace; 10 ms/div writes about 12,000 columns a second, which cost more
+than a second per second, so the work piled up. Now the columns are grouped into four brightness levels and each is
+stroked as one path with one blur, and a column written twice since the last frame is drawn once. After: the page
+answers within 16 ms at 10 ms/div at 0.1×, 1× and 10×, and at 20 ms/div at 30×. The screenshot check now runs
+10 ms/div in Old school and fails if the page falls a second behind.

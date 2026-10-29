@@ -68,6 +68,15 @@ is the density of one K⁺ current and whether a slow one is there at all.
 
 ## What you can change, and what it teaches
 
+The controls sit in three panels directly below the recording window, each of
+which folds to a one-line summary: the **Amplifier** (clamp mode, holding
+current, electrode, filter, and on the oscilloscope the audio monitor), the
+**Acquisition** software (the step protocol, the pulse train, or in voltage
+clamp the protocol and the measurement windows), and the **Simulation** (the
+cell, its leak and size, channel blocks, a model's own settings, synaptic input
+and the noise sources): what a real rig has no knob for. The cell's leak gL is
+a property of the simulated cell, not an amplifier's leak compensation.
+
 **Passive properties**
 
 | Control | What it does |

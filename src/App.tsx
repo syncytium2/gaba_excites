@@ -25,7 +25,7 @@ import { axisOpts } from "./ui/axis.ts";
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
 import { Notebook } from "./ui/Notebook.tsx";
 import { Tour } from "./ui/Tour.tsx";
-import { AmpChoice, AmpDial, AmpFront, AmpRow, AmpSection, AmpSlot } from "./ui/AmpFront.tsx";
+import { AmpChoice, AmpDial, AmpRow, AmpSection, AmpSlot, RigPanels } from "./ui/AmpFront.tsx";
 import { TOUR, tourInputs, type TourControl, type TourSettings } from "./core/tour.ts";
 import { applyZoom, ZOOM_MENU, type Range, type ZoomOp } from "./ui/zoom.ts";
 
@@ -411,7 +411,7 @@ export function App() {
       </AmpSection>
     );
   };
-  // The amplifier's model, cell and knob sections, shared by all three modes; voltage clamp has no holding current.
+  // The simulation's model, cell, channel and knob sections, shared by all three modes.
   const modelSection = (
         <AmpSection name="MODEL">
           <AmpSlot label="Cell">
@@ -424,9 +424,8 @@ export function App() {
           </AmpSlot>
         </AmpSection>
   );
-  const cellSection = (withIhold: boolean) => (
+  const cellSection = (
         <AmpSection name="CELL">
-{withIhold && (<AmpDial label="Ihold" unit="pA" value={ihold} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 0.5 : model.ranges.ihold.step} digits={1} onChange={setIhold} />)}
           <AmpDial label="gL (leak)" unit="nS" value={cell.gLeak} min={model.ranges.gLeak.min} max={model.ranges.gLeak.max} step={model.ranges.gLeak.step} digits={2} onChange={(gLeak) => setCell({ ...cell, gLeak })} />
           <AmpDial label="Cm (size)" unit="pF" value={cell.cm} min={model.ranges.cm.min} max={model.ranges.cm.max} step={model.ranges.cm.step} digits={1} onChange={(cm) => setCell({ ...cell, cm })} />
           <AmpSlot label="Rin · τm at rest">
@@ -468,25 +467,47 @@ export function App() {
       )}
     </>
   );
-  const ampSections = (
+  // The block switches: a saturating dose of a selective blocker, in the bath. Shared by all three modes.
+  const blocked = new Set(cell.block ?? []);
+  const channelsSection = (
+        <AmpSection name="CHANNELS">
+          {built.cell.channels.map((c) => (
+            <AmpSlot key={c.id} label={c.label.split(" ")[0]}>
+              <label className="check vc-block" title={blocked.has(c.id) ? `${c.label}: blocked` : `${c.label}: on`}>
+                <input type="checkbox" checked={!blocked.has(c.id)}
+                  onChange={(e) => { const next = new Set(blocked); if (e.target.checked) next.delete(c.id); else next.add(c.id); setCell({ ...cell, block: [...next] }); }} />
+                {blocked.has(c.id) ? "blocked" : "on"}
+              </label>
+            </AmpSlot>
+          ))}
+        </AmpSection>
+  );
+  // The simulation panel's rows: the cell, its own knobs, then what the room adds (noise) and the synapses.
+  const simTop = (
     <>
       <AmpRow>
         {modelSection}
-        {cellSection(true)}
-        <AmpSection name="ELECTRODE">
-          <AmpDial label="Rs" unit="MΩ" value={electrode.rs} min={0} max={100} step={1} digits={0} onChange={(rs) => setElectrode({ ...electrode, rs })} />
-          <AmpDial label="Bridge" unit="%" value={Math.round(electrode.bridge * 100)} min={0} max={100} step={5} digits={0} onChange={(b) => setElectrode({ ...electrode, bridge: b / 100 })} />
-          <AmpDial label="Pipette C" unit="pF" value={electrode.cp} min={0} max={20} step={0.5} digits={1} onChange={(cp) => setElectrode({ ...electrode, cp })} />
-        </AmpSection>
+        {cellSection}
+        {channelsSection}
+      </AmpRow>
+      {knobsRow}
+    </>
+  );
+  const simRows = (
+    <>
+      {simTop}
+      <AmpRow>
         <AmpSection name="MEMBRANE NOISE">
           <AmpDial label="σ" unit="pA" value={noise.memSigma} min={model.ranges.memNoise.min} max={model.ranges.memNoise.max} step={model.ranges.memNoise.step} digits={1} onChange={(memSigma) => setNoise({ ...noise, memSigma })} />
           <AmpDial label="τ" unit="ms" value={noise.memTau} min={0.5} max={100} step={0.5} digits={1} onChange={(memTau) => setNoise({ ...noise, memTau })} />
         </AmpSection>
-      </AmpRow>
-      {knobsRow}
-      <AmpRow>
-        {synDials("GABA PSC", gaba, setGaba, true)}
-        {synDials("GLUTAMATE PSC", glu, setGlu, false)}
+        <AmpSection name="RECORDING NOISE">
+          <AmpDial label="RMS" unit="mV" value={noise.recSigma} min={0} max={3} step={0.05} digits={2}
+            hint="Recording noise as it reads through the 10 kHz filter, the way an amplifier's noise is specified. A lower filter setting passes less of it; bypass passes more. The filter acts on the recorded trace only: every measurement is on true Vm."
+            onChange={(recSigma) => setNoise({ ...noise, recSigma })} />
+          <AmpDial label="Line hum" unit="mV" value={noise.humAmp} min={0} max={3} step={0.05} digits={2} onChange={(humAmp) => setNoise({ ...noise, humAmp })} />
+          <AmpChoice label="Mains" value={noise.humHz} options={[[50, "50 Hz"], [60, "60 Hz"]] as const} onChange={(humHz) => setNoise({ ...noise, humHz })} />
+        </AmpSection>
         <AmpSection name="RANDOM DRAW">
           <AmpSlot label="Draw">
             <span className="amp-readout" aria-live="polite">#{seed}</span>
@@ -494,12 +515,37 @@ export function App() {
           </AmpSlot>
         </AmpSection>
       </AmpRow>
+      <AmpRow>
+        {synDials("GABA PSC", gaba, setGaba, true)}
+        {synDials("GLUTAMATE PSC", glu, setGlu, false)}
+      </AmpRow>
     </>
   );
-  // The last row starts with the stimulus (pulses on the scope, steps in step mode) and the
-  // recording noise; the scope adds its audio monitor after them.
-  const ampLastRow = (
+  const blockedNames = built.cell.channels.filter((c) => blocked.has(c.id)).map((c) => c.label.split(" ")[0]);
+  const simBase = `${model.short} · gL ${fmt(cell.gLeak, 2)} nS · Cm ${fmt(cell.cm, 1)} pF` + (blockedNames.length ? ` · ${blockedNames.join(", ")} blocked` : "");
+  const simSummary = simBase +
+    (gaba.enabled ? ` · GABA ${gaba.rate} Hz` : "") + (glu.enabled ? ` · glutamate ${glu.rate} Hz` : "") +
+    (noise.memSigma > 0 ? ` · membrane noise ${noise.memSigma} pA` : "");
+  // The amplifier, in current clamp: the holding current, the electrode, the filter.
+  const ampCC = (
     <>
+        <AmpSection name="HOLDING">
+          <AmpDial label="Ihold" unit="pA" value={ihold} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 0.5 : model.ranges.ihold.step} digits={1} onChange={setIhold} />
+        </AmpSection>
+        <AmpSection name="ELECTRODE">
+          <AmpDial label="Rs" unit="MΩ" value={electrode.rs} min={0} max={100} step={1} digits={0} onChange={(rs) => setElectrode({ ...electrode, rs })} />
+          <AmpDial label="Bridge" unit="%" value={Math.round(electrode.bridge * 100)} min={0} max={100} step={5} digits={0} onChange={(b) => setElectrode({ ...electrode, bridge: b / 100 })} />
+          <AmpDial label="Pipette C" unit="pF" value={electrode.cp} min={0} max={20} step={0.5} digits={1} onChange={(cp) => setElectrode({ ...electrode, cp })} />
+        </AmpSection>
+        <AmpSection name="FILTER">
+          <AmpChoice label="Filter, kHz" value={noise.recFilter} options={FILTER_KHZ.map((f) => [f, f === 0 ? "Bypass" : String(f)] as const)} onChange={(recFilter) => setNoise({ ...noise, recFilter })} />
+        </AmpSection>
+    </>
+  );
+  const ampSummary = `Current clamp · hold ${ihold} pA · Rs ${electrode.rs} MΩ, bridge ${Math.round(electrode.bridge * 100)}% · Cp ${electrode.cp} pF · filter ${noise.recFilter ? `${noise.recFilter} kHz` : "bypass"}`;
+  // The acquisition software: the step protocol, or on the scope the pulse train.
+  const acqRows = (
+    <AmpRow>
         {mode === "steps" ? (
         <AmpSection name="STEPS">
           <AmpSlot label="Protocol">
@@ -533,17 +579,11 @@ export function App() {
           <AmpDial label="Period" unit="ms" value={pulse.period} min={10} max={10000} step={50} digits={0} disabled={!pulse.enabled} onChange={(period) => setPulse({ ...pulse, period })} />
         </AmpSection>
         )}
-        <AmpSection name="RECORDING">
-          <AmpChoice label="Filter, kHz" value={noise.recFilter} options={FILTER_KHZ.map((f) => [f, f === 0 ? "Bypass" : String(f)] as const)} onChange={(recFilter) => setNoise({ ...noise, recFilter })} />
-          <AmpDial label="RMS" unit="mV" value={noise.recSigma} min={0} max={3} step={0.05} digits={2}
-            hint="Recording noise as it reads through the 10 kHz filter, the way an amplifier's noise is specified. A lower filter setting passes less of it; bypass passes more. The filter acts on the recorded trace only: every measurement is on true Vm."
-            onChange={(recSigma) => setNoise({ ...noise, recSigma })} />
-          <AmpDial label="Line hum" unit="mV" value={noise.humAmp} min={0} max={3} step={0.05} digits={2} onChange={(humAmp) => setNoise({ ...noise, humAmp })} />
-          <AmpChoice label="Mains" value={noise.humHz} options={[[50, "50 Hz"], [60, "60 Hz"]] as const} onChange={(humHz) => setNoise({ ...noise, humHz })} />
-        </AmpSection>
-    </>
+    </AmpRow>
   );
-
+  const acqSummary = mode === "steps"
+    ? `${preset ? preset.label : "Custom protocol"} · ${protocol.amps.length} sweep${protocol.amps.length === 1 ? "" : "s"} · ${form.sweepMs} ms`
+    : pulse.enabled ? `Pulses ${pulse.amp} pA, ${pulse.width} ms every ${pulse.period} ms` : "Pulses off";
   // The mode switch, and Old school in scope mode: in the amplifier's name strip.
   const ampControls = (
     <>
@@ -601,11 +641,11 @@ export function App() {
           </div>
 
           {mode === "vc" ? (
-            <VClampMode cell={cell} setCell={setCell} ampControls={ampControls} pal={pal} screenH={screenH}
-              ampTop={<><AmpRow>{modelSection}{cellSection(false)}</AmpRow>{knobsRow}</>} />
+            <VClampMode cell={cell} simSummary={simBase} ampControls={ampControls} pal={pal} screenH={screenH}
+              simTop={simTop} />
           ) : mode === "scope" ? (
             <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} limits={limits} onExtremes={setScopeReasons} oldSchool={oldSchool}
-              amp={ampSections} ampLastRow={ampLastRow} ampControls={ampControls} readoutSlot={readoutSlot} screenH={screenH} view={view} />
+              rig={{ amp: ampCC, ampSummary, acq: acqRows, acqSummary, sim: simRows, simSummary }} ampControls={ampControls} readoutSlot={readoutSlot} screenH={screenH} view={view} />
           ) : (
             <>
 
@@ -659,10 +699,10 @@ export function App() {
               </>
             )}
 
-            <AmpFront controls={ampControls}>
-              {ampSections}
-              <AmpRow>{ampLastRow}</AmpRow>
-            </AmpFront>
+            <RigPanels controls={ampControls}
+              amplifier={{ rows: <AmpRow>{ampCC}</AmpRow>, summary: ampSummary }}
+              acquisition={{ rows: acqRows, summary: acqSummary }}
+              simulation={{ rows: simRows, summary: simSummary }} />
 
             {result && sweeps.length > 0 && (
               <>
