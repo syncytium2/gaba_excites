@@ -22,14 +22,21 @@ export interface Channel {
   readonly nGates: number;
   /** names of the gating variables, for display */
   readonly gateNames: readonly string[];
-  /** write steady-state gate values at voltage v into s[o..o+nGates) */
-  init(v: number, s: Float64Array, o: number): void;
+  /**
+   * write steady-state gate values at voltage v into s[o..o+nGates). `ca` is
+   * the steady cytosolic calcium at v, for a channel whose state depends on
+   * it (0 in models without a calcium pool); voltage-gated channels ignore it.
+   */
+  init(v: number, s: Float64Array, o: number, ca?: number): void;
   /**
    * Advance the gates one step at fixed v, exactly (Rush–Larsen: each gate
    * relaxes exponentially toward its steady state at the current voltage).
-   * This is the scheme NEURON's hh2 mechanism itself uses.
+   * This is the scheme NEURON's hh2 mechanism itself uses. `ca` is the
+   * cytosolic calcium at the start of the step, for a channel whose state
+   * moves with it (the beta cell's K_ATP channel carries metabolism that
+   * calcium slows); voltage-gated channels ignore it.
    */
-  advance(v: number, dt: number, s: Float64Array, o: number): void;
+  advance(v: number, dt: number, s: Float64Array, o: number, ca?: number): void;
   /**
    * Open fraction (0..1) given the gates; conductance = gbar * openFraction.
    * `ca` is the cytosolic calcium in µM, for channels that sense it (0 in

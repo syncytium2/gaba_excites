@@ -89,15 +89,17 @@ export interface Sweep {
   gabaTimes: number[];
 }
 
-/** Settle the cell at a constant injected current and return the state (gates, Ca, V, P). */
+/** Settle the cell at a constant injected current and return the state (gates, Ca, V, P, the pool's extra state). */
 export function settle(cell: BuiltCell, e: Electrode, ihold: number, ms: number, dt: number): Float64Array {
-  const s = new Float64Array(cell.nGates + 3);
+  const s = new Float64Array(cell.nState);
   // Start from the steady state if there is one; the run below then only has
   // to finish the job (and to find the limit cycle, if Ihold makes it fire).
   let v0 = cell.vRest;
   if (!Number.isFinite(v0)) v0 = cell.eLeak;
-  for (let k = 0; k < cell.channels.length; k++) cell.channels[k].init(v0, s, cell.offsets[k]);
-  s[cell.iCa] = cellCaSteady(cell, v0);
+  const ca0 = cellCaSteady(cell, v0);
+  for (let k = 0; k < cell.channels.length; k++) cell.channels[k].init(v0, s, cell.offsets[k], ca0);
+  s[cell.iCa] = ca0;
+  cell.pool?.initExtra?.(ca0, s, cell.ix);
   s[cell.iv] = v0;
   s[cell.ip] = v0 + ihold * e.rs * 1e-3;
   const n = Math.round(ms / dt);
@@ -168,10 +170,10 @@ export function step(cell: BuiltCell, e: Electrode, s: Float64Array, iCmd: numbe
  * order) or the one at the new V and gates.
  */
 function advanceGates(cell: BuiltCell, s: Float64Array, v: number, dt: number, iCa0: number): void {
-  for (let k = 0; k < cell.channels.length; k++) cell.channels[k].advance(v, dt, s, cell.offsets[k]);
+  const ca = s[cell.iCa];
+  for (let k = 0; k < cell.channels.length; k++) cell.channels[k].advance(v, dt, s, cell.offsets[k], ca);
   const pool = cell.pool;
   if (!pool) return;
-  const ca = s[cell.iCa];
   let iCa = iCa0;
   if (pool.reads === "after") {
     iCa = 0;
@@ -181,7 +183,7 @@ function advanceGates(cell: BuiltCell, s: Float64Array, v: number, dt: number, i
       iCa += cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca) * (v - (f ? f(ca) : cell.erev[k]));
     }
   }
-  s[cell.iCa] = pool.advance(ca, iCa, cell.params.cm, dt);
+  s[cell.iCa] = pool.advance(ca, iCa, cell.params.cm, dt, s, cell.ix);
 }
 
 /** Run one sweep from a settled state. */

@@ -53,7 +53,7 @@ const ROLE_BLURB: Record<Source["role"], string> = {
   background: "What the models were built on, credited but not read for any number here.",
   further: "Related work not yet used — candidates for the next presets.",
 };
-const MODEL_NAME: Record<string, string> = { rs: "pyramidal", lts: "LTS", gnrh: "GnRH" };
+const MODEL_NAME: Record<string, string> = { rs: "pyramidal", lts: "LTS", gnrh: "GnRH", betamouse: "mouse β-cell" };
 
 const REPO = "https://github.com/syncytium2/gaba_excites/blob/main/";
 

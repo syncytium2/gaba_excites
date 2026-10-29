@@ -8,8 +8,18 @@
 export interface CaPool {
   /** Ca at steady state when a steady I_Ca flows, on a cell of capacitance cm */
   steady(iCa: number, cm: number): number;
-  /** Ca after one step of dt */
-  advance(ca: number, iCa: number, cm: number, dt: number): number;
+  /**
+   * Ca after one step of dt. A pool with its own extra state (`nExtra`, e.g.
+   * the endoplasmic reticulum's calcium) reads and advances it in
+   * x[o..o+nExtra) in the same call.
+   */
+  advance(ca: number, iCa: number, cm: number, dt: number, x?: Float64Array, o?: number): number;
+  /** number of extra state variables the pool keeps besides Ca (0 when absent) */
+  nExtra?: number;
+  /** write the extra state's steady values, given the steady Ca, into x[o..o+nExtra) */
+  initExtra?(ca: number, x: Float64Array, o: number): void;
+  /** names of the extra state variables, for display */
+  extraNames?: readonly string[];
   /**
    * Which I_Ca the pool integrates. "before": the current at the start of the
    * step, before the voltage solve — NEURON's order (nrn_cur, solve,
@@ -67,6 +77,51 @@ export function destexheDecay(p: { depth: number; taur: number; cainf: number })
     },
     advance(ca, iCa, cm, dt) {
       return (ca + dt * (drive(iCa, cm) + p.cainf / p.taur)) / (1 + dt / p.taur);
+    },
+  };
+}
+
+/**
+ * Cytosolic and endoplasmic-reticulum calcium of the mouse beta-cell model of
+ * Bertram, Satin, Zhang, Smolen & Sherman (2004) Biophys J 87:3074, Eqs. 12–17:
+ *   dCa/dt   = f_cyt · (J_mem + J_er)
+ *   J_mem    = −(α·I_Ca + k_PMCA·Ca)
+ *   J_er     = p_leak·(Ca_er − Ca) − k_SERCA·Ca
+ *   dCa_er/dt = −f_er · (V_cyt/V_er) · J_er
+ * The paper states α per fA (4.5 × 10⁻⁶ fA⁻¹ µM ms⁻¹); here I_Ca is in pA, so
+ * α is 1000× that. As in the paper, α is per cell and does not scale with Cm.
+ * Forward Euler: the fastest rate, f_cyt·(k_PMCA + k_SERCA + p_leak) ≈ 0.006
+ * ms⁻¹, moves Ca by under 0.01% of itself per 0.01 ms step.
+ */
+export function bertramPool(p: {
+  fcyt: number;
+  fer: number;
+  /** µM ms⁻¹ per pA */
+  alpha: number;
+  kPMCA: number;
+  kSERCA: number;
+  pleak: number;
+  /** V_cyt / V_er */
+  sigmaV: number;
+}): CaPool {
+  return {
+    reads: "after",
+    nExtra: 1,
+    extraNames: ["Ca_er"],
+    // at steady state J_er = 0, so J_mem = 0: k_PMCA·Ca = −α·I_Ca
+    steady(iCa) {
+      return Math.max(0, (-p.alpha * iCa) / p.kPMCA);
+    },
+    // J_er = 0  →  Ca_er = Ca·(p_leak + k_SERCA)/p_leak
+    initExtra(ca, x, o) {
+      x[o] = (ca * (p.pleak + p.kSERCA)) / p.pleak;
+    },
+    advance(ca, iCa, _cm, dt, x, o = 0) {
+      const caer = x ? x[o] : (ca * (p.pleak + p.kSERCA)) / p.pleak;
+      const jer = p.pleak * (caer - ca) - p.kSERCA * ca;
+      const jmem = -(p.alpha * iCa + p.kPMCA * ca);
+      if (x) x[o] = caer - dt * p.fer * p.sigmaV * jer;
+      return Math.max(0, ca + dt * p.fcyt * (jmem + jer));
     },
   };
 }

@@ -54,10 +54,13 @@ export interface BuiltCell {
   /** gate offset of each channel in the state vector */
   offsets: number[];
   nGates: number;
-  /** state layout: [gates (nGates) | Ca | V | P] */
+  /** state layout: [gates (nGates) | Ca | V | P | pool's extra state (nExtra)] */
   iCa: number;
   iv: number;
   ip: number;
+  /** first slot of the pool's extra state (e.g. ER calcium); nState is the whole vector's length */
+  ix: number;
+  nState: number;
   /** leak conductance, nS, as set */
   gLeak: number;
   /** capacitance, pF (= params.cm) */
@@ -81,8 +84,7 @@ interface ActiveSet {
   eLeak: number;
 }
 
-function activeSet(p: CellParams): ActiveSet {
-  const m = MODELS[p.model];
+function activeSet(p: CellParams, m: ModelDef = MODELS[p.model]): ActiveSet {
   const scale = p.cm / m.cmRef;
   const chs = m.channels();
   return {
@@ -177,9 +179,13 @@ export function publishedRin(id: ModelId): number {
   return rinAt(activeSet({ model: id, cm: m.cmRef, gLeak: 0 }), publishedLeak(id));
 }
 
-/** Instantiate the cell. The leak is taken as given; rest and Rin follow from it. */
-export function buildCell(p: CellParams): BuiltCell {
-  const a = activeSet(p);
+/**
+ * Instantiate the cell. The leak is taken as given; rest and Rin follow from it.
+ * `model` defaults to the registered model `p.model` names; a variant of it
+ * (another of its published parameter sets) can be passed instead.
+ */
+export function buildCell(p: CellParams, model: ModelDef = MODELS[p.model]): BuiltCell {
+  const a = activeSet(p, model);
   const gLeak = p.gLeak;
 
   const offsets: number[] = [];
@@ -190,7 +196,7 @@ export function buildCell(p: CellParams): BuiltCell {
   }
   return {
     params: p,
-    model: MODELS[p.model],
+    model,
     channels: a.channels,
     gbar: a.gbar,
     erev: a.erev,
@@ -203,6 +209,8 @@ export function buildCell(p: CellParams): BuiltCell {
     iCa: n,
     iv: n + 1,
     ip: n + 2,
+    ix: n + 3,
+    nState: n + 3 + (a.pool?.nExtra ?? 0),
     gLeak,
     cm: p.cm,
     areaUm2: p.cm * 100, // 1 pF per 100 µm² at 1 µF/cm²

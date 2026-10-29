@@ -1112,3 +1112,36 @@ approved use of Chen, Wang & Sherman 2008 "for an educational webapp" with prope
 model only, so it covers beta_max, not the Integrated Oscillator Model a gaba_excites mouse cell would port; that
 still needs asking. Recorded on the roadmap, with the rule for any port: equations and parameters from the paper,
 the authors' code only as a check, none of their files in this public repository.
+
+## 2026-10-29 — the mouse beta cell, ported (not yet in the app)
+
+The owner said "go" on the mouse beta cell. The model is Bertram, Satin, Zhang, Smolen & Sherman (2004), the Dual
+Oscillator Model (DOM 1.0): four currents (I_K, I_Ca, I_K(Ca), I_K(ATP)), cytosolic and ER calcium, and a metabolic
+part (glycolysis with an oscillating PFK, feeding ATP production that calcium slows). It was chosen over the later
+Integrated Oscillator Model papers because it is the source they build on, its paper is open, and the authors publish
+one code file per figure plus errata, so each of its five firing patterns can be checked.
+
+- **Ported from the paper, not copied from the code.** Eqs. 1–24 and Table 1 were read from PMC (equations are
+  images there; all 32 were read by eye) into `lit/notes/bertram2004.md`, with the errata applied (κ = 0.005; V_max
+  = 2 where Table 1 prints 1). The one piece the paper does not print, the PFK rate law (Smolen 1995), was written
+  from the authors' `glycophan.ode`, cited to the code. No file of theirs is in the repository. Sherman's approval of
+  2026-10-29 named Chen 2008, not this model; this port relies on the paper and cites the code as a check.
+- **Two changes to the core's interfaces, neither specific to this cell.** A channel's `init` and `advance` may read
+  calcium (the K_ATP channel carries ADP, G6P and FBP as its state, because it is the only current that reads them,
+  and ADP's rate depends on calcium). A calcium pool may keep extra state after the voltage (`nExtra`; here ER
+  calcium). `buildCell` takes a model variant, for the paper's per-figure parameter sets. The other models are
+  unchanged: all 146 earlier tests pass without edits.
+- **Checked against what the paper reports**, in `beta.test.ts`, `beta-bursts.test.ts` and
+  `beta-glycolytic.test.ts` (split so the long runs go in parallel): glycolysis alone oscillates at R_GK 0.2 (5.8 min)
+  and not at 0.4; at 0.3 it is bistable, resting at F6P 63.7, FBP 9.0 (paper ≈ 64, ≈ 9.1) from one start and
+  oscillating at 5.2 min (paper ∼5) from the other; Fig. 3 bursts at 32.4 s (paper ≈ 30 s); Figs. 5–8 give compound,
+  accordion, glycolytic and subthreshold patterns with FBP periods of 4.8–5.6 min; ADP is in phase with Ca in Fig. 3
+  and out of phase in Fig. 8 (Fig. 9).
+- **And against the authors' equations integrated by a stiff solver** (a literal transcription of `glycophan.ode`
+  in a scratch Python script, LSODA, rtol 1e-9; not committed): 345 spikes in 6 min and periods of 30.3–31.6 s,
+  against the port's 340 spikes and 32.4 s at the app's 0.01 ms. The period moves by about a second with dt (31.7–34.7
+  s from 0.0025 to 0.05 ms), in whole spikes per burst.
+- **Not in the app yet.** The model is in `MODELS`, so the core, tests and CLI can run it, but not in `MODEL_LIST`.
+  Before it is offered: presets for its patterns, a control for R_GK (the paper's glucose), ranges suited to a 5.3 pF
+  cell with no leak, and a decision on how the step protocol and rheobase apply to a cell that fires on its own.
+  Its E_GABA default is a placeholder until the GABA lesson for this cell is sourced.

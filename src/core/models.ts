@@ -20,10 +20,11 @@ import {
   tauGauss,
   type Channel,
 } from "./channels.ts";
+import { BETA_MOUSE } from "./beta.ts";
 import { adamsPool, destexheDecay, type CaPool } from "./pools.ts";
 
 export type { CaPool } from "./pools.ts";
-export type ModelId = "rs" | "fs" | "lts" | "gnrh";
+export type ModelId = "rs" | "fs" | "lts" | "gnrh" | "betamouse";
 
 export interface ModelChannel {
   channel: Channel;
@@ -362,5 +363,10 @@ export const GNRH: ModelDef = {
     "Transcribed from the paper (no public code). Checked against the paper's reported rest (−70 mV at −6 pA) and its Fig. 7F spike counts.",
 };
 
-export const MODELS: Record<ModelId, ModelDef> = { rs: RS, fs: FS, lts: LTS, gnrh: GNRH };
+export const MODELS: Record<ModelId, ModelDef> = { rs: RS, fs: FS, lts: LTS, gnrh: GNRH, betamouse: BETA_MOUSE };
+/**
+ * The models the app offers. The mouse beta cell (beta.ts) is registered above
+ * so the core, the tests and the CLI can run it, but stays out of the app until
+ * it has presets and its own controls (docs/roadmap.md).
+ */
 export const MODEL_LIST: ModelDef[] = [RS, FS, LTS, GNRH];

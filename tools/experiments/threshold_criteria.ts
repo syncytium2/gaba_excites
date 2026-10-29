@@ -76,10 +76,12 @@ export interface Condition {
   edits: Edits;
 }
 
-const NA: Record<ModelId, string> = { rs: "na", fs: "na", lts: "na", gnrh: "naf" };
+/** The cells this experiment asks about: each has a Na⁺ channel to shift. The beta cell has none. */
+type NaCell = Exclude<ModelId, "betamouse">;
+const NA: Record<NaCell, string> = { rs: "na", fs: "na", lts: "na", gnrh: "naf" };
 
 /** The conditions run on each cell: control, three Na⁺ edits, and the K⁺ edits that cell has channels for. */
-export function conditions(model: ModelId): Condition[] {
+export function conditions(model: NaCell): Condition[] {
   const na = NA[model];
   const c: Condition[] = [
     { id: "control", label: "control", kind: "control", edits: {} },
@@ -87,7 +89,7 @@ export function conditions(model: ModelId): Condition[] {
     { id: "na+6", label: "Na⁺ +6 mV", kind: "Na", edits: { [na]: { shift: 6 } } },
     { id: "na-half", label: "gNa × 0.5", kind: "Na", edits: { [na]: { g: 0.5 } } },
   ];
-  const k: Record<ModelId, Condition[]> = {
+  const k: Record<NaCell, Condition[]> = {
     rs: [
       { id: "kd-half", label: "gKd × 0.5", kind: "K", edits: { kd: { g: 0.5 } } },
       { id: "kd-0", label: "Kd blocked", kind: "K", edits: { kd: { g: 0 } } },
@@ -205,7 +207,7 @@ export function measure(model: ModelId, cond: Condition, vStart = startV(model),
   });
 }
 
-export function runAll(models: ModelId[] = ["rs", "fs", "gnrh"]): Result[] {
+export function runAll(models: NaCell[] = ["rs", "fs", "gnrh"]): Result[] {
   const out: Result[] = [];
   for (const m of models) {
     const v0 = startV(m);

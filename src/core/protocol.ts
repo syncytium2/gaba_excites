@@ -117,6 +117,8 @@ export const SCOPE_PULSE: Record<ModelId, Pulse> = {
   fs: { enabled: false, amp: 800, width: 500, period: 1500 },
   lts: { enabled: false, amp: 100, width: 500, period: 1500 },
   gnrh: { enabled: false, amp: 24, width: 500, period: 1500 },
+  // the beta cell bursts on its own; a pulse is not its lesson (it is not in the app yet)
+  betamouse: { enabled: false, amp: 5, width: 500, period: 1500 },
 };
 
 export const PRESETS: Preset[] = [

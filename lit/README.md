@@ -65,6 +65,39 @@ Adams C, Stroberg W, DeFazio RA, Schnell S, Moenter SM (2018). Gonadotropin-rele
 
 **Notes:** [`notes/adams2018.md`](notes/adams2018.md)
 
+### `bertram2004`
+
+Bertram R, Satin L, Zhang M, Smolen P, Sherman A (2004). Calcium and glycolysis mediate multiple bursting modes in pancreatic islets. Biophys J 87(5):3074–3087.
+
+[doi:10.1529/biophysj.104.049262](https://doi.org/10.1529/biophysj.104.049262) · [PMID 15347584](https://pubmed.ncbi.nlm.nih.gov/15347584/) · [PMC1304779](https://pmc.ncbi.nlm.nih.gov/articles/PMC1304779/) · *open (PubMed Central)* · models: mouse β-cell
+
+**Took:** The mouse beta cell: Equations 1–24 and Table 1 with the authors' errata (κ = 0.005, V_max = 2), Cm = 5300 fF, the figure legends' parameter sets (Figs. 3, 5–8), and the reported behavior the port is checked against — the ≈5 min glycolytic period, the ≈30 s burst-driven rhythm, the bistability point of Fig. 10, and the burst patterns and phase relations of Figs. 3 and 5–9.
+
+> Oscillations are produced at the larger value RGK = 0.2 s−1 (Fig. 2 A). However, when RGK is increased further, to 0.4 s−1, the glycolytic subsystem stops oscillating
+> — Results, The glycolytic subsystem is a conditional oscillator
+
+> Notice that these oscillations are much more rapid (period ≈ 30 s) than the larger-amplitude oscillations observed when glycolysis is in an oscillatory mode (period ≈ 5 min).
+> — Results, Bursting can occur without glycolytic oscillations
+
+> the system is started with the initial condition F6P = 75 μM, FBP = 8 μM and comes to rest at the equilibrium F6P ≈ 64 μM, FBP ≈ 9.1 μM after some damped oscillations. In the other case (solid line), the system is started at F6P = 78 μM, FBP = 8 μM, but does not come to rest. Instead it oscillates with a period of ∼5 min.
+> — Results, The glycolytic subsystem exhibits bistability
+
+**Used in:** [`src/core/beta.ts`](../src/core/beta.ts), [`src/core/pools.ts`](../src/core/pools.ts), [`src/core/beta-run.ts`](../src/core/beta-run.ts), [`src/core/beta.test.ts`](../src/core/beta.test.ts), [`src/core/beta-bursts.test.ts`](../src/core/beta-bursts.test.ts), [`src/core/beta-glycolytic.test.ts`](../src/core/beta-glycolytic.test.ts)
+
+**Notes:** [`notes/bertram2004.md`](notes/bertram2004.md)
+
+### `dom10code`
+
+Bertram R, Sherman A (2004). XPP files and errata for Bertram et al. 2004 (the Dual Oscillator Model, DOM 1.0).
+
+[artielbm.github.io/Models/DOM1.0/](https://artielbm.github.io/Models/DOM1.0/) · *open (code; no license stated)* · models: mouse β-cell
+
+**Took:** The PFK rate law, which the paper cites from Smolen (1995) without printing it; the errata (κ = 0.005 and V_max = 2 omitted from Table 1; K5 and f53 unused); and the figure files' initial values, which the tests start from. The equations were also integrated literally, outside this repository, as a check on the port (lit/notes/bertram2004.md). No file of the authors' is in this repository.
+
+**Used in:** [`src/core/beta.ts`](../src/core/beta.ts), [`src/core/beta-run.ts`](../src/core/beta-run.ts)
+
+**Notes:** [`notes/bertram2004.md`](notes/bertram2004.md)
+
 ## Parameters
 
 Single values taken from measurements.
