@@ -41,7 +41,18 @@ The owner's words are quoted where the item came from them.
   model entry plus a test against the paper.
 - **Voltage clamp**: done 2026-10-29 (a third mode, checked against NEURON's SEClamp on the pyramidal cell). Still
   to come: Rs compensation (prediction/correction), P/N leak subtraction, ramps, a CSV of the measured points, and
-  NEURON checks for the FS and LTS cells.
+  NEURON checks for the FS and LTS cells. Capacitance compensation (Cfast for the pipette, Cslow/whole-cell for Cm)
+  is not modeled either: the transient after each step is the cell's whole Cm·ΔV. Artifact blanking: done 2026-10-30.
+- **A module on the perils of leak subtraction** (the owner, 2026-10-30). P/N subtraction scales small
+  sub-threshold steps up and subtracts them; show what goes wrong: a wrong gain (the scaled leak over- or
+  under-subtracts, bending the I–V and inventing or hiding a current), and clipping (an amplifier or digitizer
+  range that clips the large transient in the test step but not in the small P/N steps, so the scaled transient
+  no longer cancels). Needs P/N subtraction itself first, and a clipping amplifier/digitizer range to clip against.
+- **A "channels only" view for teaching** (the owner, 2026-10-30: teachers will likely prefer it, without the
+  distraction of the rig's artifacts, which still matter). The simulation knows each channel's current exactly, so
+  the view can drop the electrode altogether: ideal clamp, no noise, no filter, no capacitive transient, no leak,
+  and optionally each channel's current as its own trace. It would be labeled as what no rig can record. The full rig
+  stays the default for anyone learning the craft.
 
 - **A GHK teaching page: divalents, activity, junction potentials.** Separate
   from the simulator. The GHK voltage equation with any mix of ±1 and ±2
@@ -93,6 +104,17 @@ The owner's words are quoted where the item came from them.
     species. Keep the two apps separate until both work. PDFs stay out of this public repository.
 
 ## Later
+
+- **The amplifier as the gateway to testing hypotheses** (the owner, 2026-10-30, a long-term idea). One amplifier,
+  the same front panel, gets you everything a rig does: action potentials in current clamp, PSCs and voltage-gated
+  currents in voltage clamp, and dynamic clamp (a conductance injected in real time, computed from Vm). A question
+  becomes a choice of mode and protocol on that one instrument, not a separate page. The three modes built so far are
+  the start of it; dynamic clamp would be the fourth.
+  The rest of the rig belongs with it (the owner, 2026-10-30, long term): a **puffer** for GABA and other agonists
+  (a brief local application, with its own rise and washout), **evoked stimulation** (an extracellular stimulating
+  electrode that drives synaptic release on command, as opposed to the spontaneous PSC generators now), and
+  **pharmacology** (drugs applied to the bath: channel blockers at a dose, beyond today's all-or-none block switches,
+  and receptor antagonists, with their wash-in and wash-out).
 
 - Shareable state: encode every setting in the URL hash so a configuration can
   be sent as a link (no server needed).

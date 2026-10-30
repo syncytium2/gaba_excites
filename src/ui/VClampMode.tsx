@@ -5,7 +5,7 @@ import { DEFAULT_NOISE, type NoiseParams } from "../core/noise.ts";
 import { FILTER_KHZ } from "../core/filter.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "../core/synapses.ts";
 import { VC_PRESETS, vcPresetsFor } from "../core/protocol.ts";
-import { fitBoltzmann, measureSweep, zeroCrossing, type VCMeasure, type VCPoint, type VCProtocol, type VCSweep } from "../core/vclamp.ts";
+import { blankSweep, fitBoltzmann, measureSweep, transientMs, zeroCrossing, type VCMeasure, type VCPoint, type VCProtocol, type VCSweep } from "../core/vclamp.ts";
 import { linePlot, type PlotTheme, type Series } from "../core/svgplot.ts";
 import type { VCRequest, VCResponse } from "../vc-worker.ts";
 import { AmpChoice, AmpDial, AmpRow, AmpSection, AmpSlot, RigPanels } from "./AmpFront.tsx";
@@ -19,7 +19,6 @@ import type { ChartColors } from "./palette.ts";
 const MAX_SWEEPS = 30;
 const MAX_SWEEP_MS = 3000;
 /** after each command step, this much of the record is left out of the y autoscale: the capacitive transient */
-const CAP_MS = 0.6;
 
 const KINDS = [["peakIn", "Peak in"], ["peakOut", "Peak out"], ["mean", "Mean"], ["cursor", "Cursor"]] as const;
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
@@ -60,6 +59,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   const [fitOn, setFitOn] = useState(VC_PRESETS[0].fit ?? true);
   // An ideal clamp to begin with, so the first view is clean; the Rs dial is beside it (docs/process.md)
   const [rs, setRs] = useState(0);
+  const [blank, setBlank] = useState(false);
   // 10 kHz, as current clamp opens: a lower filter blunts the fast sodium peak and moves the fitted G–V (vclamp.test.ts)
   const [noise, setNoise] = useState<NoiseParams>({ ...DEFAULT_NOISE, recSigma: 2, recFilter: 10 });
   const [showTrue, setShowTrue] = useState(false);
@@ -136,7 +136,9 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   }, [runKey]);
 
   // ------------------------------------------------------------ measuring
-  const sweeps = result?.sweeps ?? [];
+  // the capacitive transient after a step, for the plot's range and for blanking
+  const capMs = transientMs(rs, cell.cm, result?.sweeps[0]?.sampleMs ?? 0.02, noise.recFilter);
+  const sweeps = useMemo(() => (blank ? (result?.sweeps ?? []).map((sw) => blankSweep(sw, capMs)) : result?.sweeps ?? []), [result, blank, capMs]);
   const points: VCPoint[][] = useMemo(() => measures.map((m) => sweeps.map((sw) => measureSweep(sw, m))), [sweeps, measures]);
   const vary = result?.protocol.vary ?? proto.vary;
   const varied = vary.what;
@@ -159,17 +161,23 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     const pts = points[0] ?? [];
     if (!pts.length) return null;
     const x = pts.map(xOf);
-    const raw = pts.map((p, i) => (norm === "G" && varied === "v" ? p.i / (x[i] - erev) : p.i));
+    const asG = norm === "G" && varied === "v";
+    const raw = pts.map((p, i) => (asG ? p.i / (x[i] - erev) : p.i));
+    // A conductance is positive: Gmax is the largest positive G. A point whose G comes out clearly negative is
+    // not that conductance (at +40 mV the K⁺ current can outweigh what sodium is left, so "peak in" is outward);
+    // it is drawn but not fitted. Near zero is a closed channel plus noise, and is fitted. A current keeps its
+    // sign: Imax is the largest in magnitude.
     let big = 0;
-    for (const r of raw) if (Number.isFinite(r) && Math.abs(r) > Math.abs(big)) big = r;
+    for (const r of raw) if (Number.isFinite(r) && (asG ? r > big : Math.abs(r) > Math.abs(big))) big = r;
     const y = raw.map((r) => (big !== 0 ? r / big : NaN));
-    const ok = x.map((_, i) => Number.isFinite(x[i]) && Number.isFinite(y[i]));
+    const ok = x.map((_, i) => Number.isFinite(x[i]) && Number.isFinite(y[i]) && (!asG || y[i] > -NEG_G));
+    const dropped = asG ? y.filter((v) => Number.isFinite(v) && v <= -NEG_G).length : 0;
     const fx = x.filter((_, i) => ok[i]);
     const fy = y.filter((_, i) => ok[i]);
     const fit = varied === "v" && fitOn ? fitBoltzmann(fx, fy) : null;
     // where the measured current changes sign, by linear interpolation: a reversal potential, for a tail family
     const zero = varied === "v" ? zeroCrossing(x, pts.map((p) => p.i)) : NaN;
-    return { x, y, fit, zero };
+    return { x, y, fit, zero, dropped };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [points, norm, erev, xAxis, varied, fitOn]);
 
@@ -189,6 +197,10 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     if (!normalized) return "";
     const order = normalized.x.map((x, i) => [x, i] as const).filter(([x]) => Number.isFinite(x)).sort((a, b) => a[0] - b[0]);
     const series: Series[] = [{ x: order.map(([x]) => x), y: order.map(([, i]) => normalized.y[i]), color: colors[0], dots: true, line: false, label: "M1, normalized" }];
+    // every point on the plot: nothing is clipped
+    const ys = normalized.y.filter(Number.isFinite);
+    const yLo = Math.min(0, ...ys);
+    const yHi = Math.max(1, ...ys);
     const f = normalized.fit;
     if (f && Number.isFinite(f.vHalf) && order.length) {
       const lo = order[0][0];
@@ -197,7 +209,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
       for (let v = lo; v <= hi; v += (hi - lo) / 100 || 1) xs.push(v);
       series.push({ x: xs, y: xs.map((v) => 1 / (1 + Math.exp((v - f.vHalf) / f.k))), color: pal.blue, label: "Boltzmann fit" });
     }
-    return linePlot({ series, xlabel: xLabel, ylabel: norm === "G" && varied === "v" ? "G / Gmax" : "I / Imax", yrange: [-0.1, 1.1], legend: true, theme, width: 520, height: 150 });
+    return linePlot({ series, xlabel: xLabel, ylabel: norm === "G" && varied === "v" ? "G / Gmax" : "I / Imax", yrange: [Math.min(-0.1, yLo - 0.05), Math.max(1.1, yHi + 0.05)], legend: true, theme, width: 520, height: 150 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalized, pal, norm]);
 
@@ -231,11 +243,11 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
               </>}>true current and Vm</Tip>
             </span>
           </figcaption>
-          {sweeps.length > 0 && <VCTraces sweeps={sweeps} measures={measures} showTrue={showTrue} pal={pal} height={Math.max(260, screenH - 170)} />}
+          {sweeps.length > 0 && <VCTraces sweeps={sweeps} measures={measures} showTrue={showTrue} pal={pal} valueUnit={varied === "v" ? "mV" : "ms"} capMs={capMs} height={Math.max(330, screenH - 110)} />}
           <p className="legendline">
-            Sweeps shade {pal.name === "dark" ? "dim → bright" : "light → dark"} with the varied value. Shaded windows show where each
-            measurement is taken (<span style={{ color: colors[0] }}>■</span> M1, <span style={{ color: colors[1] }}>■</span> M2). The
-            capacitive transient after each command step is left out of the autoscale.
+            Sweeps shade {pal.name === "dark" ? "dim → bright" : "light → dark"} with the varied value. {pal.name === "dark" ? <>Dotted gates mark where each measurement is taken, and the readout under the screen gives each one's extreme over the family.</> : <>Shaded windows show where each
+            measurement is taken (<span style={{ color: colors[0] }}>■</span> M1, <span style={{ color: colors[1] }}>■</span> M2).</>} The
+            capacitive transient after each step (5 Rs·Cm and the filter's settling, here {fmt(capMs, 2)} ms) is left out of the autoscale{blank ? ", and blanked" : ""}.
           </p>
           {error && <div className="warn" role="alert">Simulation failed: {error}</div>}
         </figure>
@@ -252,7 +264,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
             {normSvg ? <div className="svgplot" dangerouslySetInnerHTML={{ __html: normSvg }} /> : null}
             <p className="legendline">
               {norm === "G" && varied === "v" ? <>G = I / (V − E_rev), E_rev {erev} mV, over its largest. </> : <>I over its largest. </>}
-              {varied !== "v" ? "No fit: the varied value is a duration." : fitOn ? "A Boltzmann, 1/(1 + exp((V − V½)/k)), is fitted by least squares." : "No fit: a tail family is linear; where it crosses zero is the reversal of what was open."}
+              {varied !== "v" ? "No fit: the varied value is a duration." : fitOn ? <>A Boltzmann, 1/(1 + exp((V − V½)/k)), is fitted by least squares{normalized && normalized.dropped > 0 ? <>, leaving out {normalized.dropped === 1 ? "the point" : `the ${normalized.dropped} points`} where G is negative: there the current measured is outward, not the conductance being normalized (block K⁺ under CHANNELS for a clean curve)</> : null}.</> : "No fit: a tail family is linear; where it crosses zero is the reversal of what was open."}
               {xAxis === "vm" && vmOk(0) && " Plotted against the cell's true Vm, not the command."}
               {xAxis === "vm" && !vmOk(0) && " True Vm applies where M1 is taken in the varied segment; here it is plotted against the command."}
             </p>
@@ -269,6 +281,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
               hint="Series resistance between the amplifier and the cell. 0 is an ideal clamp. Any Rs lets a large current pull the cell away from the command: turn it up on the activation protocol and watch the sodium current escape." />
           </AmpSection>
               <AmpSection name="FILTER">
+            <AmpChoice label="Blank" value={blank ? "on" : "off"} options={[["off", "Off"], ["on", "On"]] as const} onChange={(v) => setBlank(v === "on")} />
             <AmpChoice label="Filter, kHz" value={noise.recFilter} options={FILTER_KHZ.map((f) => [f, f === 0 ? "Bypass" : String(f)] as const)} onChange={(recFilter) => setNoise({ ...noise, recFilter })} />
               </AmpSection>
             </AmpRow>
@@ -379,8 +392,14 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   );
 }
 
+/** the gates' colors on the tube: phosphor green for M1, a paler, bluer green for M2 */
+const GATE = ["rgba(170, 255, 190, 0.95)", "rgba(150, 220, 255, 0.9)"];
+
+/** below this, a normalized G is taken as not the conductance at all, and left out of the fit */
+const NEG_G = 0.05;
+
 /** The current traces of a family over the command, with each measurement's window shaded. */
-function VCTraces({ sweeps, measures, showTrue, pal, height }: { sweeps: VCSweep[]; measures: VCMeasure[]; showTrue: boolean; pal: ChartColors; height: number }) {
+function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height }: { sweeps: VCSweep[]; measures: VCMeasure[]; showTrue: boolean; pal: ChartColors; valueUnit: string; capMs: number; height: number }) {
   const cu = useCurrentUnit();
   const n = Math.max(...sweeps.map((s) => s.iRec.length));
   const dt = sweeps[0].sampleMs;
@@ -389,7 +408,7 @@ function VCTraces({ sweeps, measures, showTrue, pal, height }: { sweeps: VCSweep
   let hi = -Infinity;
   for (const s of sweeps) {
     const skip = new Set<number>();
-    for (const t of s.starts.concat(s.starts.length ? [s.starts[s.starts.length - 1]] : [])) for (let j = Math.round(t / dt); j <= Math.round((t + CAP_MS) / dt); j++) skip.add(j);
+    for (const t of s.starts.concat(s.starts.length ? [s.starts[s.starts.length - 1]] : [])) for (let j = Math.round(t / dt); j <= Math.round((t + capMs) / dt); j++) skip.add(j);
     for (let j = 0; j < s.iRec.length; j++) {
       if (skip.has(j)) continue;
       lo = Math.min(lo, s.iRec[j], showTrue ? s.iTrue[j] : Infinity);
@@ -404,7 +423,14 @@ function VCTraces({ sweeps, measures, showTrue, pal, height }: { sweeps: VCSweep
   const order = sweeps.map((s, k) => [s.value, k] as const).sort((a, b) => a[0] - b[0]);
   const rank = new Array<number>(sweeps.length);
   order.forEach(([, k], i) => (rank[k] = i));
-  const color = (k: number) => pal.ramp[Math.round((rank[k] / Math.max(1, sweeps.length - 1)) * (pal.ramp.length - 1))];
+  // Old school (the dark chart palette) draws the family on a green-phosphor tube, as the oscilloscope does
+  const tube = pal.name === "dark";
+  const color = (k: number) => {
+    const f = rank[k] / Math.max(1, sweeps.length - 1);
+    if (!tube) return pal.ramp[Math.round(f * (pal.ramp.length - 1))];
+    // dim to bright phosphor with the varied value
+    return `rgba(${Math.round(60 + 140 * f)}, 255, ${Math.round(110 + 100 * f)}, ${(0.45 + 0.55 * f).toFixed(2)})`;
+  };
   const pad0 = (a: Float32Array, div = 1) => {
     const out: (number | null)[] = new Array(n).fill(null);
     for (let j = 0; j < a.length; j++) out[j] = a[j] / div;
@@ -415,7 +441,7 @@ function VCTraces({ sweeps, measures, showTrue, pal, height }: { sweeps: VCSweep
   const vData: uPlot.AlignedData = [t, ...(showTrue ? sweeps.map((s) => pad0(s.vm)) : []), ...sweeps.map((s) => pad0(s.vCmd))] as uPlot.AlignedData;
   const series = (label: string): uPlot.Series[] => [
     {},
-    ...(showTrue ? sweeps.map((_, k) => ({ label: `true ${k}`, stroke: pal.muted, width: 1, dash: [4, 3] })) : []),
+    ...(showTrue ? sweeps.map((_, k) => ({ label: `true ${k}`, stroke: tube ? "rgba(217, 211, 194, 0.45)" : pal.muted, width: 1, dash: [4, 3] })) : []),
     ...sweeps.map((s, k) => ({ label: `${label} ${s.value}`, stroke: color(k), width: 1.25 })),
   ];
   const windows = (u0: uPlot) => {
@@ -424,36 +450,145 @@ function VCTraces({ sweeps, measures, showTrue, pal, height }: { sweeps: VCSweep
     measures.forEach((m, j) => {
       ctx.fillStyle = j === 0 ? pal.orange : pal.aqua;
       ctx.globalAlpha = 0.14;
-      const seen = new Set<string>();
-      for (const s of sweeps) {
-        const a = (s.starts[m.seg] ?? 0) + m.from;
-        const b = (s.starts[m.seg] ?? 0) + (m.kind === "cursor" ? m.from : Math.max(m.from, m.to));
-        const key = `${a}|${b}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
+      // a window that moves from sweep to sweep (a varied duration before it) is filled once over its whole span
+      const spans = sweeps
+        .map((s) => {
+          const a = (s.starts[m.seg] ?? 0) + m.from;
+          return [a, (s.starts[m.seg] ?? 0) + (m.kind === "cursor" ? m.from : Math.max(m.from, m.to))] as const;
+        })
+        .sort((p, q) => p[0] - q[0]);
+      const merged: [number, number][] = [];
+      for (const [a, b] of spans) {
+        const last = merged[merged.length - 1];
+        if (last && a <= last[1]) last[1] = Math.max(last[1], b);
+        else merged.push([a, b]);
+      }
+      for (const [a, b] of merged) {
         const x0 = u0.valToPos(a, "x", true);
         const x1 = Math.max(x0 + 2, u0.valToPos(b, "x", true));
-        ctx.fillRect(x0, u0.bbox.top, x1 - x0, u0.bbox.height);
+        if (!tube) {
+          ctx.fillRect(x0, u0.bbox.top, x1 - x0, u0.bbox.height);
+          continue;
+        }
+        // a Tektronix measurement gate: two dotted bars and the gate's name at the top of the screen
+        const pr = devicePixelRatio || 1;
+        ctx.globalAlpha = 0.85;
+        ctx.strokeStyle = GATE[j];
+        ctx.lineWidth = pr;
+        ctx.setLineDash([2 * pr, 3 * pr]);
+        ctx.beginPath();
+        for (const x of [x0, x1]) {
+          ctx.moveTo(Math.round(x) + 0.5, u0.bbox.top);
+          ctx.lineTo(Math.round(x) + 0.5, u0.bbox.top + u0.bbox.height);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = `${10 * pr}px ui-monospace, Menlo, monospace`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.fillStyle = GATE[j];
+        ctx.fillText(`M${j + 1}`, x0 + 3 * pr, u0.bbox.top + 2 * pr);
       }
     });
     ctx.restore();
   };
-  const common = (w: number, h: number, ylabel: string, hooks?: uPlot.Hooks.Arrays): uPlot.Options => ({
+  // The command strip names its own levels instead of carrying tick labels: the holding potential, and each
+  // segment's level, or its range across the family where it varies.
+  let vLo = Infinity;
+  let vHi = -Infinity;
+  for (const s of sweeps) for (const v of s.vCmd) { vLo = Math.min(vLo, v); vHi = Math.max(vHi, v); }
+  const vSpan = vHi - vLo || 20;
+  const vr: [number, number] = [vLo - 0.12 * vSpan, vHi + 0.55 * vSpan];
+  const levels = sweeps[0].starts.map((_, i) => {
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const s of sweeps) {
+      const a = s.starts[i];
+      const b = s.starts[i + 1] ?? s.vCmd.length * dt;
+      const v = s.vCmd[Math.min(s.vCmd.length - 1, Math.round((a + b) / 2 / dt))];
+      lo = Math.min(lo, v);
+      hi = Math.max(hi, v);
+    }
+    // the span every sweep shares, so a label clears the edges of a segment whose start varies
+    let t0 = -Infinity;
+    let t1 = Infinity;
+    for (const s of sweeps) {
+      t0 = Math.max(t0, s.starts[i]);
+      t1 = Math.min(t1, s.starts[i + 1] ?? s.vCmd.length * dt);
+    }
+    return { t0, t1, lo, hi };
+  });
+  const hold = levels[0]?.lo ?? NaN;
+  const mv = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(Math.round(v));
+  const labelLevels = (u0: uPlot) => {
+    const ctx = u0.ctx;
+    const pr = devicePixelRatio || 1;
+    ctx.save();
+    ctx.font = `${11 * pr}px system-ui, -apple-system, sans-serif`;
+    ctx.fillStyle = tube ? "#d9d3c2" : pal.ink2;
+    ctx.textBaseline = "bottom";
+    ctx.textAlign = "left"; // uPlot leaves the canvas right-aligned after its axes
+    const right = u0.bbox.left + u0.bbox.width;
+    levels.forEach((l, i) => {
+      const x0 = u0.valToPos(l.t0, "x", true) + 3 * pr;
+      const x1 = Math.min(right, u0.valToPos(l.t1, "x", true));
+      const level = l.lo === l.hi ? mv(l.lo) : `${mv(l.lo)} to ${mv(l.hi)}`;
+      // the first segment sits at the holding potential in every protocol here; the gutter tick names it when this does not fit
+      const tries = i === 0 ? [`hold ${level} mV`, `hold ${level}`] : [`${level} mV`, level];
+      const text = tries.find((t) => ctx.measureText(t).width <= x1 - x0 - 2 * pr);
+      if (!text || x1 <= x0) return;
+      ctx.fillText(text, x0, u0.valToPos(l.hi, "y", true) - 3 * pr);
+    });
+    ctx.restore();
+  };
+  // Both plots share one y-axis width, sized to their tick labels, so their time axes line up.
+  const chars = Math.max(4, ...yr.map((y) => String(Math.round(y)).length + 1));
+  const ySize = Math.round(chars * 6.6 + 10);
+  const ink = tube ? "#d9d3c2" : pal.ink2;
+  const grid = tube ? "rgba(110, 255, 140, 0.16)" : pal.grid;
+  const yAxis = (label: string): uPlot.Axis => ({ ...axisOpts(pal, label, ySize), stroke: ink, grid: { stroke: grid, width: 1 }, labelSize: 14, labelGap: 0, gap: 3 });
+  // the current plot has no time labels of its own: the command strip below carries the time axis
+  const xBare: uPlot.Axis = { ...axisOpts(pal, "", 4), grid: { stroke: grid, width: 1 }, ticks: { show: false }, values: () => [], labelSize: 0 };
+  const xTime: uPlot.Axis = { ...axisOpts(pal, "time (ms)", 18), stroke: ink, grid: { stroke: grid, width: 1 }, labelSize: 16, labelGap: 0, gap: 2 };
+  const CMD_H = 64;
+  const common = (w: number, h: number, axes: uPlot.Axis[], hooks?: uPlot.Hooks.Arrays): uPlot.Options => ({
     width: w,
     height: h,
+    padding: [6, 8, 0, 0],
     legend: { show: false },
     cursor: { drag: { x: true, y: false } },
     scales: { x: { time: false } },
-    axes: [axisOpts(pal, "time (ms)"), axisOpts(pal, ylabel, 64)],
+    axes,
     series: [],
     hooks,
   });
+  // In the tube, a readout under the graticule as a Tektronix prints its measurements: each one's extreme over
+  // the family, and the sweep it came from.
+  const readout = tube
+    ? measures.map((m, j) => {
+        let best: VCPoint | null = null;
+        for (const s of sweeps) {
+          const p = measureSweep(s, m);
+          const better = !best || (m.kind === "peakIn" ? p.i < best.i : m.kind === "peakOut" ? p.i > best.i : Math.abs(p.i) > Math.abs(best.i));
+          if (better) best = p;
+        }
+        if (!best) return "";
+        const name = { peakIn: "Min", peakOut: "Max", mean: "Mean", cursor: "Crsr" }[m.kind];
+        const v = best.value;
+        return `M${j + 1} ${name} ${(best.i / u.div).toFixed(Math.abs(best.i / u.div) < 10 ? 2 : 1).replace("-", "−")}${u.unit} @${valueUnit === "mV" && v > 0 ? "+" : ""}${String(+v.toFixed(1)).replace("-", "−")}${valueUnit}`;
+      })
+    : [];
   return (
-    <div className="vc-plots">
-      <Plot className="vc-i" deps={[pal, showTrue, sweeps.length, u.unit, JSON.stringify(measures), yr[0], yr[1]]} data={iData}
-        options={(w) => ({ ...common(w, Math.round(height * 0.72), `current (${u.unit})`, { draw: [windows] }), series: series("I"), scales: { x: { time: false }, y: { range: yr } } })} />
-      <Plot className="vc-v" deps={[pal, showTrue, sweeps.length]} data={vData}
-        options={(w) => ({ ...common(w, Math.round(height * 0.28), "command (mV)"), series: series("V") })} />
+    <div className={"vc-plots" + (tube ? " vc-tube" : "")}>
+      <Plot className="vc-i" deps={[pal, showTrue, sweeps.length, u.unit, JSON.stringify(measures), yr[0], yr[1], height]} data={iData}
+        options={(w) => ({ ...common(w, Math.max(160, height - CMD_H - 34), [xBare, yAxis(`current (${u.unit})`)], { draw: [windows] }), series: series("I"), scales: { x: { time: false }, y: { range: yr } } })} />
+      <Plot className="vc-v" deps={[pal, showTrue, sweeps.length, ySize, vr[0], vr[1], JSON.stringify(levels)]} data={vData}
+        options={(w) => ({ ...common(w, CMD_H + 34, [xTime, { ...yAxis("command"), grid: { show: false }, splits: () => [hold], values: () => [mv(hold)] }], { draw: [labelLevels] }), series: series("V"), scales: { x: { time: false }, y: { range: vr } } })} />
+      {tube && (
+        <div className="tek-readout" aria-label="Measurement readout">
+          {readout.map((r, j) => <span key={j} style={{ color: GATE[j] }}>{r}</span>)}
+        </div>
+      )}
     </div>
   );
 }
