@@ -33,7 +33,9 @@ one CI step. It merges that framework to main first, so the other sessions can n
 
 - [`2026-10-30-workstation.md`](2026-10-30-workstation.md): set the owner's workstation up to deploy, deploy `main`
   (the voltage-clamp review round, v0.2.10), and push the release and its record before the session ends. Written for
-  a workstation session the cloud session "cloud gaba deploy" will orchestrate.
+  a workstation session the cloud session "cloud gaba deploy" will orchestrate. Read it with
+  [`2026-10-30-workstation-windows.md`](2026-10-30-workstation-windows.md): the workstation is Windows (line endings,
+  Git Bash, `bash scripts/deploy.sh` in place of `npm run deploy`).
 
 ## Superseded
 

@@ -1430,3 +1430,11 @@ this happened is in armory (`docs/handoffs/2026-10-30-work-that-exists-on-one-ma
 The owner asked for two roadmap entries, added under "channels only": a pure simulation mode (channels alone, no
 cell or electrode, parameters as controls, currents and curves redrawn live), and permeability beside conductance
 and current, with why each matters.
+
+## 2026-10-30 — the workstation is Windows: LF everywhere, and the deploy run from Git Bash
+
+The workstation session found the deploy handoff right for macOS and Linux but not for its machine: `core.autocrlf`
+gave the shell scripts CRLF, Node was missing, and `npm run deploy` on Windows can reach WSL's bash instead of Git
+Bash. A `.gitattributes` now makes every checkout LF; every file was already stored LF, so no content changed. On
+Windows the deploy is run as `bash scripts/deploy.sh` from Git Bash: the same runbook, which is what the `AGENTS.md`
+rule protects. The details are in `docs/handoffs/2026-10-30-workstation-windows.md`.
