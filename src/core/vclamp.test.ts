@@ -11,7 +11,7 @@ import { buildCell, publishedParams } from "./cell.ts";
 import { MODEL_LIST } from "./models.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "./synapses.ts";
 import { DEFAULT_NOISE } from "./noise.ts";
-import { fitBoltzmann, measureSweep, runVCFamily, variedValue, zeroCrossing, type VCInputs, type VCProtocol, type VCSweep } from "./vclamp.ts";
+import { blankSweep, fitBoltzmann, measureSweep, transientMs, runVCFamily, variedValue, zeroCrossing, type VCInputs, type VCProtocol, type VCSweep } from "./vclamp.ts";
 import { VC_PRESETS } from "./protocol.ts";
 import { runFamily } from "./simulate.ts";
 import { detectSpikes } from "./analysis.ts";
@@ -205,4 +205,31 @@ describe("voltage clamp on every model", () => {
       }
     });
   }
+});
+
+describe("voltage clamp: the capacitive transient and blanking", () => {
+  const inp: VCInputs = { rs: 0, glu: { ...DEFAULT_GLU, enabled: false }, gaba: { ...DEFAULT_GABA, enabled: false } };
+  const proto: VCProtocol = { hold: -80, segments: [{ dur: 5, v: -80 }, { dur: 5, v: 0 }, { dur: 5, v: -80 }], vary: { seg: 1, what: "v", first: 0, delta: 10, count: 1 } };
+
+  it("lasts five Rs·Cm, or two samples with an ideal clamp, plus a period of the filter's corner", () => {
+    expect(transientMs(5, 20, 0.02)).toBeCloseTo(0.5, 12);
+    expect(transientMs(0, 20, 0.02)).toBeCloseTo(0.04, 12);
+    expect(transientMs(0, 20, 0.02, 10)).toBeCloseTo(0.14, 12);
+  });
+
+  it("blanking holds the recorded current at its value before each step, for that long, and nothing else", () => {
+    const sw = runVCFamily(buildCell(publishedParams("gnrh")), inp, proto)[0];
+    const ms = transientMs(0, 20, sw.sampleMs);
+    const b = blankSweep(sw, ms);
+    const dt = sw.sampleMs;
+    for (const t of sw.starts.filter((t) => t > 0)) {
+      const a = Math.round(t / dt);
+      for (let j = a; j <= a + Math.round(ms / dt); j++) expect(b.iRec[j]).toBe(sw.iRec[a - 1]);
+      expect(b.iRec[a + Math.round(ms / dt) + 1]).toBe(sw.iRec[a + Math.round(ms / dt) + 1]);
+    }
+    expect(b.iTrue).toBe(sw.iTrue);
+    // the ideal clamp's transient is gone from the recording: no sample within 0.1 ms of a step is above 1 nA outward
+    const a = Math.round(sw.starts[1] / dt);
+    expect(Math.max(...Array.from(b.iRec.subarray(a, a + 5)))).toBeLessThan(1000);
+  });
 });

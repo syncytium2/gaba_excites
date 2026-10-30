@@ -1359,3 +1359,74 @@ This supersedes the earlier entry's "the paper itself is not yet read".
   result and the test that holds it, and a note that a paper-only check (the GnRH neuron) is weaker than a code
   oracle. Section 7 is renamed "How each model was checked, in detail", and the squid axon's section has the Table 4
   comparison.
+
+## 2026-10-30 — voltage clamp: the traces get the space; the command strip says what it is
+
+The owner, on a phone, at v0.2.9: maximize the trace display across and down; dead space between the axis labels and
+the axes, between the title rows and the plot; Old school ticked but no green phosphor; M1 normalized clipping the
+inward current; and the command window "does not make sense: label the holding potential and the start step and end
+step without killing space". Done (src/ui/VClampMode.tsx, `VCTraces`):
+
+- **One time axis**, under the command strip; the current plot keeps its grid but no time labels. The y gutters are
+  sized to their tick labels and are the same width on both plots, so the time axes line up. The current plot takes
+  the rest of the height, which is now `max(330, screenH − 110)` (was `max(260, screenH − 170)`). On phones the card
+  pads 4 px instead of 12.
+- **The command strip names its levels** instead of carrying ticks: the holding potential as the one gutter tick
+  (and "hold −80 mV" inside, where it fits), and each segment's level, or its range where it varies ("−80 to
+  +40 mV"), above it, inside the span every sweep shares.
+- **Old school puts voltage clamp's traces on the green-phosphor tube.** Until now the tube was the oscilloscope's
+  alone (styles.css said so); the owner asked for it here. Sweeps go dim to bright phosphor with the varied value.
+- **Measurement windows that move from sweep to sweep** (recovery: the gap before the test step varies) are filled
+  once over their whole span; twelve overlapping fills had made a solid block.
+- **G/Gmax normalizes by the largest positive conductance.** It took the largest magnitude, so on the activation
+  preset the +40 mV point, where "peak in" is outward (K⁺ outweighs what sodium is left), gave G = −1 and set the
+  scale: every real point fell near zero, the fixed −0.1…1.1 range clipped them, and the fit read V½ +32 mV. Now a
+  point with G below −0.05 is drawn but left out of the fit, and the caption says so; near zero is a closed channel
+  plus noise and is fitted. The plot's range now holds every point. Activation on the default cell: V½ −13.5 mV,
+  k −4.5 mV. I/Imax is unchanged (largest magnitude, sign kept).
+
+**A Tektronix draft, for fun (the owner: "draft what the old tektronics measurement windows looked like just for
+kicks").** In the tube, the measurement windows are drawn as late Tektronix digital scopes drew a measurement gate:
+two dotted bars, the gate's name at the top; and a readout under the graticule, in the phosphor, giving each
+measurement's extreme over the family and the sweep it came from ("M1 Min −19.0nA @0mV"). The flat screen keeps the
+shaded windows. A separate commit, to keep or drop. It showed one thing worth checking: on the recovery preset M1's
+extreme (−21.3 nA at a 1.4 ms gap) is off the plot's range, which leaves out the capacitive transient, so "peak in"
+there may be measuring the transient.
+
+## 2026-10-30 — voltage clamp: what the transient is, and blanking
+
+The owner asked, of the spike at each step: is it poor compensation, and is there leak correction yet? Neither
+compensation nor leak subtraction is modeled. With the ideal clamp (Rs 0) the step puts Cm·ΔV through the electrode
+in one integration step (20 pF × 80 mV = 1.6 pC: 160 nA for 10 µs), and the 10 kHz filter turns that into the
+filter's impulse response, which is why it looks like an uncompensated rig. With Rs it is an exponential, τ = Rs·Cm.
+The inward dip after it is sodium (−22 nA at 0.1 ms on the GnRH cell), and the outward hump after that is K⁺.
+
+**The trace's range left out a fixed 0.6 ms after each step as "the capacitive transient". That was the sodium
+current**, which peaks 0.1–0.2 ms into a step on these cells and is over by about 0.8 ms; it is why the inward
+current looked clipped. Now the range leaves out `transientMs` (vclamp.ts): five Rs·Cm, at least two samples, plus
+about one period of the filter's corner (0.14 ms with the ideal clamp at 10 kHz).
+
+**Artifact blanking**, a toggle under CLAMP (off by default): for `transientMs` after each step the recorded current
+holds its value from just before the step, as an amplifier's sample-and-hold blanking does. Measurements are on the
+recorded current, so they see the blank. With the ideal clamp it costs nothing (activation M1 stays −19.0 nA; its
+window starts at 0.2 ms). At Rs 5 MΩ the blank is 0.64 ms and swallows most of the sodium: M1 −8.05 → −5.47 nA. That
+is the trade-off a real blank has, and the caption states the blank's length. Tested in vclamp.test.ts.
+
+Noticed, not changed: the presets' M1 windows start 0.2 ms into the step, but the GnRH cell's sodium peaks at about
+0.1 ms, so "peak in" there reads −16.6 nA against a true peak near −21.9 nA.
+
+## 2026-10-30 — the Mac's voltage-clamp work, rebuilt in the cloud; two roadmap entries
+
+The Mac session "mac gaba speed fix" committed five commits on a local branch `vc-layout`, merged it into its local
+`main` and started `npm run deploy`, then went offline with nothing pushed; the live site stayed at v0.2.9. A cloud
+session read that session's transcript, where every repository change is a script given in full, replayed the
+scripts in order on the same base (`173a881`), and checked the result against what the Mac session printed (line
+numbers, and one commit's "5 files changed, 101 insertions, 9 deletions"). The five commits are on GitHub as
+`vc-layout-rebuilt`, with the same files and messages and a `Rebuilt-From` trailer; the hashes differ. Tests,
+typecheck, build and the screenshot check pass. When the Mac is back, its `vc-layout` should diff empty against
+`vc-layout-rebuilt`, and its local merge and any release commit should be dropped, not pushed. The handoff on why
+this happened is in armory (`docs/handoffs/2026-10-30-work-that-exists-on-one-machine.md`).
+
+The owner asked for two roadmap entries, added under "channels only": a pure simulation mode (channels alone, no
+cell or electrode, parameters as controls, currents and curves redrawn live), and permeability beside conductance
+and current, with why each matters.
