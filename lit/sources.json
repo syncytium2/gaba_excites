@@ -72,6 +72,56 @@
       "notes": "notes/pospischil2008.md"
     },
     {
+      "key": "hodgkin1952",
+      "type": "article",
+      "authors": [
+        "Hodgkin AL",
+        "Huxley AF"
+      ],
+      "year": 1952,
+      "title": "A quantitative description of membrane current and its application to conduction and excitation in nerve",
+      "journal": "J Physiol",
+      "volume": "117",
+      "issue": "4",
+      "pages": "500–544",
+      "doi": "10.1113/jphysiol.1952.sp004764",
+      "pmid": "12991237",
+      "pmcid": "PMC1392413",
+      "access": "open",
+      "role": "model",
+      "models": [
+        "hh"
+      ],
+      "took": "The squid giant axon: INa = gNa m³h (V − ENa) and IK = gK n⁴ (V − EK), their rate functions, the maximal conductances (120 and 36 mS/cm²), the leak (0.3 mS/cm²), the reversal potentials and 1 µF/cm², written in the modern sign convention with rest at −65 mV. 6.3 °C, the temperature of the paper's calculations, is the temperature knob's default.",
+      "usedIn": [
+        "src/core/channels.ts",
+        "src/core/models.ts"
+      ],
+      "notes": "notes/hodgkin1952.md"
+    },
+    {
+      "key": "neuronhh",
+      "type": "code",
+      "authors": [
+        "Hines ML",
+        "Carnevale NT"
+      ],
+      "year": 2025,
+      "title": "hh.mod: the Hodgkin–Huxley mechanism built into the NEURON simulator",
+      "url": "https://github.com/neuronsimulator/nrn/blob/master/src/nrnoc/hh.mod",
+      "access": "open (code)",
+      "role": "model",
+      "models": [
+        "hh"
+      ],
+      "took": "The 1952 rate functions as NEURON writes them (vtrap at the removable singularities) and the temperature factor 3^((T − 6.3)/10); and the mechanism itself, run in NEURON 9.0.2 as the oracle the port is tested against (tools/neuron_oracle_hh.py).",
+      "usedIn": [
+        "src/core/channels.ts",
+        "tools/neuron_oracle_hh.py",
+        "src/core/hh.test.ts"
+      ]
+    },
+    {
       "key": "destexhe2001",
       "type": "article",
       "authors": [

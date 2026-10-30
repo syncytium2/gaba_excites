@@ -8,6 +8,8 @@
 import {
   boltzmann,
   makeGated,
+  makeHHK,
+  makeHHNa,
   makeHuguenardT,
   makeKCa,
   makeKd,
@@ -24,7 +26,7 @@ import { BETA_MOUSE } from "./beta.ts";
 import { adamsPool, destexheDecay, type CaPool } from "./pools.ts";
 
 export type { CaPool } from "./pools.ts";
-export type ModelId = "rs" | "fs" | "lts" | "gnrh" | "betamouse";
+export type ModelId = "rs" | "fs" | "lts" | "gnrh" | "betamouse" | "hh";
 
 export interface ModelChannel {
   channel: Channel;
@@ -414,6 +416,68 @@ export const GNRH: ModelDef = {
     "Transcribed from the paper (no public code). Checked against the paper's reported rest (−70 mV at −6 pA) and its Fig. 7F spike counts.",
 };
 
-export const MODELS: Record<ModelId, ModelDef> = { rs: RS, fs: FS, lts: LTS, gnrh: GNRH, betamouse: BETA_MOUSE };
+// ---------------------------------------------------------------- HH squid axon
+
+/**
+ * The squid giant axon of Hodgkin & Huxley (1952) J Physiol 117:500, space-
+ * clamped: one patch of membrane with no propagation, the paper's "membrane
+ * action potential". The patch is 10 000 µm², so 1 µF/cm² gives 100 pF and
+ * 100 pA is 1 µA/cm². Densities (mS/cm²) × 100 pF = nS: gNa 120 → 12 000 nS,
+ * gK 36 → 3600 nS, gL 0.3 → 30 nS. E_Na +50, E_K −77, E_L −54.387 mV, the
+ * paper's values shifted so that rest is −65 mV (NEURON's hh.mod rounds E_L
+ * to −54.3). The temperature knob scales every rate by 3^((T − 6.3)/10), as
+ * hh.mod does; 6.3 °C is the paper's. src/core/hh.test.ts holds the port to
+ * NEURON's built-in hh mechanism (tools/neuron_oracle_hh.py).
+ */
+const HH_CM = 100;
+
+export const HH: ModelDef = {
+  id: "hh",
+  label: "Squid giant axon (Hodgkin–Huxley)",
+  short: "squid axon",
+  blurb:
+    "Hodgkin & Huxley 1952: the first model of the action potential, on a space-clamped patch of squid axon membrane. INa and IK only.",
+  citation: "Hodgkin AL, Huxley AF (1952) J Physiol 117:500–544",
+  doi: "10.1113/jphysiol.1952.sp004764",
+  cmRef: HH_CM,
+  eLeak: -54.387,
+  channels: (knobs) => {
+    const celsius = knobs?.celsius ?? 6.3;
+    return [
+      { channel: makeHHNa(celsius), gbar: 120 * HH_CM, erev: 50 },
+      { channel: makeHHK(celsius), gbar: 36 * HH_CM, erev: -77 },
+    ];
+  },
+  knobsTitle: "TEMPERATURE",
+  knobs: [
+    {
+      id: "celsius",
+      label: "Temperature",
+      unit: "°C",
+      min: 0,
+      max: 30,
+      step: 0.1,
+      value: 6.3,
+      note: "Every rate scales by 3^((T − 6.3)/10) (Q10 = 3). 6.3 °C is the temperature of Hodgkin & Huxley's calculations.",
+    },
+  ],
+  defaults: { cm: HH_CM, gLeak: 0.3 * HH_CM, ihold: 0, eGaba: -65 },
+  eGabaSource:
+    "−65 mV, the axon's rest: a placeholder. The squid giant axon has no GABA synapse; at rest a GABA_A conductance here only shunts.",
+  ranges: {
+    gLeak: { min: 0, max: 200, step: 0.5 },
+    cm: { min: 20, max: 500, step: 1 },
+    ihold: { min: -3000, max: 5000, step: 10 },
+    memNoise: { min: 0, max: 500, step: 5 },
+  },
+  rheobase: 225,
+  rheobaseTol: 1,
+  // n, the slowest gate, relaxes in under 10 ms at 6.3 °C
+  settleMs: 1000,
+  validation:
+    "Spike counts match NEURON's built-in hh mechanism exactly, at 6.3 and 18.5 °C; spike times within 0.01 ms.",
+};
+
+export const MODELS: Record<ModelId, ModelDef> = { rs: RS, fs: FS, lts: LTS, gnrh: GNRH, betamouse: BETA_MOUSE, hh: HH };
 /** The models the app offers, in the selector's order. */
-export const MODEL_LIST: ModelDef[] = [RS, FS, LTS, GNRH, BETA_MOUSE];
+export const MODEL_LIST: ModelDef[] = [RS, FS, LTS, GNRH, BETA_MOUSE, HH];

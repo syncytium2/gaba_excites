@@ -44,6 +44,28 @@ Destexhe A (2009). ModelDB 123623: minimal Hodgkin–Huxley models of cortical a
 
 **Notes:** [`notes/pospischil2008.md`](notes/pospischil2008.md)
 
+### `hodgkin1952`
+
+Hodgkin AL, Huxley AF (1952). A quantitative description of membrane current and its application to conduction and excitation in nerve. J Physiol 117(4):500–544.
+
+[doi:10.1113/jphysiol.1952.sp004764](https://doi.org/10.1113/jphysiol.1952.sp004764) · [PMID 12991237](https://pubmed.ncbi.nlm.nih.gov/12991237/) · [PMC1392413](https://pmc.ncbi.nlm.nih.gov/articles/PMC1392413/) · *open* · models: squid axon
+
+**Took:** The squid giant axon: INa = gNa m³h (V − ENa) and IK = gK n⁴ (V − EK), their rate functions, the maximal conductances (120 and 36 mS/cm²), the leak (0.3 mS/cm²), the reversal potentials and 1 µF/cm², written in the modern sign convention with rest at −65 mV. 6.3 °C, the temperature of the paper's calculations, is the temperature knob's default.
+
+**Used in:** [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/models.ts`](../src/core/models.ts)
+
+**Notes:** [`notes/hodgkin1952.md`](notes/hodgkin1952.md)
+
+### `neuronhh`
+
+Hines ML, Carnevale NT (2025). hh.mod: the Hodgkin–Huxley mechanism built into the NEURON simulator.
+
+[github.com/neuronsimulator/nrn/blob/master/src/nrnoc/hh.mod](https://github.com/neuronsimulator/nrn/blob/master/src/nrnoc/hh.mod) · *open (code)* · models: squid axon
+
+**Took:** The 1952 rate functions as NEURON writes them (vtrap at the removable singularities) and the temperature factor 3^((T − 6.3)/10); and the mechanism itself, run in NEURON 9.0.2 as the oracle the port is tested against (tools/neuron_oracle_hh.py).
+
+**Used in:** [`src/core/channels.ts`](../src/core/channels.ts), [`tools/neuron_oracle_hh.py`](../tools/neuron_oracle_hh.py), [`src/core/hh.test.ts`](../src/core/hh.test.ts)
+
 ### `adams2018`
 
 Adams C, Stroberg W, DeFazio RA, Schnell S, Moenter SM (2018). Gonadotropin-releasing hormone (GnRH) neuron excitability is regulated by estradiol feedback and kisspeptin. J Neurosci 38(5):1249–1263.

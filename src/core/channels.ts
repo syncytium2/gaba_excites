@@ -137,6 +137,84 @@ export function makeKd(vtraub: number): Channel {
   };
 }
 
+// ---------------------------------------------------------------- Hodgkin–Huxley squid axon
+//
+// Hodgkin & Huxley (1952) J Physiol 117:500, the rate equations, in the modern sign
+// convention (V in mV, rest −65 mV, depolarization positive), exactly as
+// NEURON's built-in hh.mod writes them, including its temperature factor
+// φ = 3^((T − 6.3)/10). src/core/hh.test.ts holds the port to NEURON.
+
+function hhPhi(celsius: number): number {
+  return Math.pow(3, (celsius - 6.3) / 10);
+}
+function hhRates(a: number, b: number, phi: number): Rates {
+  return { inf: a / (a + b), tau: 1 / (phi * (a + b)) };
+}
+function hhM(v: number, phi: number): Rates {
+  return hhRates(0.1 * vtrap(-(v + 40), 10), 4 * Exp(-(v + 65) / 18), phi);
+}
+function hhH(v: number, phi: number): Rates {
+  return hhRates(0.07 * Exp(-(v + 65) / 20), 1 / (Exp(-(v + 35) / 10) + 1), phi);
+}
+function hhN(v: number, phi: number): Rates {
+  return hhRates(0.01 * vtrap(-(v + 55), 10), 0.125 * Exp(-(v + 65) / 80), phi);
+}
+
+/** The squid axon's Na⁺ current, I = gNa m³h (V − ENa), at `celsius`. */
+export function makeHHNa(celsius = 6.3): Channel {
+  const phi = hhPhi(celsius);
+  return {
+    id: "na",
+    label: "INa (Hodgkin–Huxley)",
+    nGates: 2,
+    gateNames: ["m", "h"],
+    init(v, s, o) {
+      s[o] = hhM(v, phi).inf;
+      s[o + 1] = hhH(v, phi).inf;
+    },
+    advance(v, dt, s, o) {
+      const m = hhM(v, phi);
+      const hg = hhH(v, phi);
+      s[o] = relax(s[o], m.inf, m.tau, dt);
+      s[o + 1] = relax(s[o + 1], hg.inf, hg.tau, dt);
+    },
+    open(s, o) {
+      const m = s[o];
+      return m * m * m * s[o + 1];
+    },
+    openInf(v) {
+      const m = hhM(v, phi).inf;
+      return m * m * m * hhH(v, phi).inf;
+    },
+  };
+}
+
+/** The squid axon's K⁺ current, I = gK n⁴ (V − EK), at `celsius`. */
+export function makeHHK(celsius = 6.3): Channel {
+  const phi = hhPhi(celsius);
+  return {
+    id: "kd",
+    label: "IK (Hodgkin–Huxley)",
+    nGates: 1,
+    gateNames: ["n"],
+    init(v, s, o) {
+      s[o] = hhN(v, phi).inf;
+    },
+    advance(v, dt, s, o) {
+      const n = hhN(v, phi);
+      s[o] = relax(s[o], n.inf, n.tau, dt);
+    },
+    open(s, o) {
+      const n2 = s[o] * s[o];
+      return n2 * n2;
+    },
+    openInf(v) {
+      const n2 = hhN(v, phi).inf ** 2;
+      return n2 * n2;
+    },
+  };
+}
+
 // ---------------------------------------------------------------- M current
 
 function mP(v: number, tauMax: number): Rates {

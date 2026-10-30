@@ -1253,3 +1253,35 @@ than a second per second, so the work piled up. Now the columns are grouped into
 stroked as one path with one blur, and a column written twice since the last frame is drawn once. After: the page
 answers within 16 ms at 10 ms/div at 0.1×, 1× and 10×, and at 20 ms/div at 30×. The screenshot check now runs
 10 ms/div in Old school and fails if the page falls a second behind.
+
+## 2026-10-29 — the Hodgkin–Huxley squid axon (core)
+
+The owner asked for the Hodgkin & Huxley 1952 squid giant axon action potential, in parallel with voltage clamp, and
+chose: **the space-clamped "membrane action potential" first, propagation later** (a cable is a solver change);
+**a toggle for the current units** (pA, or µA/cm²); and **voltage clamp merged to main** before the HH app wiring.
+
+- **A patch, not a cell.** 10 000 µm² of membrane: 1 µF/cm² gives 100 pF, so 100 pA is 1 µA/cm², and densities in
+  mS/cm² × 100 are nS. The whole-cell framing of the other models (pF, nS, pA) then holds unchanged. Since
+  µA/cm² = pA/pF at 1 µF/cm², the unit toggle can be the standard current density, and works for every model.
+- **The oracle is NEURON's own `hh`** (tools/neuron_oracle_hh.py), which needs no .mod files. Two settings matter:
+  `usetable_hh = 0`, or NEURON interpolates the rates from a 200-point table the port does not have; and
+  `el_hh = −54.387`, the paper's leak reversal, which NEURON rounds to −54.3. Measured: spike counts match on all 21
+  sweeps at 6.3 and 18.5 °C (up to 280 spikes, depolarization block and anode break included), every spike within
+  one dt (0.010 ms). So the squid axon is validated the way the pyramidal cell is, not the way the GnRH cell is.
+- **Temperature is a knob** (default 6.3 °C), every rate × 3^((T − 6.3)/10), as `hh.mod` does it.
+- **Numbers, measured on the port:** rest −65.00 mV; rheobase 225 pA (2.25 µA/cm², 800 ms step); one spike at step
+  onset up to 500 pA, two at 600; at 700 pA it fires repetitively at once at 59 Hz, with no slow firing below (class II, unlike the
+  cortical cells); firing dies out by 10–20 nA (depolarization block); release from −300 pA (3.3 mV below rest) fires an anode-break
+  spike, and −200 pA does not.
+- **The siren caught a first draft of the anode-break preset.** At −1000 pA the axon sits below E_K, where no
+  conductance can take it; the preset now uses −200 to −500 pA, which stays above E_K and still shows the effect.
+- **Choosing a model with no preset blanked the page** (the app opens a model on its first preset). A test now
+  requires a preset for every model the selector offers (protocol.test.ts).
+- **The paper itself is not yet read.** Automated fetches were refused (PubMed Central, Europe PMC); it is on the
+  owner's want-list. Until it is, the transcription is from `hh.mod` (lit/notes/hodgkin1952.md) and nothing quotes a
+  page, figure or equation number from the paper.
+- **GABA on an axon with no GABA synapse:** E_GABA defaults to rest (−65 mV) and says it is a placeholder.
+- **Two presets**, each quoting only spike counts that the NEURON check holds exactly: the F–I family (no slow firing)
+  and anode break.
+- Not yet: the unit toggle, presets for the refractory period and temperature, and HH
+  voltage-clamp presets reproducing the 1952 conductance families, all waiting for voltage clamp on main.

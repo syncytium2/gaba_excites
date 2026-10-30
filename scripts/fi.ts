@@ -29,7 +29,7 @@ const { values: a } = parseArgs({
   },
 });
 if (a.help) {
-  console.log("usage: node scripts/fi.ts [--model rs|fs|lts|gnrh] [--gleak nS] [--cm pF] [--ihold pA] [--rs MOhm] [--steps a,b,c] [--step-start ms] [--step-dur ms] [--sweep ms] [--glu r,g,tr,td] [--gaba r,g,tr,td,E] [--regular] [--seed n] [--rheobase] [--rec-noise mV] [--mem-noise sigma_pA,tau_ms]");
+  console.log("usage: node scripts/fi.ts [--model rs|fs|lts|gnrh|betamouse|hh] [--gleak nS] [--cm pF] [--ihold pA] [--rs MOhm] [--steps a,b,c] [--step-start ms] [--step-dur ms] [--sweep ms] [--glu r,g,tr,td] [--gaba r,g,tr,td,E] [--regular] [--seed n] [--rheobase] [--rec-noise mV] [--mem-noise sigma_pA,tau_ms]");
   process.exit(0);
 }
 

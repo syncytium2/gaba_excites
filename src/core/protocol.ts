@@ -122,6 +122,9 @@ export const SCOPE_PULSE: Record<ModelId, Pulse> = {
   // (R_GK = 0; beta-app.test.ts). It bursts on its own in glucose, so the
   // pulse is not its lesson; off until ticked.
   betamouse: { enabled: false, amp: 1, width: 500, period: 1500 },
+  // Squid axon: 1000 pA (10 µA/cm²), above the 700 pA where it starts to fire
+  // repetitively at 6.3 °C (tools/neuron_oracle_hh.py; hh.test.ts).
+  hh: { enabled: false, amp: 1000, width: 500, period: 1500 },
 };
 
 export const PRESETS: Preset[] = [
@@ -194,6 +197,27 @@ export const PRESETS: Preset[] = [
     label: "Same step, no adaptation",
     note: "800 pA, the step that takes the pyramidal cell from 43 Hz at its start to 10 Hz by its end as the M current builds. Here the rate starts at 101 Hz and is still 101 Hz at the end. Same INa and IKd as the pyramidal cell, at twice the K⁺ density, which also narrows the spike (half-width 0.56 against 0.70 ms); no M current, so nothing adapts.",
     protocol: { ...FI, mode: "list", list: "800" },
+    glu: DEFAULT_GLU,
+    gaba: DEFAULT_GABA,
+  },
+  // Squid axon: every number below is a spike count NEURON's hh mechanism
+  // gives on the same patch, which hh.test.ts requires the port to match
+  // exactly (src/core/oracle/neuron_hh.json), plus the rheobase it pins.
+  {
+    id: "hh-fi",
+    model: "hh",
+    label: "F–I family: no slow firing",
+    note: "Rheobase is 225 pA (2.25 µA/cm²). Up to 600 pA the axon fires once or twice as the step starts, then stops. At 700 pA it fires all the way through, at 59 Hz; at 2 nA, 86 Hz. There is no slow firing in between: between 600 and 700 pA the rate jumps from zero to 59 Hz. Compare the cortical cells, whose rate climbs from near zero.",
+    protocol: { ...FI, mode: "list", list: "200, 300, 500, 600, 700, 1000, 2000" },
+    glu: DEFAULT_GLU,
+    gaba: DEFAULT_GABA,
+  },
+  {
+    id: "hh-anode",
+    model: "hh",
+    label: "Anode break: release fires",
+    note: "Steps of −200 to −500 pA for 800 ms, taking the axon only 2 to 7 mV below rest. Nothing fires during any step. On release, −200 pA does nothing; −300, −400 and −500 pA each fire one spike, 4.7–7.1 ms later. The hyperpolarization removed some Na⁺ inactivation and turned K⁺ down, so the return to rest overshoots threshold. Hodgkin and Huxley called it anode break excitation.",
+    protocol: { ...FI, mode: "list", list: "-200, -300, -400, -500" },
     glu: DEFAULT_GLU,
     gaba: DEFAULT_GABA,
   },
