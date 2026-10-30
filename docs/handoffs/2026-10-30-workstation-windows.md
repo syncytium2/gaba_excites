@@ -28,7 +28,10 @@ A fresh clone works as well. No second clone with `-c core.autocrlf=false` is ne
   PATH for both PowerShell and Git Bash). Open a new Git Bash afterwards; `node -v` prints v22.
 - **Python**: `classroom.sh` runs `python3`. Check `python3 --version` in Git Bash prints a real version, not the
   Microsoft Store stub. If only `python` exists, tell the owner rather than editing the script.
-- Then `npm ci`, `npx playwright install chromium`, and the owner runs `npx wrangler login` and `npx wrangler whoami`.
+- Then `npm ci`, `npx playwright-core install chromium`, and the owner runs `npx wrangler login` and `npx wrangler whoami`.
+
+Corrected 2026-10-30: this said `npx playwright install chromium`, which installs the wrong browser build; the
+workstation session found it and installed the right one with `npx playwright-core install chromium`.
 
 ## Run everything from Git Bash
 
@@ -59,7 +62,7 @@ patch `deploy.sh` or `classroom.sh` on this machine.
 ## The order, on Windows
 
 1. The owner installs Node 22. The session pulls `main` and re-checks the files out as above.
-2. `npm ci`, `npx playwright install chromium`. The owner runs `npx wrangler login`.
+2. `npm ci`, `npx playwright-core install chromium`. The owner runs `npx wrangler login`.
 3. The pre-deploy checks of the first handoff, in Git Bash, then `bash scripts/deploy.sh --dry-run`.
 4. Report to the owner, who relays to the cloud session. The real deploy waits for his yes.
 5. Deploy with `bash scripts/deploy.sh`, then commit `DEPLOYED.md` and push at once, exactly as the first handoff

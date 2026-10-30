@@ -42,8 +42,10 @@ review"):
 3. **Cloudflare.** `npx wrangler login` opens a browser; the owner signs in himself, to the account that holds
    `tonydefazio.com`. Check with `npx wrangler whoami`. Never put a token in the repository or in a message.
 4. **A browser for the screenshot check.** `scripts/screenshot.mjs` uses `playwright-core`; install the matching
-   browser with `npx playwright install chromium`. (In the cloud sandbox the installed browser was a different build
-   and the script needed `executablePath`; a normal machine should not.)
+   browser with `npx playwright-core install chromium` (corrected 2026-10-30 by the workstation session: `npx
+   playwright install` fetches a newer standalone Playwright and the wrong browser build; `playwright-core` installs
+   the build the lockfile's version expects, chromium-1234 for 1.62.1). (In the cloud sandbox the preinstalled browser
+   was a different build and the script needed `executablePath`; a normal machine should not.)
 5. **Remote Control** for the clone's folder, so the cloud session can reach this one (Claude desktop app: Settings,
    Claude Code, Remote Control). The owner does this.
 6. **Name the session for the machine**, the estate's convention: e.g. "workstation gaba deploy".
