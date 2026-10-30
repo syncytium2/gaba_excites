@@ -1586,3 +1586,15 @@ the A current outrunning what sodium is left); fitting every point, unfiltered, 
 Unfiltered, the cortical cells' points at −70 to −50 mV come out a hair negative (leak current, under 0.5 nA; G above
 −0.05 of Gmax, so G > 0 only keeps them). The measurements behind the choice are in the entry "every step stored;
 the 0.1 ms window held back".
+
+## 2026-10-30 — the normalized panel takes every measurement
+
+The owner, in the workstation session: "the normalized row should also process M2, remove M1 from the title of the
+tile." Each measurement is now normalized and fitted, M1 and M2 in their own colors with their own fit curves, and
+the tile is "Normalized", listing each fit (M1 V½ and k · M2 V½ and k). Asked what M2's G should use, since on the
+activation preset M2 is the sustained K⁺ current and V − E_Na made its G as large as −50 × Gmax and flattened M1:
+"Toggle I/imax and g/gmax. If multiple channels default to I/imax." So with two measurements on, the normalization
+opens as I/|I|max (a preset with two, or turning M2 on); G/Gmax stays one click away, with one E_rev for both; with
+one measurement a preset keeps its own choice. The activation preset therefore opens on I/|I|max; its G–V fits quoted
+above are what the G/Gmax toggle shows. Where a measurement has no positive G there is no Gmax, and the caption says
+so instead of drawing it.

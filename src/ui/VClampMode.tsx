@@ -71,7 +71,11 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   const [presetId, setPresetId] = useState(VC_PRESETS[0].id);
   const [proto, setProto] = useState<VCProtocol>(VC_PRESETS[0].protocol);
   const [measures, setMeasures] = useState<VCMeasure[]>(VC_PRESETS[0].measures);
-  const [norm, setNorm] = useState<"I" | "G">(VC_PRESETS[0].norm);
+  // With two measurements on, they are usually different currents (sodium early, potassium late), and one E_rev
+  // cannot make both a conductance, so the normalization opens as I/|I|max; G/Gmax is one click away (the owner,
+  // 2026-10-30). With one, the preset's own choice.
+  const normFor = (ms: VCMeasure[], preset: "I" | "G") => (ms.length > 1 ? "I" : preset);
+  const [norm, setNorm] = useState<"I" | "G">(normFor(VC_PRESETS[0].measures, VC_PRESETS[0].norm));
   // E_rev is the selected model's own reversal for the ion the preset normalizes by, from its channel data; it
   // resets on every model or preset change, and a typed value holds until then (the owner, 2026-10-30)
   const [erevIon, setErevIon] = useState<Ion | undefined>(VC_PRESETS[0].erevIon);
@@ -108,7 +112,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     setPresetId(id);
     setProto(p.protocol);
     setMeasures(p.measures);
-    setNorm(p.norm);
+    setNorm(normFor(p.measures, p.norm));
     setFitOn(p.fit ?? true);
     // a preset opens with its own filter (the activation preset's is off), every other at the default
     setNoise((n) => ({ ...n, recFilter: p.filter ?? VC_DEFAULT_FILTER }));
@@ -199,29 +203,32 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   const cu = useCurrentUnit();
   const u = vcUnit(maxAbs, cu);
 
-  // the first measurement, normalized: I/Imax, or G/Gmax with G = I/(V − E_rev); fitted where the varied thing is a voltage
+  // each measurement, normalized: I/|I|max, or G/Gmax with G = I/(V − E_rev); fitted where the varied thing is a
+  // voltage (the owner, 2026-10-30: the normalized panel takes M2 as well as M1)
   const normalized = useMemo(() => {
-    const pts = points[0] ?? [];
-    if (!pts.length) return null;
-    const x = pts.map(xOf);
-    const asG = norm === "G" && varied === "v";
-    const raw = pts.map((p, i) => (asG ? p.i / (x[i] - erev) : p.i));
-    // Gmax is the largest positive G; a current keeps its sign, and I is divided by the one largest in magnitude.
-    // By default every point is fitted, so a family that is not one conductance (at +40 mV the K⁺ current can
-    // outweigh what sodium is left, and Peak − is outward) shows as a poor fit. "G > 0 only" leaves out the
-    // points whose G is clearly negative, draws them hollow, and says how many.
-    let big = 0;
-    for (const r of raw) if (Number.isFinite(r) && (asG ? r > big : Math.abs(r) > Math.abs(big))) big = r;
-    const y = raw.map((r) => (big !== 0 ? r / big : NaN));
-    const leaveOut = asG && fitPos;
-    const ok = x.map((_, i) => Number.isFinite(x[i]) && Number.isFinite(y[i]) && (!leaveOut || y[i] > -NEG_G));
-    const dropped = leaveOut ? y.filter((v) => Number.isFinite(v) && v <= -NEG_G).length : 0;
-    const fx = x.filter((_, i) => ok[i]);
-    const fy = y.filter((_, i) => ok[i]);
-    const fit = varied === "v" && fitOn ? fitBoltzmann(fx, fy) : null;
-    // where the measured current changes sign, by linear interpolation: a reversal potential, for a tail family
-    const zero = varied === "v" ? zeroCrossing(x, pts.map((p) => p.i)) : NaN;
-    return { x, y, ok, fit, zero, dropped };
+    const out = points.map((pts, j) => {
+      if (!pts.length) return null;
+      const x = pts.map((p) => xOf(p, j));
+      const asG = norm === "G" && varied === "v";
+      const raw = pts.map((p, i) => (asG ? p.i / (x[i] - erev) : p.i));
+      // Gmax is the largest positive G; a current keeps its sign, and I is divided by the one largest in magnitude.
+      // By default every point is fitted, so a family that is not one conductance (at +40 mV the K⁺ current can
+      // outweigh what sodium is left, and Peak − is outward) shows as a poor fit. "G > 0 only" leaves out the
+      // points whose G is clearly negative, draws them hollow, and says how many.
+      let big = 0;
+      for (const r of raw) if (Number.isFinite(r) && (asG ? r > big : Math.abs(r) > Math.abs(big))) big = r;
+      const y = raw.map((r) => (big !== 0 ? r / big : NaN));
+      const leaveOut = asG && fitPos;
+      const ok = x.map((_, i) => Number.isFinite(x[i]) && Number.isFinite(y[i]) && (!leaveOut || y[i] > -NEG_G));
+      const dropped = leaveOut ? y.filter((v) => Number.isFinite(v) && v <= -NEG_G).length : 0;
+      const fx = x.filter((_, i) => ok[i]);
+      const fy = y.filter((_, i) => ok[i]);
+      const fit = varied === "v" && fitOn && big !== 0 ? fitBoltzmann(fx, fy) : null;
+      // where the measured current changes sign, by linear interpolation: a reversal potential, for a tail family
+      const zero = varied === "v" ? zeroCrossing(x, pts.map((p) => p.i)) : NaN;
+      return { x, y, ok, fit, zero, dropped, noMax: big === 0 };
+    });
+    return out.some(Boolean) ? out : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [points, norm, erev, xAxis, varied, fitOn, fitPos]);
 
@@ -239,28 +246,39 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   }, [points, xAxis, pal, u.div, u.unit]);
   const normSvg = useMemo(() => {
     if (!normalized) return "";
-    const order = normalized.x.map((x, i) => [x, i] as const).filter(([x]) => Number.isFinite(x)).sort((a, b) => a[0] - b[0]);
-    const inFit = order.filter(([, i]) => normalized.ok[i] || !normalized.dropped);
-    const outFit = order.filter(([, i]) => !normalized.ok[i] && normalized.dropped);
-    const series: Series[] = [{ x: inFit.map(([x]) => x), y: inFit.map(([, i]) => normalized.y[i]), color: colors[0], dots: true, line: false, label: "M1, normalized" }];
-    if (outFit.length) series.push({ x: outFit.map(([x]) => x), y: outFit.map(([, i]) => normalized.y[i]), color: colors[0], dots: true, hollow: true, line: false, label: "left out of the fit" });
+    const series: Series[] = [];
+    const fits: Series[] = [];
+    const allX: number[] = [];
+    const allY: number[] = [];
+    normalized.forEach((nm, j) => {
+      if (!nm) return;
+      const order = nm.x.map((x, i) => [x, i] as const).filter(([x]) => Number.isFinite(x)).sort((a, b) => a[0] - b[0]);
+      const inFit = order.filter(([, i]) => nm.ok[i] || !nm.dropped);
+      const outFit = order.filter(([, i]) => !nm.ok[i] && nm.dropped);
+      series.push({ x: inFit.map(([x]) => x), y: inFit.map(([, i]) => nm.y[i]), color: colors[j], dots: true, line: false, label: `M${j + 1}` });
+      if (outFit.length) series.push({ x: outFit.map(([x]) => x), y: outFit.map(([, i]) => nm.y[i]), color: colors[j], dots: true, hollow: true, line: false, label: `M${j + 1}, left out of the fit` });
+      for (const [x, i] of order) {
+        allX.push(x);
+        if (Number.isFinite(nm.y[i])) allY.push(nm.y[i]);
+      }
+      const f = nm.fit;
+      // the best curve is drawn however poor, across the data's range only, so a V½ far outside it stretches nothing
+      if (f && Number.isFinite(f.vHalf) && order.length) {
+        const lo = order[0][0];
+        const hi = order[order.length - 1][0];
+        const xs: number[] = [];
+        for (let v = lo; v <= hi; v += (hi - lo) / 100 || 1) xs.push(v);
+        fits.push({ x: xs, y: xs.map((v) => 1 / (1 + Math.exp((v - f.vHalf) / f.k))), color: j === 0 ? pal.blue : colors[j], dash: j === 0 ? undefined : "5 3", label: `M${j + 1} fit` });
+      }
+    });
     // every point on the plot, with room for its marker: nothing is clipped
-    const ys = normalized.y.filter(Number.isFinite);
-    const yLo = Math.min(0, ...ys);
-    const yHi = Math.max(1, ...ys);
+    const yLo = Math.min(0, ...allY);
+    const yHi = Math.max(1, ...allY);
     const yPad = 0.08 * (yHi - yLo);
-    const xs0 = order.map(([x]) => x);
-    const xPad = 0.02 * ((xs0[xs0.length - 1] ?? 1) - (xs0[0] ?? 0) || 1);
-    const f = normalized.fit;
-    // the best curve is drawn however poor, across the data's range only, so a V½ far outside it stretches nothing
-    if (f && Number.isFinite(f.vHalf) && order.length) {
-      const lo = order[0][0];
-      const hi = order[order.length - 1][0];
-      const xs: number[] = [];
-      for (let v = lo; v <= hi; v += (hi - lo) / 100 || 1) xs.push(v);
-      series.push({ x: xs, y: xs.map((v) => 1 / (1 + Math.exp((v - f.vHalf) / f.k))), color: pal.blue, label: "Boltzmann fit" });
-    }
-    return linePlot({ series, xlabel: xLabel, ylabel: norm === "G" && varied === "v" ? "G / Gmax" : "I / |I|max", xrange: xs0.length ? [xs0[0] - xPad, xs0[xs0.length - 1] + xPad] : undefined, yrange: [Math.min(-0.1, yLo - yPad), Math.max(1.1, yHi + yPad)], legend: "clear", theme, width: 520, height: 150 });
+    const xLo = Math.min(...allX);
+    const xHi = Math.max(...allX);
+    const xPad = 0.02 * (xHi - xLo || 1);
+    return linePlot({ series: [...series, ...fits], xlabel: xLabel, ylabel: norm === "G" && varied === "v" ? "G / Gmax" : "I / |I|max", xrange: allX.length ? [xLo - xPad, xHi + xPad] : undefined, yrange: [Math.min(-0.1, yLo - yPad), Math.max(1.1, yHi + yPad)], legend: "clear", theme, width: 520, height: 150 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalized, pal, norm]);
 
@@ -314,15 +332,26 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
           </figure>
           <figure className="card">
             <figcaption>
-              <span>M1 normalized{normalized?.fit && Number.isFinite(normalized.fit.vHalf) ? `: V½ ${fmt(normalized.fit.vHalf)} mV, k ${fmt(normalized.fit.k)} mV${normalized.fit.edge ? " (at the search's edge)" : ""}` : ""}
-                {normalized && !normalized.fit && Number.isFinite(normalized.zero) ? `: M1 reverses at ${fmt(normalized.zero)} mV` : ""}</span>
+              <span>Normalized{normalized?.some((nm) => nm?.fit && Number.isFinite(nm.fit.vHalf))
+                ? ": " + normalized.map((nm, j) => (nm?.fit && Number.isFinite(nm.fit.vHalf) ? `M${j + 1} V½ ${fmt(nm.fit.vHalf)} mV, k ${fmt(nm.fit.k)} mV${nm.fit.edge ? " (at the search's edge)" : ""}` : null)).filter(Boolean).join(" · ")
+                : normalized?.some((nm) => nm && !nm.fit && Number.isFinite(nm.zero))
+                  ? ": " + normalized.map((nm, j) => (nm && Number.isFinite(nm.zero) ? `M${j + 1} reverses at ${fmt(nm.zero)} mV` : null)).filter(Boolean).join(" · ")
+                  : ""}</span>
             </figcaption>
             {normSvg ? <div className="svgplot" dangerouslySetInnerHTML={{ __html: normSvg }} /> : null}
             <p className="legendline">
               {norm === "G" && varied === "v" ? <>G = I / (V − E_rev), E_rev {erev} mV, divided by the largest positive G. </> : <>I divided by the I largest in magnitude, so that point is 1 or −1. </>}
-              {varied !== "v" ? "No fit: the varied value is a duration." : !fitOn ? "No fit: a tail family is linear; where it crosses zero is the reversal of what was open." : !normalized?.fit || !Number.isFinite(normalized.fit.vHalf) ? "No fit: fewer than three points." : <>A Boltzmann, 1/(1 + exp((V − V½)/k)), is fitted by least squares to {normalized.dropped > 0 ? <>the rest; {normalized.dropped === 1 ? "1 point" : `${normalized.dropped} points`} with negative G {normalized.dropped === 1 ? "is" : "are"} left out of the fit (drawn hollow): there the current measured is outward, not the conductance being normalized</> : "every point"}. Rms misfit {fmt(normalized.fit.rms, 3)}.{normalized.fit.edge ? <> The best fit lies at the edge of the search (V½ {fmt(normalized.fit.vHalf)} mV, k {fmt(normalized.fit.k)} mV): these points do not settle on a Boltzmann.</> : null}</>}
-              {xAxis === "vm" && vmOk(0) && " Plotted against the cell's true Vm, not the command."}
-              {xAxis === "vm" && !vmOk(0) && " True Vm applies where M1 is taken in the varied segment; here it is plotted against the command."}
+              {varied !== "v" ? "No fit: the varied value is a duration." : !fitOn ? "No fit: a tail family is linear; where it crosses zero is the reversal of what was open." : <>A Boltzmann, 1/(1 + exp((V − V½)/k)), is fitted by least squares to each measurement.{normalized?.map((nm, j) => {
+                if (!nm) return null;
+                const tag = `M${j + 1}`;
+                if (nm.noMax) return <span key={j}> {tag}: no point has a positive G, so there is no Gmax to divide by.</span>;
+                if (!nm.fit || !Number.isFinite(nm.fit.vHalf)) return <span key={j}> {tag}: no fit, fewer than three points.</span>;
+                return (
+                  <span key={j}> {tag}: {nm.dropped > 0 ? <>{nm.dropped === 1 ? "1 point" : `${nm.dropped} points`} with negative G left out (drawn hollow), where the current measured is outward, not the conductance being normalized; </> : "every point; "}rms misfit {fmt(nm.fit.rms, 3)}.{nm.fit.edge ? <> The best fit lies at the edge of the search (V½ {fmt(nm.fit.vHalf)} mV, k {fmt(nm.fit.k)} mV): these points do not settle on a Boltzmann.</> : null}</span>
+                );
+              })}</>}
+              {xAxis === "vm" && measures.some((_, j) => vmOk(j)) && " Plotted against the cell's true Vm, not the command."}
+              {xAxis === "vm" && measures.some((_, j) => !vmOk(j)) && " True Vm applies where a measurement is taken in the varied segment; elsewhere it is plotted against the command."}
             </p>
           </figure>
         </div>
@@ -403,12 +432,12 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
             </AmpSection>
           ))}
           {measures.length < 2 && (
-            <AmpSection name="MEASURE M2" power={{ on: false, onChange: () => { setMeasures([...measures, { ...measures[0], kind: "mean" }]); setPresetId("custom"); } }}>
+            <AmpSection name="MEASURE M2" power={{ on: false, onChange: () => { setMeasures([...measures, { ...measures[0], kind: "mean" }]); setNorm("I"); setPresetId("custom"); } }}>
               <AmpSlot label="Off">{""}</AmpSlot>
             </AmpSection>
           )}
           <AmpSection name="ANALYSIS">
-            <AmpChoice label="Normalize M1" value={norm} options={[["I", "I/|I|max"], ["G", "G/Gmax"]] as const} onChange={setNorm} />
+            <AmpChoice label="Normalize" value={norm} options={[["I", "I/|I|max"], ["G", "G/Gmax"]] as const} onChange={setNorm} />
             {norm === "G" && (
               <AmpSlot label="E_rev, mV">
                 {num(erev, setErev)}

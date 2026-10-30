@@ -395,16 +395,16 @@ export interface VCPreset {
   label: string;
   note: string;
   protocol: VCProtocol;
-  /** one or two measurements: the first is the one normalized and fitted */
+  /** one or two measurements, each normalized and fitted */
   measures: VCMeasure[];
-  /** how the first measurement is normalized: by its largest value (I/Imax) or as a conductance (G/Gmax) */
+  /** how the measurements are normalized: by the largest in magnitude (I/|I|max) or as a conductance (G/Gmax); with two measurements the app opens as I/|I|max */
   norm: "I" | "G";
   /**
    * the ion whose reversal G = I/(V − E_rev) uses. The value is not the preset's: it is the selected model's own,
    * from its channel data (ionReversal), so one preset serves every model without quoting another cell's number.
    */
   erevIon?: Ion;
-  /** fit a Boltzmann to the normalized first measurement (not for a tail family, which is linear) */
+  /** fit a Boltzmann to each normalized measurement (not for a tail family, which is linear) */
   fit?: boolean;
   /** the amplifier's filter this preset opens with, kHz (0 = bypass); VC_DEFAULT_FILTER where not given */
   filter?: FilterKHz;
@@ -417,7 +417,7 @@ export const VC_PRESETS: VCPreset[] = [
   {
     id: "vc-act",
     label: "Activation (I–V)",
-    note: "Steps from −80 mV to +40 mV. M1 takes Peak −, the most negative current, early in each step: the peak inward Na⁺ current, where the cell has it. M2 takes the Mean at the end, the sustained current (mostly K⁺). Normalized as G/Gmax, with E_rev the model's own sodium reversal. The window opens at 0.1 ms to catch the early sodium, and the filter is off because a 10 kHz filter's ringing after the capacitive step reaches into that window; turn it back on to see it.",
+    note: "Steps from −80 mV to +40 mV. M1 takes Peak −, the most negative current, early in each step: the peak inward Na⁺ current, where the cell has it. M2 takes the Mean at the end, the sustained current (mostly K⁺). With two measurements the panel opens as I/|I|max; as G/Gmax, E_rev is the model's own sodium reversal, which makes M1 a sodium conductance (M2, mostly K⁺, is not one at that E_rev). The window opens at 0.1 ms to catch the early sodium, and the filter is off because a 10 kHz filter's ringing after the capacitive step reaches into that window; turn it back on to see it.",
     protocol: { hold: -80, segments: [{ dur: 10, v: -80 }, { dur: 50, v: 0 }, { dur: 20, v: -80 }], vary: { seg: 1, what: "v", first: -80, delta: 10, count: 13 } },
     measures: [
       { seg: 1, from: 0.1, to: 10, kind: "peakIn" },
