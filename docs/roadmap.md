@@ -110,6 +110,11 @@ The owner's words are quoted where the item came from them.
   currents in voltage clamp, and dynamic clamp (a conductance injected in real time, computed from Vm). A question
   becomes a choice of mode and protocol on that one instrument, not a separate page. The three modes built so far are
   the start of it; dynamic clamp would be the fourth.
+  The rest of the rig belongs with it (the owner, 2026-10-30, long term): a **puffer** for GABA and other agonists
+  (a brief local application, with its own rise and washout), **evoked stimulation** (an extracellular stimulating
+  electrode that drives synaptic release on command, as opposed to the spontaneous PSC generators now), and
+  **pharmacology** (drugs applied to the bath: channel blockers at a dose, beyond today's all-or-none block switches,
+  and receptor antagonists, with their wash-in and wash-out).
 
 - Shareable state: encode every setting in the URL hash so a configuration can
   be sent as a link (no server needed).
