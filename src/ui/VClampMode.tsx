@@ -5,6 +5,7 @@ import { DEFAULT_NOISE, type NoiseParams } from "../core/noise.ts";
 import { FILTER_KHZ } from "../core/filter.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "../core/synapses.ts";
 import { VC_PRESETS, vcPresetsFor } from "../core/protocol.ts";
+import { ION_NAME, MODELS, ionReversal, type Ion } from "../core/models.ts";
 import { blankSweep, fitBoltzmann, measureSweep, transientMs, zeroCrossing, type VCMeasure, type VCPoint, type VCProtocol, type VCSweep } from "../core/vclamp.ts";
 import { linePlot, type PlotTheme, type Series } from "../core/svgplot.ts";
 import type { VCRequest, VCResponse } from "../vc-worker.ts";
@@ -35,6 +36,7 @@ const KIND_HINT =
   "In the window: Peak + is the most positive current, Peak − the most negative; Max |I| is the value largest in " +
   "size whichever its sign (the sign is kept); Mean is the average, and Cursor the value at the window's start. " +
   "Peak − is not a peak when the current is outward throughout: it is then the smallest outward value.";
+const erevSub = (ion: Ion) => ({ na: "_Na", k: "_K", ca: "_Ca", cation: "_rev" })[ion];
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 
 /**
@@ -69,7 +71,16 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   const [proto, setProto] = useState<VCProtocol>(VC_PRESETS[0].protocol);
   const [measures, setMeasures] = useState<VCMeasure[]>(VC_PRESETS[0].measures);
   const [norm, setNorm] = useState<"I" | "G">(VC_PRESETS[0].norm);
-  const [erev, setErev] = useState(VC_PRESETS[0].erev ?? 50);
+  // E_rev is the selected model's own reversal for the ion the preset normalizes by, from its channel data; it
+  // resets on every model or preset change, and a typed value holds until then (the owner, 2026-10-30)
+  const [erevIon, setErevIon] = useState<Ion | undefined>(VC_PRESETS[0].erevIon);
+  const [erevReset, setErevReset] = useState(0);
+  const modelErev = erevIon ? ionReversal(MODELS[cell.model], erevIon, cell.knobs) : undefined;
+  const [erev, setErev] = useState(modelErev ?? 50);
+  useEffect(() => {
+    if (modelErev !== undefined) setErev(modelErev);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cell.model, erevIon, erevReset]);
   const [fitOn, setFitOn] = useState(VC_PRESETS[0].fit ?? true);
   // which points the fit uses: all of them by default, so a poor fit shows (the owner, 2026-10-30)
   const [fitPos, setFitPos] = useState(false);
@@ -94,7 +105,10 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     setMeasures(p.measures);
     setNorm(p.norm);
     setFitOn(p.fit ?? true);
-    if (p.erev !== undefined) setErev(p.erev);
+    if (p.erevIon) {
+      setErevIon(p.erevIon);
+      setErevReset((n) => n + 1);
+    }
   };
   const putProto = (p: VCProtocol) => {
     setProto(p);
@@ -377,7 +391,18 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
           )}
           <AmpSection name="ANALYSIS">
             <AmpChoice label="Normalize M1" value={norm} options={[["I", "I/|I|max"], ["G", "G/Gmax"]] as const} onChange={setNorm} />
-            {norm === "G" && <AmpSlot label="E_rev, mV">{num(erev, setErev)}</AmpSlot>}
+            {norm === "G" && (
+              <AmpSlot label="E_rev, mV">
+                {num(erev, setErev)}
+                {erevIon && (
+                  <span className="amp-note">
+                    {modelErev === undefined
+                      ? `this model has no ${ION_NAME[erevIon]} channel`
+                      : `E${erevSub(erevIon)} of this model: ${modelErev > 0 ? "+" : ""}${+modelErev.toFixed(1)} mV${Math.abs(erev - modelErev) > 1e-9 ? " (typed over)" : ""}`}
+                  </span>
+                )}
+              </AmpSlot>
+            )}
             <AmpChoice label="Boltzmann fit" value={fitOn ? "on" : "off"} options={[["on", "On"], ["off", "Off"]] as const} onChange={(v) => setFitOn(v === "on")} />
             {fitOn && norm === "G" && varied === "v" && (
               <AmpChoice label="Fit" value={fitPos ? "pos" : "all"} options={[["all", "All points"], ["pos", "G > 0 only"]] as const} onChange={(v) => setFitPos(v === "pos")} />

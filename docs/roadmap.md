@@ -18,6 +18,13 @@ The owner's words are quoted where the item came from them.
   edits). The planned excitability scorecard needs these flagged and counted.
   Found 2026-10-17; the description corrected 2026-10-18.
 
+## Not now (the owner: "no time, so make a todo")
+
+- **Reversal potentials differ between cell models, and a teaching point may be hidden there.** Voltage clamp now
+  takes E_rev from the selected model (E_Na +50 mV on the cortical cells, +54 on the GnRH cell). The lesson the owner
+  glimpsed (2026-10-30): what assuming another cell's E_rev does to a G–V and its fit, e.g. normalizing the GnRH
+  sodium current with the cortical +50 mV inflates G near reversal. Not now.
+
 ## Next
 
 - **Plug-and-play channels, and an interface to edit them.** "Future versions

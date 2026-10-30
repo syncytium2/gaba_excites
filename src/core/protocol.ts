@@ -5,7 +5,7 @@
  * free list ("-100, 0, 250, 600"). Both end up as the same `amps` array.
  */
 
-import { GNRH, type ModelId } from "./models.ts";
+import { GNRH, type Ion, type ModelId } from "./models.ts";
 import type { StepProtocol } from "./simulate.ts";
 import type { Pulse } from "./stream.ts";
 import { DEFAULT_GABA, DEFAULT_GLU, type SynInput } from "./synapses.ts";
@@ -398,8 +398,11 @@ export interface VCPreset {
   measures: VCMeasure[];
   /** how the first measurement is normalized: by its largest value (I/Imax) or as a conductance (G/Gmax) */
   norm: "I" | "G";
-  /** the reversal G = I/(V − E_rev) uses, mV */
-  erev?: number;
+  /**
+   * the ion whose reversal G = I/(V − E_rev) uses. The value is not the preset's: it is the selected model's own,
+   * from its channel data (ionReversal), so one preset serves every model without quoting another cell's number.
+   */
+  erevIon?: Ion;
   /** fit a Boltzmann to the normalized first measurement (not for a tail family, which is linear) */
   fit?: boolean;
 }
@@ -408,14 +411,14 @@ export const VC_PRESETS: VCPreset[] = [
   {
     id: "vc-act",
     label: "Activation (I–V)",
-    note: "Steps from −80 mV to +40 mV. M1 takes Peak −, the most negative current, early in each step: the peak inward Na⁺ current, where the cell has it. M2 takes the Mean at the end, the sustained current (mostly K⁺). Normalized as G/Gmax, with E_rev = +50 mV, the sodium reversal of the cortical cells.",
+    note: "Steps from −80 mV to +40 mV. M1 takes Peak −, the most negative current, early in each step: the peak inward Na⁺ current, where the cell has it. M2 takes the Mean at the end, the sustained current (mostly K⁺). Normalized as G/Gmax, with E_rev the model's own sodium reversal.",
     protocol: { hold: -80, segments: [{ dur: 10, v: -80 }, { dur: 50, v: 0 }, { dur: 20, v: -80 }], vary: { seg: 1, what: "v", first: -80, delta: 10, count: 13 } },
     measures: [
       { seg: 1, from: 0.2, to: 10, kind: "peakIn" },
       { seg: 1, from: 40, to: 50, kind: "mean" },
     ],
     norm: "G",
-    erev: 50,
+    erevIon: "na",
   },
   {
     id: "vc-inact",
@@ -452,7 +455,7 @@ export const VC_PRESETS: VCPreset[] = [
     protocol: { hold: -65, segments: [{ dur: 5, v: -65 }, { dur: 12, v: 0 }, { dur: 5, v: -65 }], vary: { seg: 1, what: "v", first: -55, delta: 10, count: 11 } },
     measures: [{ seg: 1, from: 10, to: 12, kind: "mean" }],
     norm: "G",
-    erev: -77,
+    erevIon: "k",
   },
   {
     id: "hh-vc-gna",
@@ -462,7 +465,7 @@ export const VC_PRESETS: VCPreset[] = [
     protocol: { hold: -65, segments: [{ dur: 5, v: -65 }, { dur: 12, v: 0 }, { dur: 5, v: -65 }], vary: { seg: 1, what: "v", first: -55, delta: 10, count: 10 } },
     measures: [{ seg: 1, from: 0.1, to: 4, kind: "peakIn" }],
     norm: "G",
-    erev: 50,
+    erevIon: "na",
   },
 ];
 

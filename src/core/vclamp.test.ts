@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { buildCell, publishedParams } from "./cell.ts";
-import { MODEL_LIST } from "./models.ts";
+import { MODEL_LIST, MODELS, ionReversal } from "./models.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "./synapses.ts";
 import { DEFAULT_NOISE } from "./noise.ts";
 import { blankSweep, fitBoltzmann, measureSweep, transientMs, runVCFamily, variedValue, zeroCrossing, type VCInputs, type VCProtocol, type VCSweep } from "./vclamp.ts";
@@ -158,6 +158,14 @@ describe("voltage clamp: the ideal clamp and the measurements", () => {
     expect(e).toBeLessThan(-80);
   });
 
+  it("E_rev comes from each model's own channels: E_Na +50 mV on the pyramidal, FS, LTS and squid cells, +54 on the GnRH cell; the beta cell has none", () => {
+    for (const id of ["rs", "fs", "lts", "hh"] as const) expect(ionReversal(MODELS[id], "na")).toBe(50);
+    expect(ionReversal(MODELS.gnrh, "na")).toBe(54);
+    expect(ionReversal(MODELS.hh, "k")).toBe(-77);
+    expect(ionReversal(MODELS.betamouse, "na")).toBeUndefined();
+    for (const p of VC_PRESETS) if (p.norm === "G") expect(p.erevIon).toBeDefined();
+  });
+
   it("fitBoltzmann returns its best however poor, and flags a best that lies on the edge of its search", () => {
     // the GnRH activation family as G/Gmax, every point: Peak − turns outward at +30 and +40 mV
     const x = [-80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40];
@@ -167,6 +175,8 @@ describe("voltage clamp: the ideal clamp and the measurements", () => {
     const all = fitBoltzmann(x, y);
     expect(all.edge).toBe(true);
     expect(all.vHalf).toBeCloseTo(-120, 0);
+    // the refinement stays inside the search, so the V½ the caption reports is one the search could reach
+    expect(all.vHalf).toBeGreaterThanOrEqual(-120);
     expect(all.rms).toBeGreaterThan(1);
     // the same family with the two negative-G points left out does settle
     const f = fitBoltzmann(x.slice(0, 11), y.slice(0, 11));
@@ -180,11 +190,13 @@ describe("voltage clamp: the ideal clamp and the measurements", () => {
     const pr = VC_PRESETS.find((p) => p.id === "vc-act")!;
     const pts = runVCFamily(buildCell(publishedParams("gnrh")), { rs: 0, noise: DEFAULT_NOISE, ...OFF }, pr.protocol).map((s) => measureSweep(s, pr.measures[0]));
     const x = pts.map((p) => p.value);
-    const g = pts.map((p) => p.i / (p.value - pr.erev!));
+    const g = pts.map((p) => p.i / (p.value - ionReversal(MODELS.gnrh, pr.erevIon!)!));
     const big = Math.max(...g);
     const y = g.map((r) => r / big);
     expect(y.filter((v) => v < -0.05).length).toBe(2);
-    expect(fitBoltzmann(x, y).edge).toBe(true);
+    const all = fitBoltzmann(x, y);
+    expect(all.edge).toBe(true);
+    expect(all.vHalf).toBeGreaterThanOrEqual(Math.min(...x) - 40);
     const ok = y.map((v) => v > -0.05);
     const f = fitBoltzmann(x.filter((_, i) => ok[i]), y.filter((_, i) => ok[i]));
     expect(f.edge).toBe(false);
@@ -197,7 +209,7 @@ describe("voltage clamp: the ideal clamp and the measurements", () => {
     const fit = (recFilter: 0 | 5 | 10) => {
       const noise = { ...DEFAULT_NOISE, recSigma: 2, recFilter };
       const pts = runVCFamily(cell, { rs: 0, noise, ...OFF }, pr.protocol).map((s) => measureSweep(s, pr.measures[0]));
-      const g = pts.map((p) => p.i / (p.value - pr.erev!));
+      const g = pts.map((p) => p.i / (p.value - ionReversal(MODELS.rs, pr.erevIon!)!));
       const big = g.reduce((a, r) => (Math.abs(r) > Math.abs(a) ? r : a), 0);
       return fitBoltzmann(pts.map((p) => p.value), g.map((r) => r / big));
     };

@@ -28,10 +28,26 @@ import { adamsPool, destexheDecay, type CaPool } from "./pools.ts";
 export type { CaPool } from "./pools.ts";
 export type ModelId = "rs" | "fs" | "lts" | "gnrh" | "betamouse" | "hh";
 
+export type Ion = "na" | "k" | "ca" | "cation";
+export const ION_NAME: Record<Ion, string> = { na: "Na⁺", k: "K⁺", ca: "Ca²⁺", cation: "cation" };
+
+/**
+ * The model's reversal for an ion, from its own channel data: the first channel that carries it (where a model
+ * has two for one ion they share the value). undefined where the model has no channel for that ion.
+ */
+export function ionReversal(m: { channels: (knobs?: Record<string, number>) => ModelChannel[] }, ion: Ion, knobs?: Record<string, number>): number | undefined {
+  return m.channels(knobs).find((c) => c.ion === ion)?.erev;
+}
+
 export interface ModelChannel {
   channel: Channel;
   /** maximal conductance at the model's reference capacitance, nS */
   gbar: number;
+  /**
+   * the ion it carries, so voltage clamp can take the model's own reversal for the ion a protocol normalizes by
+   * ("cation" for a mixed channel such as Ih). A label only: nothing in the integration reads it.
+   */
+  ion: Ion;
   /** reversal potential, mV */
   erev: number;
   /** contributes to I_Ca, which feeds the calcium pool */
@@ -166,9 +182,9 @@ export const RS: ModelDef = {
   cmRef: RS_CM,
   eLeak: -70,
   channels: () => [
-    { channel: makeNa(-55), gbar: 50 * RS_CM, erev: 50 },
-    { channel: makeKd(-55), gbar: 5 * RS_CM, erev: -100 },
-    { channel: makeM(1000), gbar: 0.07 * RS_CM, erev: -100 },
+    { channel: makeNa(-55), gbar: 50 * RS_CM, ion: "na", erev: 50 },
+    { channel: makeKd(-55), gbar: 5 * RS_CM, ion: "k", erev: -100 },
+    { channel: makeM(1000), gbar: 0.07 * RS_CM, ion: "k", erev: -100 },
   ],
   defaults: { cm: 289.53, gLeak: 0.1 * RS_CM, ihold: 0, eGaba: -80 },
   eGabaSource: "−80 mV: a conventional hyperpolarizing GABA_A reversal for an adult cortical neuron (the owner's default)",
@@ -208,8 +224,8 @@ export const FS: ModelDef = {
   cmRef: FS_CM,
   eLeak: -70,
   channels: () => [
-    { channel: makeNa(-55), gbar: 50 * FS_CM, erev: 50 },
-    { channel: makeKd(-55), gbar: 10 * FS_CM, erev: -100 },
+    { channel: makeNa(-55), gbar: 50 * FS_CM, ion: "na", erev: 50 },
+    { channel: makeKd(-55), gbar: 10 * FS_CM, ion: "k", erev: -100 },
   ],
   defaults: { cm: 141.03, gLeak: 0.15 * FS_CM, ihold: 0, eGaba: -80 },
   eGabaSource: "−80 mV: a conventional hyperpolarizing GABA_A reversal for an adult cortical neuron, as for the pyramidal cell",
@@ -258,10 +274,10 @@ export const LTS: ModelDef = {
   channels: () => {
     const eCa = nernstCa(2, CELSIUS);
     return [
-      { channel: makeNa(-55), gbar: 50 * RS_CM, erev: 50 },
-      { channel: makeKd(-55), gbar: 5 * RS_CM, erev: -100 },
-      { channel: makeM(1000), gbar: 0.03 * RS_CM, erev: -100 },
-      { channel: makeHuguenardT(CELSIUS, 2), gbar: 0.4 * RS_CM, erev: eCa(0.24), erevCa: eCa, carriesCa: true },
+      { channel: makeNa(-55), gbar: 50 * RS_CM, ion: "na", erev: 50 },
+      { channel: makeKd(-55), gbar: 5 * RS_CM, ion: "k", erev: -100 },
+      { channel: makeM(1000), gbar: 0.03 * RS_CM, ion: "k", erev: -100 },
+      { channel: makeHuguenardT(CELSIUS, 2), gbar: 0.4 * RS_CM, ion: "ca", erev: eCa(0.24), erevCa: eCa, carriesCa: true },
     ];
   },
   pool: destexheDecay({ depth: 1, taur: 5, cainf: 0.24 }),
@@ -316,7 +332,7 @@ export const GNRH: ModelDef = {
         r4: 0.05,
       }),
       gbar: 758,
-      erev: ENA_G,
+      ion: "na", erev: ENA_G,
     },
     {
       channel: makeGated("nap", "INaP", [
@@ -324,7 +340,7 @@ export const GNRH: ModelDef = {
         { name: "h", inf: boltzmann(-47.4, 8.2), tau: tauBell(67.3, -27.5, 67.3, 27.5, 574.5, 62.6) },
       ], (g, o) => g[o] * g[o + 1]),
       gbar: 0.39,
-      erev: ENA_G,
+      ion: "na", erev: ENA_G,
     },
     {
       channel: makeGated("a", "IA", [
@@ -333,14 +349,14 @@ export const GNRH: ModelDef = {
         { name: "h2", inf: boltzmann(-69.8, 4.26), tau: 100 },
       ], (g, o) => g[o] * (0.8 * g[o + 1] + 0.2 * g[o + 2])),
       gbar: 313,
-      erev: EK_G,
+      ion: "k", erev: EK_G,
     },
     {
       channel: makeGated("k", "IK", [
         { name: "m", inf: boltzmann(-19.7, -12.3), tau: tauBell(23.8, 18, 23.8, -18, 10.6, 0) },
       ], (g, o) => g[o] ** 4),
       gbar: 57,
-      erev: EK_G,
+      ion: "k", erev: EK_G,
     },
     {
       channel: makeGated("lva", "ILVA (T-type)", [
@@ -348,7 +364,7 @@ export const GNRH: ModelDef = {
         { name: "h", inf: boltzmann(-80.1, 5.5), tau: 250 },
       ], (g, o) => g[o] * g[o] * g[o + 1]),
       gbar: 0.0679,
-      erev: ECA_G,
+      ion: "ca", erev: ECA_G,
       carriesCa: true,
     },
     {
@@ -358,7 +374,7 @@ export const GNRH: ModelDef = {
         { name: "h2", inf: boltzmann(-36.6, 14.6), tau: 728 },
       ], (g, o) => g[o] * (0.2 * g[o + 1] + 0.8 * g[o + 2])),
       gbar: 5.16,
-      erev: ECA_G,
+      ion: "ca", erev: ECA_G,
       carriesCa: true,
     },
     {
@@ -366,7 +382,7 @@ export const GNRH: ModelDef = {
         { name: "m", inf: boltzmann(-45, -12), tau: 1500 },
       ], (g, o) => g[o]),
       gbar: 0.18,
-      erev: ECA_G,
+      ion: "ca", erev: ECA_G,
       carriesCa: true,
     },
     {
@@ -375,9 +391,9 @@ export const GNRH: ModelDef = {
         { name: "h2", inf: boltzmann(-77.4, 9.2), tau: tauGauss(-82.6, 25.7, 370.9, 54.1) },
       ], (g, o) => 0.384 * g[o] + 0.616 * g[o + 1]),
       gbar: 1,
-      erev: -40,
+      ion: "cation", erev: -40,
     },
-    { channel: makeKCa("kca", "IKCa", 1.0), gbar: 1.18, erev: EK_G },
+    { channel: makeKCa("kca", "IKCa", 1.0), gbar: 1.18, ion: "k", erev: EK_G },
   ],
   pool: adamsPool({ f: 0.0025, alpha: 0.00185, kp: 0.265, Kp: 1.2 }),
   // g_L = 1 nS (Table 1). Rin at rest of the published cell, active
@@ -444,8 +460,8 @@ export const HH: ModelDef = {
   channels: (knobs) => {
     const celsius = knobs?.celsius ?? 6.3;
     return [
-      { channel: makeHHNa(celsius), gbar: 120 * HH_CM, erev: 50 },
-      { channel: makeHHK(celsius), gbar: 36 * HH_CM, erev: -77 },
+      { channel: makeHHNa(celsius), gbar: 120 * HH_CM, ion: "na", erev: 50 },
+      { channel: makeHHK(celsius), gbar: 36 * HH_CM, ion: "k", erev: -77 },
     ];
   },
   knobsTitle: "TEMPERATURE",

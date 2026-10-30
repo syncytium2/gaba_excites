@@ -382,8 +382,9 @@ export function fitBoltzmann(x: number[], y: number[]): { vHalf: number; k: numb
   for (let r = 0; r < 3; r++) {
     const step = [0.05, 0.005, 0.0005][r];
     const kk: number[] = [];
-    for (let k = best.k - 20 * step * 10; k <= best.k + 20 * step * 10; k += step * 10) kk.push(+k.toFixed(6));
-    scan(best.vh - 20 * step * 10, best.vh + 20 * step * 10, step * 10, kk);
+    // the finer passes stay inside the search: V½ in [lo, hi], k in [−30, 30]
+    for (let k = Math.max(-30, best.k - 20 * step * 10); k <= Math.min(30, best.k + 20 * step * 10); k += step * 10) kk.push(+k.toFixed(6));
+    scan(Math.max(lo, best.vh - 20 * step * 10), Math.min(hi, best.vh + 20 * step * 10), step * 10, kk);
   }
   if (!Number.isFinite(best.e)) return { vHalf: NaN, k: NaN, rms: NaN, edge: false };
   const edge = Math.abs(best.k) >= 29.9 || best.vh <= lo + 0.5 || best.vh >= hi - 0.5;

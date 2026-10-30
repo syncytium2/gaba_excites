@@ -1503,3 +1503,21 @@ the caption says so plainly ("the best fit lies at the edge of the search (V½ �
 settle on a Boltzmann") and the title marks it. `fitBoltzmann` returns the best with an `edge` flag instead of NaN.
 The normalized plot pads its x and y ranges so no marker is clipped, and both voltage-clamp plots put their legend
 in the corner that covers the fewest points (`legend: "clear"` in svgplot; other plots keep theirs top left).
+
+## 2026-10-30 — voltage clamp: E_rev is the model's own
+
+The owner: "each model has its own set of reversal potentials, those should automatically update in the voltage
+clamp mode (maybe there's another teaching point here but no time, so make a todo)". The presets carried a number
+(+50 mV for every model on the activation preset, the cortical E_Na). Now a preset names the ion it normalizes for
+(`erevIon`), each channel in `models.ts` carries its ion (a label; nothing in the integration reads it), and
+`ionReversal` takes the value from the selected model's channels: E_Na +50 mV on the pyramidal, FS, LTS and squid
+cells, +54 on the GnRH cell; the beta cell has no Na⁺ channel and the field then says so and keeps the last value.
+Changing model or preset resets E_rev; a typed value holds until then, and the field shows where its number came
+from ("E_Na of this model: +54 mV").
+
+Numbers: the cortical fits do not move (E_Na is still 50; tested). The GnRH activation fit (G > 0 only, ideal
+clamp, default noise): V½ −14.04 → −14.20 mV, k −4.50 → −4.50, rms 0.139 → 0.147. Every point: still at the search's
+edge, rms 1.210 → 0.978. The cloud session's run with IA blocked: G flat at about 433–447 nS with E = 54, against a
+climb from 476 to 621 with E = 50. The roadmap holds the owner's teaching point as a to-do. Also: `fitBoltzmann`'s
+finer passes now stay inside the search range (V½ within the data ± 40 mV, |k| ≤ 30), so an edge V½ is one the search
+could reach (it had walked to −130 past the −120 edge); no settled fit moved.
