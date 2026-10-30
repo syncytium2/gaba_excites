@@ -71,6 +71,8 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   const [norm, setNorm] = useState<"I" | "G">(VC_PRESETS[0].norm);
   const [erev, setErev] = useState(VC_PRESETS[0].erev ?? 50);
   const [fitOn, setFitOn] = useState(VC_PRESETS[0].fit ?? true);
+  // which points the fit uses: all of them by default, so a poor fit shows (the owner, 2026-10-30)
+  const [fitPos, setFitPos] = useState(false);
   // An ideal clamp to begin with, so the first view is clean; the Rs dial is beside it (docs/process.md)
   const [rs, setRs] = useState(0);
   const [blank, setBlank] = useState(false);
@@ -177,23 +179,24 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     const x = pts.map(xOf);
     const asG = norm === "G" && varied === "v";
     const raw = pts.map((p, i) => (asG ? p.i / (x[i] - erev) : p.i));
-    // A conductance is positive: Gmax is the largest positive G. A point whose G comes out clearly negative is
-    // not that conductance (at +40 mV the K⁺ current can outweigh what sodium is left, so "peak in" is outward);
-    // it is drawn but not fitted. Near zero is a closed channel plus noise, and is fitted. A current keeps its
-    // sign: Imax is the largest in magnitude.
+    // Gmax is the largest positive G; a current keeps its sign, and I is divided by the one largest in magnitude.
+    // By default every point is fitted, so a family that is not one conductance (at +40 mV the K⁺ current can
+    // outweigh what sodium is left, and Peak − is outward) shows as a poor fit. "G > 0 only" leaves out the
+    // points whose G is clearly negative, draws them hollow, and says how many.
     let big = 0;
     for (const r of raw) if (Number.isFinite(r) && (asG ? r > big : Math.abs(r) > Math.abs(big))) big = r;
     const y = raw.map((r) => (big !== 0 ? r / big : NaN));
-    const ok = x.map((_, i) => Number.isFinite(x[i]) && Number.isFinite(y[i]) && (!asG || y[i] > -NEG_G));
-    const dropped = asG ? y.filter((v) => Number.isFinite(v) && v <= -NEG_G).length : 0;
+    const leaveOut = asG && fitPos;
+    const ok = x.map((_, i) => Number.isFinite(x[i]) && Number.isFinite(y[i]) && (!leaveOut || y[i] > -NEG_G));
+    const dropped = leaveOut ? y.filter((v) => Number.isFinite(v) && v <= -NEG_G).length : 0;
     const fx = x.filter((_, i) => ok[i]);
     const fy = y.filter((_, i) => ok[i]);
     const fit = varied === "v" && fitOn ? fitBoltzmann(fx, fy) : null;
     // where the measured current changes sign, by linear interpolation: a reversal potential, for a tail family
     const zero = varied === "v" ? zeroCrossing(x, pts.map((p) => p.i)) : NaN;
-    return { x, y, fit, zero, dropped };
+    return { x, y, ok, fit, zero, dropped };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, norm, erev, xAxis, varied, fitOn]);
+  }, [points, norm, erev, xAxis, varied, fitOn, fitPos]);
 
   // ------------------------------------------------------------ plots
   const theme: PlotTheme = { ink: pal.ink2, ink2: pal.ink2, grid: pal.grid, axis: pal.axis, surface: pal.surface };
@@ -210,7 +213,10 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   const normSvg = useMemo(() => {
     if (!normalized) return "";
     const order = normalized.x.map((x, i) => [x, i] as const).filter(([x]) => Number.isFinite(x)).sort((a, b) => a[0] - b[0]);
-    const series: Series[] = [{ x: order.map(([x]) => x), y: order.map(([, i]) => normalized.y[i]), color: colors[0], dots: true, line: false, label: "M1, normalized" }];
+    const inFit = order.filter(([, i]) => normalized.ok[i] || !normalized.dropped);
+    const outFit = order.filter(([, i]) => !normalized.ok[i] && normalized.dropped);
+    const series: Series[] = [{ x: inFit.map(([x]) => x), y: inFit.map(([, i]) => normalized.y[i]), color: colors[0], dots: true, line: false, label: "M1, normalized" }];
+    if (outFit.length) series.push({ x: outFit.map(([x]) => x), y: outFit.map(([, i]) => normalized.y[i]), color: colors[0], dots: true, hollow: true, line: false, label: "left out of the fit" });
     // every point on the plot: nothing is clipped
     const ys = normalized.y.filter(Number.isFinite);
     const yLo = Math.min(0, ...ys);
@@ -278,7 +284,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
             {normSvg ? <div className="svgplot" dangerouslySetInnerHTML={{ __html: normSvg }} /> : null}
             <p className="legendline">
               {norm === "G" && varied === "v" ? <>G = I / (V − E_rev), E_rev {erev} mV, divided by the largest positive G. </> : <>I divided by the I largest in magnitude, so that point is 1 or −1. </>}
-              {varied !== "v" ? "No fit: the varied value is a duration." : fitOn ? <>A Boltzmann, 1/(1 + exp((V − V½)/k)), is fitted by least squares{normalized && normalized.dropped > 0 ? <>, leaving out {normalized.dropped === 1 ? "the point" : `the ${normalized.dropped} points`} where G is negative: there the current measured is outward, not the conductance being normalized (block K⁺ under CHANNELS for a clean curve)</> : null}.</> : "No fit: a tail family is linear; where it crosses zero is the reversal of what was open."}
+              {varied !== "v" ? "No fit: the varied value is a duration." : !fitOn ? "No fit: a tail family is linear; where it crosses zero is the reversal of what was open." : !normalized?.fit || !Number.isFinite(normalized.fit.vHalf) ? "No fit: these points do not settle on a Boltzmann (the best V½ or k lies at the edge of the search)." : <>A Boltzmann, 1/(1 + exp((V − V½)/k)), is fitted by least squares to {normalized.dropped > 0 ? <>the rest; {normalized.dropped === 1 ? "1 point" : `${normalized.dropped} points`} with negative G {normalized.dropped === 1 ? "is" : "are"} left out of the fit (drawn hollow): there the current measured is outward, not the conductance being normalized</> : "every point"}. Rms misfit {fmt(normalized.fit.rms, 3)}.</>}
               {xAxis === "vm" && vmOk(0) && " Plotted against the cell's true Vm, not the command."}
               {xAxis === "vm" && !vmOk(0) && " True Vm applies where M1 is taken in the varied segment; here it is plotted against the command."}
             </p>
@@ -369,6 +375,9 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
             <AmpChoice label="Normalize M1" value={norm} options={[["I", "I/|I|max"], ["G", "G/Gmax"]] as const} onChange={setNorm} />
             {norm === "G" && <AmpSlot label="E_rev, mV">{num(erev, setErev)}</AmpSlot>}
             <AmpChoice label="Boltzmann fit" value={fitOn ? "on" : "off"} options={[["on", "On"], ["off", "Off"]] as const} onChange={(v) => setFitOn(v === "on")} />
+            {fitOn && norm === "G" && varied === "v" && (
+              <AmpChoice label="Fit" value={fitPos ? "pos" : "all"} options={[["all", "All points"], ["pos", "G > 0 only"]] as const} onChange={(v) => setFitPos(v === "pos")} />
+            )}
             <AmpChoice label="Plot against" value={xAxis} options={[["cmd", "Command"], ["vm", "True Vm"]] as const} onChange={setXAxis} />
           </AmpSection>
               </AmpRow>

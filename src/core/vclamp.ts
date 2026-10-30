@@ -349,7 +349,10 @@ export function zeroCrossing(x: number[], y: number[]): number {
  * Least-squares Boltzmann through normalized points: y = 1/(1 + exp((x − V½)/k)).
  * Activation curves have k < 0, inactivation curves k > 0. Grid search over
  * V½ and k, then a finer grid around the best; returns NaN for fewer than
- * three points.
+ * three points, and NaN where the best lies on the edge of the search (|k| at
+ * 30 mV, or V½ 40 mV beyond the data): there the points are not a Boltzmann
+ * the search can settle on, and a curve drawn from the edge would be wild.
+ * A poor fit that does settle is returned, with its rms misfit.
  */
 export function fitBoltzmann(x: number[], y: number[]): { vHalf: number; k: number; rms: number } {
   if (x.length < 3) return { vHalf: NaN, k: NaN, rms: NaN };
@@ -381,5 +384,7 @@ export function fitBoltzmann(x: number[], y: number[]): { vHalf: number; k: numb
     for (let k = best.k - 20 * step * 10; k <= best.k + 20 * step * 10; k += step * 10) kk.push(+k.toFixed(6));
     scan(best.vh - 20 * step * 10, best.vh + 20 * step * 10, step * 10, kk);
   }
+  const edge = Math.abs(best.k) >= 29.9 || best.vh <= lo + 0.5 || best.vh >= hi - 0.5;
+  if (edge || !Number.isFinite(best.e)) return { vHalf: NaN, k: NaN, rms: NaN };
   return { vHalf: best.vh, k: best.k, rms: Math.sqrt(best.e / x.length) };
 }

@@ -158,6 +158,33 @@ describe("voltage clamp: the ideal clamp and the measurements", () => {
     expect(e).toBeLessThan(-80);
   });
 
+  it("fitBoltzmann says no fit, rather than a wild curve, where the best lies on the edge of its search", () => {
+    // the GnRH activation family as G/Gmax, every point: Peak − turns outward at +30 and +40 mV
+    const x = [-80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40];
+    const y = [0, 0, 0, 0, 0, 0.02, 0.22, 0.7, 1, 0.94, 0.54, -0.49, -4.01];
+    expect(fitBoltzmann(x, y).vHalf).toBeNaN(); // the unconstrained best is V½ −153 mV, k +30: the search's edge
+    // the same family with the two negative-G points left out does settle
+    const f = fitBoltzmann(x.slice(0, 11), y.slice(0, 11));
+    expect(f.vHalf).toBeGreaterThan(-20);
+    expect(f.vHalf).toBeLessThan(-10);
+    expect(f.k).toBeLessThan(0);
+  });
+
+  it("on the GnRH cell's activation preset, fitting every point gives no fit; G > 0 only fits V½ −14 mV, k −4.5 mV", () => {
+    const pr = VC_PRESETS.find((p) => p.id === "vc-act")!;
+    const pts = runVCFamily(buildCell(publishedParams("gnrh")), { rs: 0, noise: DEFAULT_NOISE, ...OFF }, pr.protocol).map((s) => measureSweep(s, pr.measures[0]));
+    const x = pts.map((p) => p.value);
+    const g = pts.map((p) => p.i / (p.value - pr.erev!));
+    const big = Math.max(...g);
+    const y = g.map((r) => r / big);
+    expect(y.filter((v) => v < -0.05).length).toBe(2);
+    expect(fitBoltzmann(x, y).vHalf).toBeNaN();
+    const ok = y.map((v) => v > -0.05);
+    const f = fitBoltzmann(x.filter((_, i) => ok[i]), y.filter((_, i) => ok[i]));
+    expect(f.vHalf).toBeCloseTo(-14, 0);
+    expect(f.k).toBeCloseTo(-4.5, 0);
+  });
+
   it("the amplifier's filter blunts the fast sodium peak and moves the fitted G–V: V½ −20.5 mV unfiltered, −17.3 at 10 kHz, −11.1 at 5 kHz", () => {
     const pr = VC_PRESETS.find((p) => p.id === "vc-act")!;
     const fit = (recFilter: 0 | 5 | 10) => {

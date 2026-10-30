@@ -1479,3 +1479,20 @@ students), use +/- toggle", and confirmed: "peak (+/- sign of the peak toggle), 
 Max |I|, Mean or Cursor, and Peak shows a Sign toggle: + is the most positive current (key `peakOut`), − the most
 negative (`peakIn`). Picking Peak from another choice starts at −; a preset's sign comes with the preset. The names
 everywhere are Peak +, Peak −, Max |I|, Mean and Cursor.
+
+## 2026-10-30 — voltage clamp: the Boltzmann fit uses every point unless told otherwise
+
+The owner: "the normalized panel should flag points left out of the curve fit OR start with fitting all and showing
+how poorly the fit works if you're not paying attention." Until now points with clearly negative G were left out of
+the fit silently, with a sentence in the caption. Now the fit uses every point by default, and the caption gives its
+rms misfit. A Fit toggle beside "Boltzmann fit" (G/Gmax only) offers "G > 0 only": the points with G below −0.05 of
+Gmax are drawn hollow and left out, and the caption says how many and why. `fitBoltzmann` returns NaN where its best
+lies on the edge of its search (|k| at 30 mV, or V½ 40 mV beyond the data), and the panel then says "No fit" rather
+than drawing a curve from the edge.
+
+On the GnRH cell's activation preset this is the case: Peak − is outward at +40 mV (and at +30 without the filter),
+every point gives V½ −153 mV, k +30 at the edge, so no fit; G > 0 only gives V½ −14 mV, k −4.5 mV (tested). The
+cloud session traced the negative G to the fast A-type K⁺ current, outward from the window's first sample because
+the GnRH sodium current peaks (~0.06 ms) before the preset's window opens at 0.2 ms; it also found that the preset's
+E_rev of +50 mV (the cortical E_Na) is below the GnRH cell's +54. Whether the GnRH presets get their own window start
+and E_rev is the owner's to decide; nothing in the presets changed.

@@ -15,6 +15,8 @@ export interface Series {
   width?: number;
   /** draw markers instead of (or as well as) a line */
   dots?: boolean;
+  /** markers drawn as open rings: points shown but set apart, e.g. left out of a fit */
+  hollow?: boolean;
   line?: boolean;
 }
 
@@ -136,7 +138,9 @@ export function linePlot(p: PlotSpec): string {
     if (s.dots)
       for (let i = 0; i < s.x.length; i++)
         if (Number.isFinite(s.x[i]) && Number.isFinite(s.y[i]))
-          parts.push(`<circle cx="${sx(s.x[i]).toFixed(1)}" cy="${sy(s.y[i]).toFixed(1)}" r="4" fill="${s.color}" stroke="${th.surface}" stroke-width="1.5"/>`);
+          parts.push(s.hollow
+            ? `<circle cx="${sx(s.x[i]).toFixed(1)}" cy="${sy(s.y[i]).toFixed(1)}" r="3.6" fill="${th.surface}" stroke="${s.color}" stroke-width="1.6"/>`
+            : `<circle cx="${sx(s.x[i]).toFixed(1)}" cy="${sy(s.y[i]).toFixed(1)}" r="4" fill="${s.color}" stroke="${th.surface}" stroke-width="1.5"/>`);
   }
   for (const m of p.marks ?? []) {
     if (!Number.isFinite(m.x) || !Number.isFinite(m.y)) continue;
@@ -153,7 +157,9 @@ export function linePlot(p: PlotSpec): string {
     const items = p.series.filter((s) => s.label);
     items.forEach((s, i) => {
       const Y = M.t + 12 + i * 15;
-      parts.push(`<line x1="${M.l + 8}" x2="${M.l + 26}" y1="${Y - 4}" y2="${Y - 4}" stroke="${s.color}" stroke-width="2"${s.dash ? ` stroke-dasharray="${s.dash}"` : ""}/>`);
+      parts.push(s.hollow
+        ? `<circle cx="${M.l + 17}" cy="${Y - 4}" r="3.6" fill="${th.surface}" stroke="${s.color}" stroke-width="1.6"/>`
+        : `<line x1="${M.l + 8}" x2="${M.l + 26}" y1="${Y - 4}" y2="${Y - 4}" stroke="${s.color}" stroke-width="2"${s.dash ? ` stroke-dasharray="${s.dash}"` : ""}/>`);
       parts.push(`<text x="${M.l + 31}" y="${Y}" fill="${th.ink}">${esc(s.label!)}</text>`);
     });
   }
