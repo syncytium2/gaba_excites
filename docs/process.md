@@ -1359,3 +1359,28 @@ This supersedes the earlier entry's "the paper itself is not yet read".
   result and the test that holds it, and a note that a paper-only check (the GnRH neuron) is weaker than a code
   oracle. Section 7 is renamed "How each model was checked, in detail", and the squid axon's section has the Table 4
   comparison.
+
+## 2026-10-30 — voltage clamp: the traces get the space; the command strip says what it is
+
+The owner, on a phone, at v0.2.9: maximize the trace display across and down; dead space between the axis labels and
+the axes, between the title rows and the plot; Old school ticked but no green phosphor; M1 normalized clipping the
+inward current; and the command window "does not make sense: label the holding potential and the start step and end
+step without killing space". Done (src/ui/VClampMode.tsx, `VCTraces`):
+
+- **One time axis**, under the command strip; the current plot keeps its grid but no time labels. The y gutters are
+  sized to their tick labels and are the same width on both plots, so the time axes line up. The current plot takes
+  the rest of the height, which is now `max(330, screenH − 110)` (was `max(260, screenH − 170)`). On phones the card
+  pads 4 px instead of 12.
+- **The command strip names its levels** instead of carrying ticks: the holding potential as the one gutter tick
+  (and "hold −80 mV" inside, where it fits), and each segment's level, or its range where it varies ("−80 to
+  +40 mV"), above it, inside the span every sweep shares.
+- **Old school puts voltage clamp's traces on the green-phosphor tube.** Until now the tube was the oscilloscope's
+  alone (styles.css said so); the owner asked for it here. Sweeps go dim to bright phosphor with the varied value.
+- **Measurement windows that move from sweep to sweep** (recovery: the gap before the test step varies) are filled
+  once over their whole span; twelve overlapping fills had made a solid block.
+- **G/Gmax normalizes by the largest positive conductance.** It took the largest magnitude, so on the activation
+  preset the +40 mV point, where "peak in" is outward (K⁺ outweighs what sodium is left), gave G = −1 and set the
+  scale: every real point fell near zero, the fixed −0.1…1.1 range clipped them, and the fit read V½ +32 mV. Now a
+  point with G below −0.05 is drawn but left out of the fit, and the caption says so; near zero is a closed channel
+  plus noise and is fitted. The plot's range now holds every point. Activation on the default cell: V½ −13.5 mV,
+  k −4.5 mV. I/Imax is unchanged (largest magnitude, sign kept).
