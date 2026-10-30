@@ -11,7 +11,7 @@ import { buildCell, publishedParams } from "./cell.ts";
 import { MODEL_LIST, MODELS, ionReversal } from "./models.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "./synapses.ts";
 import { DEFAULT_NOISE } from "./noise.ts";
-import { blankSweep, fitBoltzmann, measureSweep, transientMs, runVCFamily, variedValue, zeroCrossing, type VCInputs, type VCProtocol, type VCSweep } from "./vclamp.ts";
+import { blankSweep, fitBoltzmann, measureSweep, transientMs, runVCFamily, runVCWindow, VC_SIM, variedValue, zeroCrossing, type VCInputs, type VCProtocol, type VCSweep } from "./vclamp.ts";
 import { VC_PRESETS } from "./protocol.ts";
 import { runFamily } from "./simulate.ts";
 import { detectSpikes } from "./analysis.ts";
@@ -286,5 +286,61 @@ describe("voltage clamp: the capacitive transient and blanking", () => {
     // the ideal clamp's transient is gone from the recording: no sample within 0.1 ms of a step is above 1 nA outward
     const a = Math.round(sw.starts[1] / dt);
     expect(Math.max(...Array.from(b.iRec.subarray(a, a + 5)))).toBeLessThan(1000);
+  });
+});
+
+describe("voltage clamp: a zoomed window re-simulated at 1 µs steps", () => {
+  const act = VC_PRESETS.find((p) => p.id === "vc-act")!.protocol;
+  const at0 = { ...act, vary: { ...act.vary, first: 0, count: 1 } };
+  const gnrh = buildCell(publishedParams("gnrh"));
+  const quiet = (recFilter: 0 | 10) => ({ rs: 0, noise: { ...DEFAULT_NOISE, recFilter }, ...OFF });
+
+  it("joins the standard run at its first sample: the same Vm, current and recorded current", () => {
+    for (const f of [0, 10] as const) {
+      const std = runVCFamily(gnrh, quiet(f), at0)[0];
+      const w = runVCWindow(gnrh, quiet(f), at0, VC_SIM, 9.5, 10.5)[0];
+      const j = Math.round(w.t0 / std.sampleMs);
+      expect(w.t0).toBeCloseTo(9.5, 9);
+      expect(w.vm[0]).toBe(std.vm[j]);
+      expect(w.iTrue[0]).toBe(std.iTrue[j]);
+      expect(Math.abs(w.iRec[0] - std.iRec[j])).toBeLessThan(0.01);
+    }
+  });
+
+  it("on the GnRH cell at 0 mV the fine sodium peak is the standard one's size within 0.02 nA, and earlier (0.099 against 0.110 ms)", () => {
+    const peak = (a: Float32Array, dt: number, off: number) => {
+      let lo = Infinity;
+      let at = 0;
+      for (let j = 0; j < a.length; j++) {
+        const t = off + j * dt;
+        if (t >= 10.005 && t <= 10.5 && a[j] < lo) [lo, at] = [a[j], t - 10];
+      }
+      return { i: lo, t: at };
+    };
+    const std = runVCFamily(gnrh, quiet(0), at0)[0];
+    const w = runVCWindow(gnrh, quiet(0), at0, VC_SIM, 9.5, 10.5)[0];
+    const a = peak(std.iTrue, std.sampleMs, 0);
+    const b = peak(w.iTrue, w.sampleMs, w.t0);
+    expect(Math.abs(a.i - b.i)).toBeLessThan(20); // pA
+    expect(b.t).toBeLessThan(a.t);
+    expect(b.t).toBeCloseTo(0.099, 3);
+    expect(a.t).toBeCloseTo(0.11, 3);
+  });
+
+  it("is deterministic for a seed, noise and filter included, and its noise keeps the standard run's size", () => {
+    const inp = { rs: 0, noise: { ...DEFAULT_NOISE, recSigma: 2, recFilter: 10 as const }, ...OFF };
+    const a = runVCWindow(gnrh, inp, at0, VC_SIM, 5, 6)[0];
+    const b = runVCWindow(gnrh, inp, at0, VC_SIM, 5, 6)[0];
+    expect(Array.from(a.iRec)).toEqual(Array.from(b.iRec));
+    // before the step the cell is still: what moves the record is noise, at either step
+    const sd = (x: ArrayLike<number>) => {
+      const m = Array.from(x).reduce((p, q) => p + q, 0) / x.length;
+      return Math.sqrt(Array.from(x).reduce((p, q) => p + (q - m) ** 2, 0) / x.length);
+    };
+    const std = runVCFamily(gnrh, inp, at0)[0];
+    const sFine = sd(a.iRec);
+    const sStd = sd(std.iRec.subarray(Math.round(5 / std.sampleMs), Math.round(6 / std.sampleMs)));
+    expect(sFine / sStd).toBeGreaterThan(0.5);
+    expect(sFine / sStd).toBeLessThan(2);
   });
 });

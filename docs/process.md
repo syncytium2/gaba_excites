@@ -1541,3 +1541,24 @@ against −7.5 nA from 0.2; GnRH at +40 mV −2.6 nA at 0.10 ms, about the trans
 gone and 0.1 ms catches real sodium the 0.2 ms window misses on the fast cells (pyramidal at +40 mV −74.5 against
 −58.7 nA; GnRH at 0 mV −21.9 against −16.6), which moves every cortical fit (pyramidal −20.5/−8.5 → −14.3/−12.6). The
 fix is the owner's to choose.
+
+## 2026-10-30 — voltage clamp: a zoom re-simulates at 1 µs steps, with progress bars
+
+The owner: "possible to increase resolution when student zooms", then "build it now with a progress bar so no one
+spazzes out". Zoomed to 2 ms or less and still for 300 ms, the view plus a quarter of its span each side is
+re-simulated at 1 µs steps (`runVCWindow`): each sweep runs at the standard 10 µs step to the window, exactly as the
+displayed run did, then at 1 µs through it, so the cell's state, Rs and the synapses carry over. The recorder is
+rebuilt at the fine rate: its 4-pole Bessel has the same corner at 1 MHz, run in for 2 ms on the standard run's
+current so it is in the same state at the window's start, and its noise has the same RMS through 10 kHz, from its own
+seeded stream. The fine samples are spliced into the standard traces (`src/ui/refine.ts`), so the plot still spans
+the sweep and a double-click resets to all of it. The window runs in a worker of its own, terminated on any new
+zoom, reset or run, so a stale window cannot land. A thin bar with "Re-simulating the zoomed 1.60 ms at 1 µs steps…
+40%" runs across the current plot, then a "1 µs steps" badge with a ? saying measurements stay on the standard run.
+The family run has a progress bar too. `Plot`'s in-place data swap re-applies the x range: without it uPlot kept the
+old visible index range and went on drawing the standard samples.
+
+Checked: the window joins the standard run at its first sample (same Vm and current, tested); on the GnRH cell at
+0 mV the fine sodium peak is −21.93 against −21.92 nA and comes at 0.099 against 0.110 ms (tested); a seed gives the
+same window twice, and the fine noise has the standard run's size (tested). Timings on the workstation, GnRH, 13
+sweeps: the family 1.0–1.1 s; a 1 ms zoom (1.6 ms re-simulated) shows its badge 1.4 s after the mouse is released,
+300 ms of that the wait.

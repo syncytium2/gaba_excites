@@ -12,6 +12,7 @@ import type { VCRequest, VCResponse } from "../vc-worker.ts";
 import { AmpChoice, AmpDial, AmpRow, AmpSection, AmpSlot, RigPanels } from "./AmpFront.tsx";
 import { Plot } from "./Plot.tsx";
 import { mergeHooks, xSyncGroup } from "./xsync.ts";
+import { FINE_DT, REFINE_DELAY_MS, planRefine, spliceWindow, type Refined } from "./refine.ts";
 import { Tip } from "./Tip.tsx";
 import { axisOpts } from "./axis.ts";
 import { useCurrentUnit, type CurrentUnit } from "./current.tsx";
@@ -92,7 +93,10 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   const [showTrue, setShowTrue] = useState(false);
   const [xAxis, setXAxis] = useState<"cmd" | "vm">("cmd");
   const [seed, setSeed] = useState(1);
-  const [result, setResult] = useState<{ sweeps: VCSweep[]; ms: number; protocol: VCProtocol } | null>(null);
+  // the run on screen, and the request that made it: a zoomed window re-simulates exactly that
+  const [result, setResult] = useState<{ sweeps: VCSweep[]; ms: number; protocol: VCProtocol; req: VCRequest } | null>(null);
+  // the family run's progress, 0..1, while one is running (a GnRH family takes seconds)
+  const [runProgress, setRunProgress] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const preset = vcPresetsFor(cell.model).find((p) => p.id === presetId);
@@ -130,17 +134,22 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
 
   const worker = useRef<Worker | null>(null);
   const lastId = useRef(0);
-  const pending = useRef(proto);
+  const pending = useRef<VCRequest | null>(null);
   useEffect(() => {
     const w = new Worker(new URL("../vc-worker.ts", import.meta.url), { type: "module" });
     w.onmessage = (ev: MessageEvent<VCResponse>) => {
       const r = ev.data;
       if (r.id !== lastId.current) return; // stale
-      if (r.kind === "run") {
-        setResult({ sweeps: r.sweeps, ms: r.ms, protocol: pending.current });
+      if (r.kind === "progress") {
+        setRunProgress(r.f);
+        return;
+      }
+      if (r.kind === "run" && pending.current) {
+        setResult({ sweeps: r.sweeps, ms: r.ms, protocol: pending.current.protocol, req: pending.current });
         setError(null);
-      } else setError(r.message);
+      } else if (r.kind === "error") setError(r.message);
       setBusy(false);
+      setRunProgress(null);
     };
     worker.current = w;
     return () => w.terminate();
@@ -151,7 +160,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     setBusy(true);
     const h = setTimeout(() => {
       const id = ++lastId.current;
-      pending.current = proto;
+      setRunProgress(0);
       const msg: VCRequest = {
         id,
         cell,
@@ -159,6 +168,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
         protocol: proto,
         seed,
       };
+      pending.current = msg;
       worker.current?.postMessage(msg);
     }, 90);
     return () => clearTimeout(h);
@@ -167,7 +177,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
 
   // ------------------------------------------------------------ measuring
   // the capacitive transient after a step, for the plot's range and for blanking
-  const capMs = transientMs(rs, cell.cm, result?.sweeps[0]?.sampleMs ?? 0.02, noise.recFilter);
+  const capMs = transientMs(rs, cell.cm, result?.sweeps[0]?.sampleMs ?? 0.01, noise.recFilter);
   const sweeps = useMemo(() => (blank ? (result?.sweeps ?? []).map((sw) => blankSweep(sw, capMs)) : result?.sweeps ?? []), [result, blank, capMs]);
   const points: VCPoint[][] = useMemo(() => measures.map((m) => sweeps.map((sw) => measureSweep(sw, m))), [sweeps, measures]);
   const vary = result?.protocol.vary ?? proto.vary;
@@ -262,7 +272,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     setPresetId("custom");
   };
 
-  const status = !valid ? "check the protocol" : tooLong ? `sweeps are limited to ${MAX_SWEEP_MS} ms` : busy ? "simulating…" : result ? `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms` : "";
+  const status = !valid ? "check the protocol" : tooLong ? `sweeps are limited to ${MAX_SWEEP_MS} ms` : busy ? `simulating…${runProgress ? ` ${Math.round(runProgress * 100)}%` : ""}` : result ? `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms` : "";
 
   return (
     <>
@@ -281,7 +291,12 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
               </>}>true current and Vm</Tip>
             </span>
           </figcaption>
-          {sweeps.length > 0 && <VCTraces sweeps={sweeps} measures={measures} showTrue={showTrue} pal={pal} valueUnit={varied === "v" ? "mV" : "ms"} capMs={capMs} height={Math.max(330, screenH - 110)} />}
+          {busy && runProgress !== null && (
+            <div className="sim-progress" role="progressbar" aria-label="Simulating the family" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(runProgress * 100)}>
+              <span style={{ width: `${Math.round(runProgress * 100)}%` }} />
+            </div>
+          )}
+          {sweeps.length > 0 && result && <VCTraces sweeps={sweeps} measures={measures} showTrue={showTrue} pal={pal} valueUnit={varied === "v" ? "mV" : "ms"} capMs={capMs} height={Math.max(330, screenH - 110)} req={result.req} blank={blank} />}
           <p className="legendline">
             Sweeps shade {pal.name === "dark" ? "dim → bright" : "light → dark"} with the varied value. {pal.name === "dark" ? <>Dotted gates mark where each measurement is taken, and the readout under the screen gives each one's extreme over the family.</> : <>Shaded windows show where each
             measurement is taken (<span style={{ color: colors[0] }}>■</span> M1, <span style={{ color: colors[1] }}>■</span> M2).</>} The
@@ -455,12 +470,80 @@ const GATE = ["rgba(170, 255, 190, 0.95)", "rgba(150, 220, 255, 0.9)"];
 const NEG_G = 0.05;
 
 /** The current traces of a family over the command, with each measurement's window shaded. */
-function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height }: { sweeps: VCSweep[]; measures: VCMeasure[]; showTrue: boolean; pal: ChartColors; valueUnit: string; capMs: number; height: number }) {
+function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height, req, blank }: { sweeps: VCSweep[]; measures: VCMeasure[]; showTrue: boolean; pal: ChartColors; valueUnit: string; capMs: number; height: number; req: VCRequest; blank: boolean }) {
   const cu = useCurrentUnit();
   // the current plot and the command strip share one time axis, so they zoom together
   // (the zoom is carried by the xSync hooks; the sync key moves the crosshair on both at once)
-  const [xSync] = useState(xSyncGroup);
+  const onXRef = useRef<(x0: number, x1: number) => void>(() => {});
+  const [xSync] = useState(() => xSyncGroup((x0, x1) => onXRef.current(x0, x1)));
   const xSyncKey = `vc-time-${useId()}`;
+
+  // Zoomed to 2 ms or less, and still for 300 ms, the view is re-simulated at 1 µs steps in a worker of its own
+  // (the owner: "build it now with a progress bar so no one spazzes out"). Any new zoom, a reset or a new run
+  // terminates that worker, so a stale window never lands; zooming out shows the standard traces at once.
+  // Measurements stay on the standard run.
+  const [refined, setRefined] = useState<Refined | null>(null);
+  const [refining, setRefining] = useState<{ f: number; span: number } | null>(null);
+  const refinedRef = useRef(refined);
+  refinedRef.current = refined;
+  const fineWorker = useRef<Worker | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gen = useRef(0);
+  const total = Math.max(...sweeps.map((s) => (s.iRec.length - 1) * s.sampleMs));
+  const cancel = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    fineWorker.current?.terminate();
+    fineWorker.current = null;
+    gen.current++;
+    setRefining(null);
+  };
+  const start = (t0: number, t1: number) => {
+    const id = ++gen.current;
+    const span = t1 - t0;
+    const w = new Worker(new URL("../vc-worker.ts", import.meta.url), { type: "module" });
+    fineWorker.current = w;
+    setRefining({ f: 0, span });
+    w.onmessage = (ev: MessageEvent<VCResponse>) => {
+      const r = ev.data;
+      if (id !== gen.current) return; // cancelled
+      if (r.kind === "progress") setRefining({ f: r.f, span });
+      else {
+        if (r.kind === "window") setRefined({ t0: r.t0, t1: r.t1, fineDt: r.fineDt, sweeps: r.sweeps });
+        w.terminate();
+        fineWorker.current = null;
+        setRefining(null);
+      }
+    };
+    w.postMessage({ ...req, kind: "window", id, t0, t1, fineDt: FINE_DT } satisfies VCRequest);
+  };
+  onXRef.current = (x0, x1) => {
+    const plan = planRefine(x0, x1, total, refinedRef.current);
+    if (plan.action === "keep" && !refinedRef.current && !timer.current && !fineWorker.current) return;
+    if (plan.action === "keep") return;
+    cancel();
+    if (plan.action === "drop") {
+      setRefined(null);
+      return;
+    }
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      start(plan.t0, plan.t1);
+    }, REFINE_DELAY_MS);
+  };
+  // a new run (or blanking toggled) drops the refinement; leaving the mode stops its worker
+  useEffect(() => {
+    cancel();
+    setRefined(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sweeps]);
+  useEffect(() => () => cancel(), []);
+  // new data from a refinement keep the zoom; a new run's data autoscale
+  const prevSweeps = useRef(sweeps);
+  const keepScales = prevSweeps.current === sweeps;
+  useEffect(() => {
+    prevSweeps.current = sweeps;
+  });
   const n = Math.max(...sweeps.map((s) => s.iRec.length));
   const dt = sweeps[0].sampleMs;
   // the y range without the capacitive transients
@@ -491,14 +574,13 @@ function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height }:
     // dim to bright phosphor with the varied value
     return `rgba(${Math.round(60 + 140 * f)}, 255, ${Math.round(110 + 100 * f)}, ${(0.45 + 0.55 * f).toFixed(2)})`;
   };
-  const pad0 = (a: Float32Array, div = 1) => {
-    const out: (number | null)[] = new Array(n).fill(null);
-    for (let j = 0; j < a.length; j++) out[j] = a[j] / div;
-    return out;
-  };
-
-  const iData: uPlot.AlignedData = [t, ...(showTrue ? sweeps.map((s) => pad0(s.iTrue, u.div)) : []), ...sweeps.map((s) => pad0(s.iRec, u.div))] as uPlot.AlignedData;
-  const vData: uPlot.AlignedData = [t, ...(showTrue ? sweeps.map((s) => pad0(s.vm)) : []), ...sweeps.map((s) => pad0(s.vCmd))] as uPlot.AlignedData;
+  // the traces on one time axis, the refined window spliced in where there is one
+  const spliced = useMemo(() => spliceWindow(sweeps, refined, blank ? capMs : null), [sweeps, refined, blank, capMs]);
+  const iData = useMemo(() => {
+    const div = (c: (number | null)[]) => (u.div === 1 ? c : c.map((v) => (v === null ? null : v / u.div)));
+    return [spliced.t, ...(showTrue ? spliced.iTrue.map(div) : []), ...spliced.iRec.map(div)] as uPlot.AlignedData;
+  }, [spliced, showTrue, u.div]);
+  const vData = useMemo(() => [spliced.t, ...(showTrue ? spliced.vm : []), ...spliced.vCmd] as uPlot.AlignedData, [spliced, showTrue]);
   const series = (label: string): uPlot.Series[] => [
     {},
     ...(showTrue ? sweeps.map((_, k) => ({ label: `true ${k}`, stroke: tube ? "rgba(217, 211, 194, 0.45)" : pal.muted, width: 1, dash: [4, 3] })) : []),
@@ -640,9 +722,22 @@ function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height }:
     : [];
   return (
     <div className={"vc-plots" + (tube ? " vc-tube" : "")}>
-      <Plot className="vc-i" deps={[pal, showTrue, sweeps.length, u.unit, JSON.stringify(measures), yr[0], yr[1], height]} data={iData}
+      <div className="vc-i-wrap" data-samples={spliced.t.length} data-refined={refined ? `${refined.t0},${refined.t1}` : ""}>
+      <Plot className="vc-i" keepScales={keepScales} deps={[pal, showTrue, sweeps.length, u.unit, JSON.stringify(measures), yr[0], yr[1], height]} data={iData}
         options={(w) => ({ ...common(w, Math.max(160, height - CMD_H - 34), [xBare, yAxis(`current (${u.unit})`)], { draw: [windows] }), series: series("I"), scales: { x: { time: false }, y: { range: yr } } })} />
-      <Plot className="vc-v" deps={[pal, showTrue, sweeps.length, ySize, vr[0], vr[1], JSON.stringify(levels)]} data={vData}
+      {refining && (
+        <div className="refine-bar" role="progressbar" aria-label="Re-simulating the zoomed span" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(refining.f * 100)}>
+          <span className="refine-fill" style={{ width: `${Math.round(refining.f * 100)}%` }} />
+          <span className="refine-text">Re-simulating the zoomed {fmt(refining.span, 2)} ms at 1 µs steps… {Math.round(refining.f * 100)}%</span>
+        </div>
+      )}
+      {refined && !refining && (
+        <div className="refine-badge">
+          <Tip text="Shown at 1 µs steps while zoomed; measurements use the standard 10 µs run. Peak sizes agree to 0.01 nA; peak times come out up to 0.01 ms earlier at the finer step. Recording noise is drawn afresh at the finer step, with the same size.">1 µs steps</Tip>
+        </div>
+      )}
+      </div>
+      <Plot className="vc-v" keepScales={keepScales} deps={[pal, showTrue, sweeps.length, ySize, vr[0], vr[1], JSON.stringify(levels)]} data={vData}
         options={(w) => ({ ...common(w, CMD_H + 34, [xTime, { ...yAxis("command"), grid: { show: false }, splits: () => [hold], values: () => [mv(hold)] }], { draw: [labelLevels] }), series: series("V"), scales: { x: { time: false }, y: { range: vr } } })} />
       {tube && (
         <div className="tek-readout" aria-label="Measurement readout">

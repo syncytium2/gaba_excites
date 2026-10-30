@@ -5,7 +5,7 @@ import type uPlot from "uplot";
  * moves them all. Each plot keeps its own y. The current x range is also written to the plot's root as
  * data-x="min,max", so a check can see that the plots agree without reaching into uPlot.
  */
-export function xSyncGroup(): uPlot.Hooks.Arrays {
+export function xSyncGroup(onX?: (min: number, max: number) => void): uPlot.Hooks.Arrays {
   const plots = new Set<uPlot>();
   let busy = false;
   const mark = (u: uPlot) => {
@@ -31,6 +31,7 @@ export function xSyncGroup(): uPlot.Hooks.Arrays {
         if (busy) return;
         const { min, max } = u.scales.x;
         if (min == null || max == null) return;
+        onX?.(min, max);
         busy = true;
         try {
           for (const p of plots) if (p !== u && (p.scales.x.min !== min || p.scales.x.max !== max)) p.setScale("x", { min, max });

@@ -230,12 +230,143 @@ function stepCurrentAt(cell: BuiltCell, settled: Float64Array, hold: number, rs:
   return stepVC(cell, s, hold, rs, 0, 1e-6, NO_SYN);
 }
 
-/** Settle once at the holding potential, then run every sweep from that state. */
-export function runVCFamily(cell: BuiltCell, inp: VCInputs, p: VCProtocol, opt: VCOptions = VC_SIM): VCSweep[] {
+/** Settle once at the holding potential, then run every sweep from that state. `onProgress` gets 0..1 per sweep. */
+export function runVCFamily(cell: BuiltCell, inp: VCInputs, p: VCProtocol, opt: VCOptions = VC_SIM, onProgress?: (f: number) => void): VCSweep[] {
   const settled = settleVC(cell, p.hold, inp.rs, opt.settleMs ?? cell.model.settleMs, opt.dt);
   const out: VCSweep[] = [];
-  for (let k = 0; k < p.vary.count; k++) out.push(runVCSweep(cell, inp, p, k, settled, opt));
+  for (let k = 0; k < p.vary.count; k++) {
+    out.push(runVCSweep(cell, inp, p, k, settled, opt));
+    onProgress?.((k + 1) / p.vary.count);
+  }
   return out;
+}
+
+/** A stretch of each sweep at a finer step: what a zoom shows. */
+export interface VCWindowSweep {
+  value: number;
+  /** the window's first sample, ms from the sweep's start (t0 snapped down to the standard step) */
+  t0: number;
+  sampleMs: number;
+  iRec: Float32Array;
+  iTrue: Float32Array;
+  vm: Float32Array;
+  vCmd: Float32Array;
+}
+
+/** how long the fine-rate filter is run in on the standard run's current before the window, ms */
+const WARM_MS = 2;
+
+/**
+ * Each sweep's traces over [t0, t1] at `fineDt`, every fine step stored. A sweep runs at the standard step up to
+ * t0, exactly as the displayed run does, then at fineDt to t1, so the fine trace joins the displayed one. What
+ * carries over: the cell's state (Rs is in the loop on both sides), the synaptic conductances and their event
+ * times, and the membrane noise's value. What is rebuilt at the fine rate: the synapses' per-step decay, the
+ * membrane noise's (same σ and τ), and the recorder: its filter has the same corner at the fine sampling rate, run
+ * in for WARM_MS on the standard run's current, held over each standard step, so it is in the same state at t0;
+ * its noise has the same RMS through the 10 kHz filter, drawn from its own seeded stream (deterministic, but not
+ * the displayed trace's draws). `onProgress` gets 0..1 over the family.
+ */
+export function runVCWindow(
+  cell: BuiltCell, inp: VCInputs, p: VCProtocol, opt: VCOptions, t0: number, t1: number, fineDt = 0.001,
+  onProgress?: (f: number) => void,
+): VCWindowSweep[] {
+  const settled = settleVC(cell, p.hold, inp.rs, opt.settleMs ?? cell.model.settleMs, opt.dt);
+  const out: VCWindowSweep[] = [];
+  for (let k = 0; k < p.vary.count; k++) {
+    out.push(windowSweep(cell, inp, p, k, settled, opt, t0, t1, fineDt, (f) => onProgress?.((k + f) / p.vary.count)));
+  }
+  onProgress?.(1);
+  return out;
+}
+
+function windowSweep(
+  cell: BuiltCell, inp: VCInputs, p: VCProtocol, k: number, settled: Float64Array, opt: VCOptions,
+  t0: number, t1: number, fineDt: number, onProgress: (f: number) => void,
+): VCWindowSweep {
+  const { dt } = opt;
+  const s = Float64Array.from(settled);
+  const segs = sweepSegments(p, k);
+  const { starts, total } = segmentStarts(p, k);
+  const n0 = Math.max(0, Math.min(Math.round(total / dt), Math.floor(t0 / dt + 1e-9)));
+  const tStart = n0 * dt;
+  const tEnd = Math.min(total, Math.max(t1, tStart + fineDt));
+  const nFine = Math.max(1, Math.round((tEnd - tStart) / fineDt));
+
+  const noise = inp.noise ?? DEFAULT_NOISE;
+  const ou = noise.memSigma > 0 ? new OU(noise.memSigma, noise.memTau, dt, opt.seed * 104729 + k * 3 + 7) : null;
+  const gluTimes = eventTimes(inp.glu, total, opt.seed * 7919 + k * 2 + 1);
+  const gabaTimes = eventTimes(inp.gaba, total, opt.seed * 7919 + k * 2 + 2);
+  let kGlu = kinetics(inp.glu, dt);
+  let kGaba = kinetics(inp.gaba, dt);
+  let aGlu = 0, bGlu = 0, aGaba = 0, bGaba = 0, jGlu = 0, jGaba = 0;
+  const syn: SynNow = { gGlu: 0, gGaba: 0, eGlu: inp.glu.erev, eGaba: inp.gaba.erev };
+
+  // the standard run's current over the last WARM_MS before the window, for running in the fine filter
+  const nWarm = Math.max(1, Math.round(WARM_MS / dt));
+  const warm = new Float64Array(nWarm);
+  const i0 = stepCurrentAt(cell, s, p.hold, inp.rs);
+  warm.fill(i0);
+  let iLast = i0;
+  let vLast = p.hold;
+  const step = (t: number, h: number, ouNow: number): number => {
+    aGlu *= kGlu.decayA;
+    bGlu *= kGlu.decayB;
+    while (jGlu < gluTimes.length && gluTimes[jGlu] <= t) {
+      aGlu += kGlu.jump;
+      if (!kGlu.single) bGlu += kGlu.jump;
+      jGlu++;
+    }
+    aGaba *= kGaba.decayA;
+    bGaba *= kGaba.decayB;
+    while (jGaba < gabaTimes.length && gabaTimes[jGaba] <= t) {
+      aGaba += kGaba.jump;
+      if (!kGaba.single) bGaba += kGaba.jump;
+      jGaba++;
+    }
+    syn.gGlu = aGlu - bGlu;
+    syn.gGaba = aGaba - bGaba;
+    vLast = commandAt(segs, starts, p.hold, t - h / 2);
+    return stepVC(cell, s, vLast, inp.rs, ouNow, h, syn);
+  };
+  // progress over both stretches: the standard steps to the window cost as much as the fine ones in it
+  const work = n0 + nFine;
+  const tick = Math.max(1, Math.floor(work / 20));
+  for (let i = 1; i <= n0; i++) {
+    iLast = step(i * dt, dt, ou ? ou.next() : 0);
+    warm[i % nWarm] = iLast;
+    if (i % tick === 0) onProgress(i / work);
+  }
+
+  // the switch to the fine step
+  kGlu = kinetics(inp.glu, fineDt);
+  kGaba = kinetics(inp.gaba, fineDt);
+  const ouF = ou ? new OU(noise.memSigma, noise.memTau, fineDt, opt.seed * 104729 + k * 3 + 7 + 0x9e37) : null;
+  if (ouF && ou) ouF.value = ou.value;
+  const rec = new Recorder(noise, fineDt, opt.seed * 15485863 + k * 5 + 11 + 0x7f4a);
+  const ratio = Math.max(1, Math.round(dt / fineDt));
+  const have = Math.min(n0, nWarm);
+  rec.at(tStart - have * dt);
+  // a window within WARM_MS of the sweep's start runs in from the settled holding current, as the standard run did
+  let r = rec.start(n0 < nWarm ? i0 : warm[(n0 + 1) % nWarm]);
+  for (let i = n0 - have + 1; i <= n0; i++) for (let q = 0; q < ratio; q++) r = rec.next(warm[i % nWarm]);
+
+  const iRec = new Float32Array(nFine + 1);
+  const iTrue = new Float32Array(nFine + 1);
+  const vm = new Float32Array(nFine + 1);
+  const vCmd = new Float32Array(nFine + 1);
+  iRec[0] = r;
+  iTrue[0] = iLast;
+  vm[0] = s[cell.iv];
+  vCmd[0] = n0 > 0 ? vLast : p.hold;
+  for (let m = 1; m <= nFine; m++) {
+    const iIn = step(tStart + m * fineDt, fineDt, ouF ? ouF.next() : 0);
+    iRec[m] = rec.next(iIn);
+    iTrue[m] = iIn;
+    vm[m] = s[cell.iv];
+    vCmd[m] = vLast;
+    if ((n0 + m) % tick === 0) onProgress((n0 + m) / work);
+  }
+  return { value: variedValue(p, k), t0: tStart, sampleMs: fineDt, iRec, iTrue, vm, vCmd };
 }
 
 // ---------------------------------------------------------------- measuring

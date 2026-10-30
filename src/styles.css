@@ -536,6 +536,16 @@ body:has(.page.old-school) { background: #1a1b19; }
 /* ---- voltage clamp traces: as much of the card as the plots can use ---- */
 .vc-traces figcaption { margin-bottom: 2px; }
 .vc-plots .vc-v { margin-top: -2px; }
+/* zoom refinement: a thin bar across the top of the current plot while a zoomed span re-simulates, then a badge */
+.vc-i-wrap { position: relative; }
+.refine-bar { position: absolute; top: 2px; left: 0; right: 0; pointer-events: none; z-index: 2; }
+.refine-fill { display: block; height: 3px; background: var(--accent); transition: width 120ms linear; }
+.refine-text { position: absolute; top: 5px; right: 10px; font-size: 11px; color: var(--muted); background: var(--surface); padding: 0 4px; border-radius: 3px; }
+.refine-badge { position: absolute; top: 6px; right: 10px; z-index: 2; font-size: 11px; color: var(--accent); background: var(--surface); padding: 1px 5px; border: 1px solid var(--accent); border-radius: 3px; }
+.vc-tube .refine-text, .vc-tube .refine-badge { background: #020602; }
+/* the family run's progress, above the traces */
+.sim-progress { height: 3px; margin: 0 0 2px; background: var(--grid); border-radius: 2px; overflow: hidden; }
+.sim-progress span { display: block; height: 100%; background: var(--accent); transition: width 120ms linear; }
 /* Old school: the family on a green-phosphor tube, as on the oscilloscope */
 .vc-plots.vc-tube { background: #020602; border-radius: 10px; padding: 4px 2px 2px; box-shadow: inset 0 0 0 1px #000, 0 0 0 4px #0c0d0b, 0 0 0 5px #3a3b35; margin: 5px; }
 @media (max-width: 600px) {
