@@ -105,6 +105,12 @@ The owner's words are quoted where the item came from them.
 
 ## Later
 
+- **The amplifier as the gateway to testing hypotheses** (the owner, 2026-10-30, a long-term idea). One amplifier,
+  the same front panel, gets you everything a rig does: action potentials in current clamp, PSCs and voltage-gated
+  currents in voltage clamp, and dynamic clamp (a conductance injected in real time, computed from Vm). A question
+  becomes a choice of mode and protocol on that one instrument, not a separate page. The three modes built so far are
+  the start of it; dynamic clamp would be the fourth.
+
 - Shareable state: encode every setting in the URL hash so a configuration can
   be sent as a link (no server needed).
 - Dendrites (a second compartment) so that where inhibition lands matters.
