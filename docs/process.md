@@ -1253,3 +1253,15 @@ than a second per second, so the work piled up. Now the columns are grouped into
 stroked as one path with one blur, and a column written twice since the last frame is drawn once. After: the page
 answers within 16 ms at 10 ms/div at 0.1×, 1× and 10×, and at 20 ms/div at 30×. The screenshot check now runs
 10 ms/div in Old school and fails if the page falls a second behind.
+
+## 2026-10-29 — the GnRH cell on the oscilloscope: why it stopped near 10×
+
+The owner reported the GnRH cell on the oscilloscope could not get past about 10× real time. Measured in headless
+Chromium at 30× on the MacBook: GnRH 9.5–10.0×, the pyramidal cell 30×. In Node, one core, the GnRH stream computes
+at about 19× (the pyramidal cell at 80–88×); sampling the screen every 1 ms instead of 0.05 ms changed nothing
+(18.7× against 18.8×), so the cost is the integration, not drawing. Its nine channels have sixteen gates, each
+computing x∞(V) and τ(V), two or three exponentials apiece, every 0.01 ms step.
+
+**The scope worker idled a third of the time.** Each tick computed for up to 30 ms, then waited 16 ms, even when it
+was behind. Now a tick that ends behind the asked speed schedules the next at 0 ms (still yielding, so messages are
+answered). GnRH at 30×: 13.3×. Cells that keep up are unchanged.
