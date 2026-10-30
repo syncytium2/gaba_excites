@@ -1384,3 +1384,11 @@ step without killing space". Done (src/ui/VClampMode.tsx, `VCTraces`):
   point with G below −0.05 is drawn but left out of the fit, and the caption says so; near zero is a closed channel
   plus noise and is fitted. The plot's range now holds every point. Activation on the default cell: V½ −13.5 mV,
   k −4.5 mV. I/Imax is unchanged (largest magnitude, sign kept).
+
+**A Tektronix draft, for fun (the owner: "draft what the old tektronics measurement windows looked like just for
+kicks").** In the tube, the measurement windows are drawn as late Tektronix digital scopes drew a measurement gate:
+two dotted bars, the gate's name at the top; and a readout under the graticule, in the phosphor, giving each
+measurement's extreme over the family and the sweep it came from ("M1 Min −19.0nA @0mV"). The flat screen keeps the
+shaded windows. A separate commit, to keep or drop. It showed one thing worth checking: on the recovery preset M1's
+extreme (−21.3 nA at a 1.4 ms gap) is off the plot's range, which leaves out the capacitive transient, so "peak in"
+there may be measuring the transient.
