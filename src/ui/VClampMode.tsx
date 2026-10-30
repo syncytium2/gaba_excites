@@ -5,7 +5,7 @@ import { DEFAULT_NOISE, type NoiseParams } from "../core/noise.ts";
 import { FILTER_KHZ } from "../core/filter.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "../core/synapses.ts";
 import { VC_PRESETS, vcPresetsFor } from "../core/protocol.ts";
-import { fitBoltzmann, measureSweep, zeroCrossing, type VCMeasure, type VCPoint, type VCProtocol, type VCSweep } from "../core/vclamp.ts";
+import { blankSweep, fitBoltzmann, measureSweep, transientMs, zeroCrossing, type VCMeasure, type VCPoint, type VCProtocol, type VCSweep } from "../core/vclamp.ts";
 import { linePlot, type PlotTheme, type Series } from "../core/svgplot.ts";
 import type { VCRequest, VCResponse } from "../vc-worker.ts";
 import { AmpChoice, AmpDial, AmpRow, AmpSection, AmpSlot, RigPanels } from "./AmpFront.tsx";
@@ -19,7 +19,6 @@ import type { ChartColors } from "./palette.ts";
 const MAX_SWEEPS = 30;
 const MAX_SWEEP_MS = 3000;
 /** after each command step, this much of the record is left out of the y autoscale: the capacitive transient */
-const CAP_MS = 0.6;
 
 const KINDS = [["peakIn", "Peak in"], ["peakOut", "Peak out"], ["mean", "Mean"], ["cursor", "Cursor"]] as const;
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
@@ -60,6 +59,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   const [fitOn, setFitOn] = useState(VC_PRESETS[0].fit ?? true);
   // An ideal clamp to begin with, so the first view is clean; the Rs dial is beside it (docs/process.md)
   const [rs, setRs] = useState(0);
+  const [blank, setBlank] = useState(false);
   // 10 kHz, as current clamp opens: a lower filter blunts the fast sodium peak and moves the fitted G–V (vclamp.test.ts)
   const [noise, setNoise] = useState<NoiseParams>({ ...DEFAULT_NOISE, recSigma: 2, recFilter: 10 });
   const [showTrue, setShowTrue] = useState(false);
@@ -136,7 +136,9 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   }, [runKey]);
 
   // ------------------------------------------------------------ measuring
-  const sweeps = result?.sweeps ?? [];
+  // the capacitive transient after a step, for the plot's range and for blanking
+  const capMs = transientMs(rs, cell.cm, result?.sweeps[0]?.sampleMs ?? 0.02, noise.recFilter);
+  const sweeps = useMemo(() => (blank ? (result?.sweeps ?? []).map((sw) => blankSweep(sw, capMs)) : result?.sweeps ?? []), [result, blank, capMs]);
   const points: VCPoint[][] = useMemo(() => measures.map((m) => sweeps.map((sw) => measureSweep(sw, m))), [sweeps, measures]);
   const vary = result?.protocol.vary ?? proto.vary;
   const varied = vary.what;
@@ -241,11 +243,11 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
               </>}>true current and Vm</Tip>
             </span>
           </figcaption>
-          {sweeps.length > 0 && <VCTraces sweeps={sweeps} measures={measures} showTrue={showTrue} pal={pal} valueUnit={varied === "v" ? "mV" : "ms"} height={Math.max(330, screenH - 110)} />}
+          {sweeps.length > 0 && <VCTraces sweeps={sweeps} measures={measures} showTrue={showTrue} pal={pal} valueUnit={varied === "v" ? "mV" : "ms"} capMs={capMs} height={Math.max(330, screenH - 110)} />}
           <p className="legendline">
             Sweeps shade {pal.name === "dark" ? "dim → bright" : "light → dark"} with the varied value. {pal.name === "dark" ? <>Dotted gates mark where each measurement is taken, and the readout under the screen gives each one's extreme over the family.</> : <>Shaded windows show where each
             measurement is taken (<span style={{ color: colors[0] }}>■</span> M1, <span style={{ color: colors[1] }}>■</span> M2).</>} The
-            capacitive transient after each command step is left out of the autoscale.
+            capacitive transient after each step (5 Rs·Cm and the filter's settling, here {fmt(capMs, 2)} ms) is left out of the autoscale{blank ? ", and blanked" : ""}.
           </p>
           {error && <div className="warn" role="alert">Simulation failed: {error}</div>}
         </figure>
@@ -279,6 +281,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
               hint="Series resistance between the amplifier and the cell. 0 is an ideal clamp. Any Rs lets a large current pull the cell away from the command: turn it up on the activation protocol and watch the sodium current escape." />
           </AmpSection>
               <AmpSection name="FILTER">
+            <AmpChoice label="Blank" value={blank ? "on" : "off"} options={[["off", "Off"], ["on", "On"]] as const} onChange={(v) => setBlank(v === "on")} />
             <AmpChoice label="Filter, kHz" value={noise.recFilter} options={FILTER_KHZ.map((f) => [f, f === 0 ? "Bypass" : String(f)] as const)} onChange={(recFilter) => setNoise({ ...noise, recFilter })} />
               </AmpSection>
             </AmpRow>
@@ -396,7 +399,7 @@ const GATE = ["rgba(170, 255, 190, 0.95)", "rgba(150, 220, 255, 0.9)"];
 const NEG_G = 0.05;
 
 /** The current traces of a family over the command, with each measurement's window shaded. */
-function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, height }: { sweeps: VCSweep[]; measures: VCMeasure[]; showTrue: boolean; pal: ChartColors; valueUnit: string; height: number }) {
+function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height }: { sweeps: VCSweep[]; measures: VCMeasure[]; showTrue: boolean; pal: ChartColors; valueUnit: string; capMs: number; height: number }) {
   const cu = useCurrentUnit();
   const n = Math.max(...sweeps.map((s) => s.iRec.length));
   const dt = sweeps[0].sampleMs;
@@ -405,7 +408,7 @@ function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, height }: { swee
   let hi = -Infinity;
   for (const s of sweeps) {
     const skip = new Set<number>();
-    for (const t of s.starts.concat(s.starts.length ? [s.starts[s.starts.length - 1]] : [])) for (let j = Math.round(t / dt); j <= Math.round((t + CAP_MS) / dt); j++) skip.add(j);
+    for (const t of s.starts.concat(s.starts.length ? [s.starts[s.starts.length - 1]] : [])) for (let j = Math.round(t / dt); j <= Math.round((t + capMs) / dt); j++) skip.add(j);
     for (let j = 0; j < s.iRec.length; j++) {
       if (skip.has(j)) continue;
       lo = Math.min(lo, s.iRec[j], showTrue ? s.iTrue[j] : Infinity);

@@ -1392,3 +1392,25 @@ measurement's extreme over the family and the sweep it came from ("M1 Min −19.
 shaded windows. A separate commit, to keep or drop. It showed one thing worth checking: on the recovery preset M1's
 extreme (−21.3 nA at a 1.4 ms gap) is off the plot's range, which leaves out the capacitive transient, so "peak in"
 there may be measuring the transient.
+
+## 2026-10-30 — voltage clamp: what the transient is, and blanking
+
+The owner asked, of the spike at each step: is it poor compensation, and is there leak correction yet? Neither
+compensation nor leak subtraction is modeled. With the ideal clamp (Rs 0) the step puts Cm·ΔV through the electrode
+in one integration step (20 pF × 80 mV = 1.6 pC: 160 nA for 10 µs), and the 10 kHz filter turns that into the
+filter's impulse response, which is why it looks like an uncompensated rig. With Rs it is an exponential, τ = Rs·Cm.
+The inward dip after it is sodium (−22 nA at 0.1 ms on the GnRH cell), and the outward hump after that is K⁺.
+
+**The trace's range left out a fixed 0.6 ms after each step as "the capacitive transient". That was the sodium
+current**, which peaks 0.1–0.2 ms into a step on these cells and is over by about 0.8 ms; it is why the inward
+current looked clipped. Now the range leaves out `transientMs` (vclamp.ts): five Rs·Cm, at least two samples, plus
+about one period of the filter's corner (0.14 ms with the ideal clamp at 10 kHz).
+
+**Artifact blanking**, a toggle under CLAMP (off by default): for `transientMs` after each step the recorded current
+holds its value from just before the step, as an amplifier's sample-and-hold blanking does. Measurements are on the
+recorded current, so they see the blank. With the ideal clamp it costs nothing (activation M1 stays −19.0 nA; its
+window starts at 0.2 ms). At Rs 5 MΩ the blank is 0.64 ms and swallows most of the sodium: M1 −8.05 → −5.47 nA. That
+is the trade-off a real blank has, and the caption states the blank's length. Tested in vclamp.test.ts.
+
+Noticed, not changed: the presets' M1 windows start 0.2 ms into the step, but the GnRH cell's sodium peaks at about
+0.1 ms, so "peak in" there reads −16.6 nA against a true peak near −21.9 nA.
