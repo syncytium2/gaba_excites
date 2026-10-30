@@ -295,6 +295,26 @@ for (const id of await page.locator("#vc-preset option").evaluateAll((os) => os.
 }
 await page.selectOption("#vc-preset", "vc-act");
 await vcRan("activation again");
+// The current plot and the command strip share one time axis: a drag-zoom on either moves both, and the
+// double-click reset does too (the owner: "command does not follow", 2026-10-30).
+{
+  const xOf = (sel) => page.locator(`${sel} .uplot`).getAttribute("data-x");
+  const full = await xOf(".vc-i");
+  const over = await page.locator(".vc-i .u-over").boundingBox();
+  await page.mouse.move(over.x + over.width * 0.1, over.y + over.height * 0.5);
+  await page.mouse.down();
+  await page.mouse.move(over.x + over.width * 0.3, over.y + over.height * 0.5, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const [zi, zv] = [await xOf(".vc-i"), await xOf(".vc-v")];
+  if (zi === full) problems.push("vc zoom: a drag on the current plot did not zoom it");
+  if (zi !== zv) problems.push(`vc zoom: the command strip did not follow the current plot (${zi} vs ${zv})`);
+  await page.screenshot({ path: `${out}/vc-zoom.png`, fullPage: false });
+  await page.locator(".vc-v .u-over").dblclick();
+  await page.waitForTimeout(200);
+  const [ri, rv] = [await xOf(".vc-i"), await xOf(".vc-v")];
+  if (ri !== full || rv !== full) problems.push(`vc zoom: a double-click on the strip did not reset both (${ri}, ${rv}; full ${full})`);
+}
 await page.locator(".vc-block input").first().uncheck();
 await page.waitForTimeout(300);
 await vcRan("a blocked run");

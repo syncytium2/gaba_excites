@@ -1448,3 +1448,13 @@ live check used the same grep. Fixed where it happens and where it should have b
 the base from the rewriting (`MSYS2_ARG_CONV_EXCL`, a no-op elsewhere) and refuses a page with an asset URL outside
 the base; `deploy.sh` anchors both its gate and its live check at `src="`. Both new checks refuse a page with the
 rewritten paths; the old gate passed it.
+
+## 2026-10-30 — voltage clamp: the command strip zooms with the current
+
+Review of v0.2.10, the owner: "zoom only zooms the current display (command does not follow)". The current plot and
+the command strip are two uPlot charts, and the strip carries the only time axis, so a zoom on the current left the
+time labels describing the wrong span. They now share one x range (`src/ui/xsync.ts`): a drag-zoom or the
+double-click reset on either moves both, each keeps its own y, and the crosshair moves on both. A chart rebuilt on
+its own (a measurement window moved) takes up the zoom the other is at. The step protocol already shared one zoom
+across its stacked plots, and the oscilloscope has none, so neither changed. `scripts/screenshot.mjs` zooms the
+current plot, checks the strip followed, and resets from the strip.

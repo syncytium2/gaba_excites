@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type uPlot from "uplot";
 import type { CellParams } from "../core/cell.ts";
 import { DEFAULT_NOISE, type NoiseParams } from "../core/noise.ts";
@@ -10,6 +10,7 @@ import { linePlot, type PlotTheme, type Series } from "../core/svgplot.ts";
 import type { VCRequest, VCResponse } from "../vc-worker.ts";
 import { AmpChoice, AmpDial, AmpRow, AmpSection, AmpSlot, RigPanels } from "./AmpFront.tsx";
 import { Plot } from "./Plot.tsx";
+import { mergeHooks, xSyncGroup } from "./xsync.ts";
 import { Tip } from "./Tip.tsx";
 import { axisOpts } from "./axis.ts";
 import { useCurrentUnit, type CurrentUnit } from "./current.tsx";
@@ -401,6 +402,10 @@ const NEG_G = 0.05;
 /** The current traces of a family over the command, with each measurement's window shaded. */
 function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height }: { sweeps: VCSweep[]; measures: VCMeasure[]; showTrue: boolean; pal: ChartColors; valueUnit: string; capMs: number; height: number }) {
   const cu = useCurrentUnit();
+  // the current plot and the command strip share one time axis, so they zoom together
+  // (the zoom is carried by the xSync hooks; the sync key moves the crosshair on both at once)
+  const [xSync] = useState(xSyncGroup);
+  const xSyncKey = `vc-time-${useId()}`;
   const n = Math.max(...sweeps.map((s) => s.iRec.length));
   const dt = sweeps[0].sampleMs;
   // the y range without the capacitive transients
@@ -556,11 +561,11 @@ function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height }:
     height: h,
     padding: [6, 8, 0, 0],
     legend: { show: false },
-    cursor: { drag: { x: true, y: false } },
+    cursor: { drag: { x: true, y: false }, sync: { key: xSyncKey } },
     scales: { x: { time: false } },
     axes,
     series: [],
-    hooks,
+    hooks: mergeHooks(xSync, hooks),
   });
   // In the tube, a readout under the graticule as a Tektronix prints its measurements: each one's extreme over
   // the family, and the sweep it came from.
