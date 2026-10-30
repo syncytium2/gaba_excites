@@ -4,11 +4,11 @@ Written by `npm run deploy`. Do not edit by hand.
 
 | | |
 |---|---|
-| **Deployed at** | 2026-10-30 01:52 UTC |
-| **Version** | v0.2.8 |
-| **Commit** | `adf87fd` — Release v0.2.8 |
-| **Bundle** | `assets/index-B7rXddqc.js` |
-| **Worker version** | `2fe892f1-6d27-4b3b-ad63-b7954235ded5` |
+| **Deployed at** | 2026-10-30 02:26 UTC |
+| **Version** | v0.2.9 |
+| **Commit** | `06f2730` — Release v0.2.9 |
+| **Bundle** | `assets/index-DoX1UDFX.js` |
+| **Worker version** | `77b99f36-59c1-4d2e-a163-4434ac49000f` |
 | **Live** | https://gaba-excites.tonydefazio.workers.dev https://gaba.tonydefazio.com |
 | **Classroom version** | `/fall-2026/`, built from tag `classroom-fall-2026` (`/fall-2026/assets/index-DcdzVBSe.js`) |
 
