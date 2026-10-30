@@ -103,12 +103,12 @@ export interface VCOptions {
 }
 
 /**
- * 0.01 ms, the current-clamp step. Stored every 0.02 ms (50 kHz), an exact
- * multiple of the step, so a sample's time is what it says (the current-clamp
- * store's 0.025 ms rounds to 0.03; docs/roadmap.md), and a sodium current's
- * ~0.5 ms rise gets 25 samples.
+ * 0.01 ms, the current-clamp step. Every step is stored (100 kHz; it was
+ * every second step until 2026-10-30), so a sample's time is what it says and
+ * the fast sodium peaks, 0.1–0.2 ms into a step on the GnRH cell, are not
+ * missed between samples. It costs memory, not simulation time.
  */
-export const VC_SIM: VCOptions = { dt: 0.01, sampleMs: 0.02, seed: 1 };
+export const VC_SIM: VCOptions = { dt: 0.01, sampleMs: 0.01, seed: 1 };
 
 export interface VCSweep {
   /** the varied value: mV, or ms when a duration varies */

@@ -563,7 +563,8 @@ surface (sweeps run dim to bright with step amplitude), and, in the oscilloscope
 <p>The third mode holds the cell at a command and records the current, on the same cells, channels and integrator as
 current clamp. The amplifier holds the pipette at the command; the cell sits behind the series resistance Rs, so
 Cm dV/dt = (V<sub>cmd</sub> − V)/Rs − I<sub>membrane</sub>, solved by backward Euler with the conductances frozen over
-each 0.01 ms step, and the gates moved afterwards at the new V, exactly as in current clamp. With Rs = 0 the clamp is
+each 0.01 ms step, and the gates moved afterwards at the new V, exactly as in current clamp. Every step is stored
+(100 kHz). With Rs = 0 the clamp is
 ideal: V is the command, and each command step carries a one-step capacitive spike, Cm·ΔV/dt. Pipette capacitance is
 taken as compensated.</p>
 <ul>

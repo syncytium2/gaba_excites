@@ -43,13 +43,17 @@ const INACT: VCProtocol = {
 };
 const PROTOCOLS: Record<string, VCProtocol> = { act: ACT, act_rs2: ACT, inact: INACT };
 
-/** full-resolution peaks of a segment, skipping its first 0.2 ms, as the oracle takes them */
+/**
+ * peaks of a segment, skipping its first 0.2 ms, as the oracle takes them: on the oracle's own peak grid
+ * (peakSampleMs), so a finer stored trace is compared at matching times, not searched between them
+ */
 function peaks(sw: VCSweep, seg: number) {
+  const step = Math.max(1, Math.round(ORACLE.peakSampleMs / sw.sampleMs));
   const a = Math.round((sw.starts[seg] + 0.2) / sw.sampleMs);
   const b = Math.round((seg + 1 < sw.starts.length ? sw.starts[seg + 1] : sw.iTrue.length * sw.sampleMs) / sw.sampleMs);
   let lo = a;
   let hi = a;
-  for (let j = a; j <= Math.min(b, sw.iTrue.length - 1); j++) {
+  for (let j = a; j <= Math.min(b, sw.iTrue.length - 1); j += step) {
     if (sw.iTrue[j] < sw.iTrue[lo]) lo = j;
     if (sw.iTrue[j] > sw.iTrue[hi]) hi = j;
   }

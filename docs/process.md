@@ -1521,3 +1521,23 @@ edge, rms 1.210 → 0.978. The cloud session's run with IA blocked: G flat at ab
 climb from 476 to 621 with E = 50. The roadmap holds the owner's teaching point as a to-do. Also: `fitBoltzmann`'s
 finer passes now stay inside the search range (V½ within the data ± 40 mV, |k| ≤ 30), so an edge V½ is one the search
 could reach (it had walked to −130 past the −120 edge); no settled fit moved.
+
+## 2026-10-30 — voltage clamp: every step stored; the 0.1 ms window held back
+
+The owner: "the measurement window should be 0.1ms start. there's some really cute stuff going on early in there.
+what is our time step for the model and the display?" The model steps at 0.01 ms; the traces kept every second step
+(50 kHz). Now every step is stored (`VC_SIM.sampleMs` 0.01, 100 kHz): no simulation time, twice the memory. The
+recorder (noise and filter) already ran at every step, so no stored value changed; peaks are now found on the finer
+grid. What moved, vc-act at 10 kHz, fitted V½/k: pyramidal −17.35/−10.64 → −17.36/−10.63, FS −17.92/−10.29 →
+−17.94/−10.28, LTS −15.86/−11.81 → −15.87/−11.80, squid −16.95/−12.54 → −16.96/−12.53; GnRH (G > 0) unchanged. The
+quoted −17.3/−10.6 stands. The NEURON comparison finds peaks on the oracle's own 0.02 ms grid. The shortest
+transient left out of the autoscale is two samples, so it is 0.12 ms at Rs 0 and 10 kHz, not 0.14.
+
+The window start was not moved, because at the app's default 10 kHz the capacitive transient reaches past 0.1 ms.
+The filter's ring after the one-step capacitive spike, measured on each cell with every channel blocked, is at 0.1 ms
+into the step −10 to −34 nA on the cortical cells (−80 → −40…+40 mV), −3.5 to −8.9 nA on the squid axon and −0.8 to
+−2.3 nA on the GnRH cell. A window from 0.1 ms then reads it: pyramidal at −40 mV Peak − −11.0 nA at 0.10 ms
+against −7.5 nA from 0.2; GnRH at +40 mV −2.6 nA at 0.10 ms, about the transient's own −2.3. Unfiltered the ring is
+gone and 0.1 ms catches real sodium the 0.2 ms window misses on the fast cells (pyramidal at +40 mV −74.5 against
+−58.7 nA; GnRH at 0 mV −21.9 against −16.6), which moves every cortical fit (pyramidal −20.5/−8.5 → −14.3/−12.6). The
+fix is the owner's to choose.
