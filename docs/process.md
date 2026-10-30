@@ -1473,3 +1473,9 @@ computes and that Min is not a peak when the current is outward throughout. The 
 by (I/|I|max; G by the largest positive G). No marker flags an outward Min: that would be interpreting for the
 student. The kind keys stay `peakIn`/`peakOut` (presets use them); `peakAbs` is new. No number changed, so the oracle
 and the quoted numbers stand. The preset notes, methods page, README and llms.txt say Max/Min/Mean/Max |I|/Cursor.
+
+Revised the same day, before it shipped. The owner: "instead of peak in and peak out (in and out are very tough for
+students), use +/- toggle", and confirmed: "peak (+/- sign of the peak toggle), max(abs) and mean". So Take is Peak,
+Max |I|, Mean or Cursor, and Peak shows a Sign toggle: + is the most positive current (key `peakOut`), − the most
+negative (`peakIn`). Picking Peak from another choice starts at −; a preset's sign comes with the preset. The names
+everywhere are Peak +, Peak −, Max |I|, Mean and Cursor.

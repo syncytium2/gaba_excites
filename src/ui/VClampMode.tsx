@@ -23,12 +23,18 @@ const MAX_SWEEP_MS = 3000;
 
 // What a measurement takes, named for what it computes, and the same name everywhere it shows: the buttons, the
 // captions, the table and the Old school readout. Nothing here decides what the current means; the student does.
-const KINDS = [["peakOut", "Max"], ["peakIn", "Min"], ["mean", "Mean"], ["peakAbs", "Max |I|"], ["cursor", "Cursor"]] as const;
-const kindName = (k: VCMeasure["kind"]) => KINDS.find((x) => x[0] === k)![1];
+// "In" and "out" are hard for students (the owner, 2026-10-30), so a peak is one choice with a sign: Peak + is the
+// most positive current (key peakOut), Peak − the most negative (key peakIn). The keys predate the names.
+const NAMES: Record<VCMeasure["kind"], string> = { peakOut: "Peak +", peakIn: "Peak −", peakAbs: "Max |I|", mean: "Mean", cursor: "Cursor" };
+const kindName = (k: VCMeasure["kind"]) => NAMES[k];
+type Take = "peak" | "peakAbs" | "mean" | "cursor";
+const TAKES = [["peak", "Peak"], ["peakAbs", "Max |I|"], ["mean", "Mean"], ["cursor", "Cursor"]] as const;
+const SIGNS = [["peakOut", "+"], ["peakIn", "−"]] as const;
+const takeOf = (k: VCMeasure["kind"]): Take => (k === "peakIn" || k === "peakOut" ? "peak" : k);
 const KIND_HINT =
-  "In the window: Max is the most positive current, Min the most negative, Mean the average, Max |I| the value " +
-  "largest in size whichever its sign (the sign is kept), and Cursor the value at the window's start. Min is not a " +
-  "peak when the current is outward throughout: it is then the smallest outward value.";
+  "In the window: Peak + is the most positive current, Peak − the most negative; Max |I| is the value largest in " +
+  "size whichever its sign (the sign is kept); Mean is the average, and Cursor the value at the window's start. " +
+  "Peak − is not a peak when the current is outward throughout: it is then the smallest outward value.";
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 
 /**
@@ -345,7 +351,11 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
                   {segs.map((_, i) => <option key={i} value={i}>{i + 1}</option>)}
                 </select>
               </AmpSlot>
-              <AmpChoice label="Take" value={m.kind} options={KINDS} onChange={(kind) => setMeasure(j, { kind })} hint={KIND_HINT} />
+              <AmpChoice label="Take" value={takeOf(m.kind)} options={TAKES} hint={KIND_HINT}
+                onChange={(t) => setMeasure(j, { kind: t === "peak" ? (takeOf(m.kind) === "peak" ? m.kind : "peakIn") : t })} />
+              {takeOf(m.kind) === "peak" && (
+                <AmpChoice label="Sign" value={m.kind as "peakIn" | "peakOut"} options={SIGNS} onChange={(kind) => setMeasure(j, { kind })} />
+              )}
               <AmpSlot label="From, ms">{num(m.from, (from) => setMeasure(j, { from }), 52, 0.1)}</AmpSlot>
               {m.kind !== "cursor" && <AmpSlot label="To, ms">{num(m.to, (to) => setMeasure(j, { to }), 52, 0.1)}</AmpSlot>}
             </AmpSection>
