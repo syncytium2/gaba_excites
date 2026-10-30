@@ -267,6 +267,35 @@ export interface VCPoint {
   vm: number;
 }
 
+/**
+ * How long the capacitive transient after a command step lasts in the recording, ms: five Rs·Cm
+ * time constants (MΩ·pF = µs), never less than two stored samples, plus the filter's settling,
+ * about one period of its corner (0.1 ms at 10 kHz; none when bypassed). With an ideal clamp
+ * (Rs 0) the charge Cm·ΔV arrives in one integration step, and the filter spreads it.
+ */
+export function transientMs(rs: number, cm: number, sampleMs: number, filterKHz = 0): number {
+  return Math.max(2 * sampleMs, (5 * rs * cm) / 1000) + (filterKHz > 0 ? 1 / filterKHz : 0);
+}
+
+/**
+ * Artifact blanking, as an amplifier's sample-and-hold does it: for `ms` after each command step
+ * the recorded current holds the value it had just before the step. The true current, Vm and the
+ * command are untouched. A blank longer than the transient also hides what the channels do in it.
+ */
+export function blankSweep(sw: VCSweep, ms: number): VCSweep {
+  const iRec = sw.iRec.slice();
+  const dt = sw.sampleMs;
+  for (const t of sw.starts) {
+    if (t <= 0) continue;
+    const a = Math.round(t / dt);
+    if (a <= 0 || a >= iRec.length) continue;
+    const held = iRec[a - 1];
+    const b = Math.min(iRec.length - 1, Math.round((t + ms) / dt));
+    for (let j = a; j <= b; j++) iRec[j] = held;
+  }
+  return { ...sw, iRec };
+}
+
 /** Measure one sweep on its recorded current. */
 export function measureSweep(sw: VCSweep, m: VCMeasure): VCPoint {
   const t0 = (sw.starts[m.seg] ?? 0) + m.from;
