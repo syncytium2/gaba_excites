@@ -475,7 +475,7 @@ export const HH: ModelDef = {
   // n, the slowest gate, relaxes in under 10 ms at 6.3 °C
   settleMs: 1000,
   validation:
-    "Spike counts match NEURON's built-in hh mechanism exactly, at 6.3 and 18.5 °C; spike times within 0.01 ms.",
+    "Spike counts match NEURON's built-in hh mechanism exactly, at 6.3 and 18.5 °C, spike times within 0.01 ms; the equations match the 1952 paper's exactly, and its computed action potentials (Table 4) are reproduced.",
 };
 
 export const MODELS: Record<ModelId, ModelDef> = { rs: RS, fs: FS, lts: LTS, gnrh: GNRH, betamouse: BETA_MOUSE, hh: HH };

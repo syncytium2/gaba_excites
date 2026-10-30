@@ -139,7 +139,7 @@ export function makeKd(vtraub: number): Channel {
 
 // ---------------------------------------------------------------- Hodgkin–Huxley squid axon
 //
-// Hodgkin & Huxley (1952) J Physiol 117:500, the rate equations, in the modern sign
+// Hodgkin & Huxley (1952) J Physiol 117:500, the rate equations (Eqs. 12, 13, 20, 21, 23, 24, p. 519), in the modern sign
 // convention (V in mV, rest −65 mV, depolarization positive), exactly as
 // NEURON's built-in hh.mod writes them, including its temperature factor
 // φ = 3^((T − 6.3)/10). src/core/hh.test.ts holds the port to NEURON.

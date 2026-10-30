@@ -50,9 +50,9 @@ Hodgkin AL, Huxley AF (1952). A quantitative description of membrane current and
 
 [doi:10.1113/jphysiol.1952.sp004764](https://doi.org/10.1113/jphysiol.1952.sp004764) · [PMID 12991237](https://pubmed.ncbi.nlm.nih.gov/12991237/) · [PMC1392413](https://pmc.ncbi.nlm.nih.gov/articles/PMC1392413/) · *open* · models: squid axon
 
-**Took:** The squid giant axon: INa = gNa m³h (V − ENa) and IK = gK n⁴ (V − EK), their rate functions, the maximal conductances (120 and 36 mS/cm²), the leak (0.3 mS/cm²), the reversal potentials and 1 µF/cm², written in the modern sign convention with rest at −65 mV. 6.3 °C, the temperature of the paper's calculations, is the temperature knob's default.
+**Took:** The squid giant axon: INa = gNa m³h (V − ENa) and IK = gK n⁴ (V − EK), their rate functions (Eqs. 12, 13, 20, 21, 23, 24), the constants of Table 3 (gNa 120, gK 36, gl 0.3 mS/cm²; C 1 µF/cm²; V_Na −115, V_K +12, V_l −10.613 mV, i.e. E_Na +50, E_K −77, E_L −54.387 mV with rest at −65) and the Q10 of 3 from 6.3 °C, all checked against the port; the computed membrane action potentials of Table 4 and the threshold of Fig. 12, which the port reproduces; and the protocols of Figs. 3 and 6 for two voltage-clamp presets.
 
-**Used in:** [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/models.ts`](../src/core/models.ts)
+**Used in:** [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/models.ts`](../src/core/models.ts), [`src/core/protocol.ts`](../src/core/protocol.ts), [`src/core/hh.test.ts`](../src/core/hh.test.ts), [`public/methods.html`](../public/methods.html)
 
 **Notes:** [`notes/hodgkin1952.md`](notes/hodgkin1952.md)
 

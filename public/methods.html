@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>gaba_excites — methods and models</title>
-<meta name="description" content="The models behind gaba_excites — the Pospischil et al. (2008) regular-spiking pyramidal cell and the Adams et al. (2018) GnRH neuron — how Rin, Cm, Rs and Ihold map onto them, the electrode, synapse and noise models, the measurements, how each model was checked, and what the simulator leaves out." />
+<meta name="description" content="The models behind gaba_excites — the Pospischil et al. (2008) cortical cells, the Adams et al. (2018) GnRH neuron, the Bertram et al. (2004) mouse beta cell and the Hodgkin–Huxley (1952) squid axon — how Rin, Cm, Rs and Ihold map onto them, the electrode, synapse and noise models, the measurements, how each model was checked, and what the simulator leaves out." />
 <link rel="canonical" href="https://gaba.tonydefazio.com/methods" />
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <style>
@@ -35,6 +35,26 @@
 <p class="sub">What the simulator computes, with every equation and parameter, and how far to trust it.
 <a href="/">Back to the simulator</a> · <a href="/lit">Sources</a>.</p>
 
+<h2 id="checked">How each model was checked</h2>
+<p>Every model here is a port: its equations rewritten in TypeScript from a published source. Each was checked against
+that source, by running the original code where it exists and against the paper's own numbers where it does not. The
+checks are tests in the repository's suite, which runs on every commit, so a change that broke one would fail before
+it reached this site. Details are in each model's section and in <a href="#validation">section 7</a>.</p>
+<div class="tablewrap"><table>
+<thead><tr><th>Model</th><th>Checked against</th><th>Result</th><th>Test</th></tr></thead>
+<tbody>
+<tr><td>Cortical pyramidal cell</td><td>NEURON 9.0.2 running the original ModelDB 123623 mechanisms</td><td>spike counts exact on every step; every spike within 0.2 ms</td><td><code>oracle.test.ts</code></td></tr>
+<tr><td>Fast-spiking interneuron</td><td>the same</td><td>526 spikes, counts exact; every spike within 0.015 ms</td><td><code>oracle.test.ts</code></td></tr>
+<tr><td>LTS cell</td><td>the same</td><td>12 sweeps, bursts and rebounds, counts exact; every spike within 0.010 ms</td><td><code>oracle.test.ts</code></td></tr>
+<tr><td>GnRH neuron</td><td>the paper's reported numbers (no public code exists)</td><td>rest −70 mV at −6 pA; the spike counts of its Fig. 7F</td><td><code>gnrh.test.ts</code></td></tr>
+<tr><td>Mouse beta cell</td><td>the paper's reported behavior, and the authors' equations run by a separate stiff solver</td><td>burst period 32.4 s (paper ≈ 30 s); the patterns of Figs. 3 and 5–8; 340 spikes in 6 min against 345</td><td><code>beta*.test.ts</code></td></tr>
+<tr><td>Squid giant axon</td><td>NEURON's built-in <code>hh</code>, <em>and</em> the 1952 paper</td><td>21 steps, counts exact, every spike within 0.01 ms; the paper's equations exactly, and every number in its Table 4 (<a href="#hh-paper">below</a>)</td><td><code>hh.test.ts</code></td></tr>
+<tr><td>Voltage clamp</td><td>NEURON's SEClamp on the pyramidal cell; on the squid axon, the paper's clamped-step solution</td><td>within 10 pA, peaks within 0.05%; on the squid axon within 0.5% (K⁺) and 1% (Na⁺)</td><td><code>vclamp.test.ts</code>, <code>hh.test.ts</code></td></tr>
+</tbody>
+</table></div>
+<p class="note">Where a model has no public code, as for the GnRH neuron, it is checked only against what its paper
+reports; that is a weaker check than running the original code, and the table says which kind each model got.</p>
+
 <nav aria-label="Contents">
 <ol>
   <li><a href="#model">The pyramidal cell</a></li>
@@ -53,7 +73,7 @@
   <li><a href="#siren">The siren</a></li>
   <li><a href="#oldschool">Old school, and the audio monitor</a></li>
   <li><a href="#vclamp">Voltage clamp</a></li>
-  <li><a href="#validation">Checked against NEURON</a></li>
+  <li><a href="#validation">How each model was checked, in detail</a></li>
   <li><a href="#gaba">When GABA excites</a></li>
   <li><a href="#limits">What it leaves out</a></li>
   <li><a href="#cli">Running it without a browser</a></li>
@@ -264,17 +284,53 @@ every rate × φ = 3^((T − 6.3)/10)</span>
 <p>These are the paper's equations in the modern sign convention, rest at −65 mV and depolarization positive, as
 NEURON's built-in <code>hh</code> mechanism writes them. A <strong>Temperature</strong> control scales every rate by
 φ, with Q<sub>10</sub> = 3; it opens at 6.3 °C, the temperature of the paper's calculations.</p>
-<p><strong>How it was checked.</strong> Against NEURON 9.0.2 running its own <code>hh</code> on the same patch
-(<code>tools/neuron_oracle_hh.py</code>), with NEURON's rate tables turned off (it otherwise interpolates the rates
-from a 200-point table) and its leak reversal set to the paper's −54.387 mV (NEURON rounds it to −54.3). On 21 current
-steps at 6.3 and 18.5 °C, from no spikes to 280, depolarization block and anode break included, the spike counts match
-exactly and every spike is within one time step (0.01 ms). So, like the pyramidal cell and unlike the GnRH neuron, it
-has a code oracle (<code>src/core/hh.test.ts</code>). The paper itself has not yet been read for this port; the
-equations come from NEURON's file, and nothing here quotes a page or figure from the paper.</p>
+<p><strong>How it was checked</strong>, two ways (<code>src/core/hh.test.ts</code>). Against <strong>code</strong>:
+NEURON 9.0.2 running its own <code>hh</code> on the same patch (<code>tools/neuron_oracle_hh.py</code>), with NEURON's
+rate tables turned off (it otherwise interpolates the rates from a 200-point table) and its leak reversal set to the
+paper's −54.387 mV (NEURON rounds it to −54.3). On 21 current steps at 6.3 and 18.5 °C, from no spikes to 280,
+depolarization block and anode break included, the spike counts match exactly and every spike is within one time step
+(0.01 ms). Against the <strong>paper</strong>: its equations, constants and computed action potentials, below.</p>
+<h3 id="hh-paper">The squid axon against Hodgkin &amp; Huxley (1952)</h3>
+<p>The paper writes V as the displacement from rest with depolarization <em>negative</em>; here Vm = −(V + 65). With
+that change, every rate function (Eqs. 12, 13, 20, 21, 23, 24, p. 519) and every constant in Table 3 (p. 520) is the
+port's, exactly: the tests evaluate the paper's printed forms beside the port's at voltages from −120 to +40 mV and
+require agreement to twelve decimal places, steady states and time constants both, at 6.3 and 18.5 °C.</p>
+<p>The paper also computed membrane action potentials, by hand, and printed their shape in Table 4 (p. 527): the axon
+displaced by a brief shock, or released from 30 mV below rest (anode break, p. 536), and left alone. The port, given
+the same starts:</p>
+<div class="tablewrap"><table>
+<thead><tr><th>Table 4 row</th><th></th><th class="n">Spike height (mV)</th><th class="n">Positive phase (mV)</th><th class="n">Rise, 20 mV to peak (ms)</th><th class="n">Fall, peak to rest (ms)</th><th class="n">Positive phase (ms)</th><th class="n">Max rate of rise (V/s)</th></tr></thead>
+<tbody>
+<tr><td rowspan="2">15 mV shock, 6.3 °C</td><td>paper</td><td class="n">105.4</td><td class="n">11.2</td><td class="n">0.59</td><td class="n">2.21</td><td class="n">14.15</td><td class="n">311</td></tr>
+<tr><td>port</td><td class="n">105.4</td><td class="n">11.2</td><td class="n">0.59</td><td class="n">2.21</td><td class="n">14.23</td><td class="n">310</td></tr>
+<tr><td rowspan="2">7 mV shock, 6.3 °C</td><td>paper</td><td class="n">102.1</td><td class="n">—</td><td class="n">0.62</td><td class="n">—</td><td class="n">—</td><td class="n">277</td></tr>
+<tr><td>port</td><td class="n">102.1</td><td class="n">11.2</td><td class="n">0.63</td><td class="n">2.11</td><td class="n">14.19</td><td class="n">276</td></tr>
+<tr><td rowspan="2">90 mV shock, 6.3 °C</td><td>paper</td><td class="n">108.5</td><td colspan="5"></td></tr>
+<tr><td>port</td><td class="n">108.5</td><td colspan="5"></td></tr>
+<tr><td rowspan="2">100 mV shock, 6.3 °C</td><td>paper</td><td class="n">108.8</td><td colspan="5"></td></tr>
+<tr><td>port</td><td class="n">108.7</td><td colspan="5"></td></tr>
+<tr><td rowspan="2">15 mV shock, 18.5 °C</td><td>paper</td><td class="n">96.8</td><td class="n">10.5</td><td class="n">0.275</td><td class="n">0.61</td><td class="n">5.09</td><td class="n">564</td></tr>
+<tr><td>port</td><td class="n">96.8</td><td class="n">10.5</td><td class="n">0.276</td><td class="n">0.62</td><td class="n">5.11</td><td class="n">560</td></tr>
+<tr><td rowspan="2">Anode break, 6.3 °C</td><td>paper</td><td class="n">112.1</td><td class="n">11.2</td><td class="n">0.50</td><td class="n">2.54</td><td class="n">14.4</td><td class="n">414</td></tr>
+<tr><td>port</td><td class="n">112.1</td><td class="n">11.2</td><td class="n">0.50</td><td class="n">2.54</td><td class="n">14.33</td><td class="n">412</td></tr>
+</tbody>
+</table></div>
+<p>The port's numbers are at a time step of 0.001 ms. The worst differences are 0.08 ms in the length of the positive
+phase (0.6%) and 4 V/s in the rate of rise. The threshold of
+Fig. 12 (p. 525) holds too: at 6.3 °C a 7 mV shock fires a full spike and 6 mV does not. The app itself steps at
+0.01 ms, where the shapes are the same but the fastest numbers come out a little low: spike heights within 0.9 mV of
+the table (96.0 against 96.8 mV at 18.5 °C is the worst) and the maximum rate of rise 3–6% low. The tests hold both.</p>
+<p>Voltage clamp, the paper's own method, is checked against the paper's solution for a clamped step (Eqs. 8, 17 and
+18): at a fixed voltage each gate relaxes exponentially from rest, so the K⁺ current ḡ<sub>K</sub>n⁴(V − E<sub>K</sub>)
+and the Na⁺ current ḡ<sub>Na</sub>m³h(V − E<sub>Na</sub>) are known exactly. Run with the other channel blocked, the
+two presets that reproduce the paper's Figs. 3 and 6 measure them within 0.5% (K⁺, at the end of each step) and 1%
+(Na⁺, the peak).</p>
 <p><strong>What it shows.</strong> It rests at −65 mV, and its rheobase for an 800 ms step is 225 pA (2.25 µA/cm²).
 Up to 600 pA it fires once or twice as the step starts, then stops. At 700 pA it fires all the way through, at
 59 Hz; there is no slow firing in between, unlike the cortical cells, whose rate climbs from near zero. A step of only
-−300 pA, which holds it 3.3 mV below rest, fires a spike on release: anode break excitation. E<sub>GABA</sub> for
+−300 pA, which holds it 3.3 mV below rest, fires a spike on release: anode break excitation. Warmed to 18.5 °C it
+fires faster and its spikes are shorter. Presets cover each of these, and two voltage-clamp presets repeat the
+experiments of the paper's Figs. 3 and 6, the K⁺ and Na⁺ conductance families its equations were fitted to. E<sub>GABA</sub> for
 this cell defaults to rest, a placeholder: the squid giant axon has no GABA synapse.</p>
 
 <h2 id="passive">2. Leak, Cm, Ihold, and the measured Rin</h2>
@@ -532,7 +588,7 @@ taken as compensated.</p>
   5 kHz: the fastest peaks, at the most depolarized commands, are blunted most.</li>
 </ul>
 
-<h2 id="validation">7. Checked against NEURON</h2>
+<h2 id="validation">7. How each model was checked, in detail</h2>
 <p><strong>Voltage clamp</strong> was checked the same way, with NEURON's own clamp, SEClamp: an ideal source behind
 a series resistance, the circuit the port solves. Activation and inactivation families at 0.001 MΩ, and activation at
 2 MΩ, where the cell escapes the clamp: every sample 0.2 ms apart agrees within 10 pA and 0.01 mV, and every peak at

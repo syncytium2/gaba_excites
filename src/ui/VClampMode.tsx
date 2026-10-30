@@ -4,7 +4,7 @@ import type { CellParams } from "../core/cell.ts";
 import { DEFAULT_NOISE, type NoiseParams } from "../core/noise.ts";
 import { FILTER_KHZ } from "../core/filter.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "../core/synapses.ts";
-import { VC_PRESETS } from "../core/protocol.ts";
+import { VC_PRESETS, vcPresetsFor } from "../core/protocol.ts";
 import { fitBoltzmann, measureSweep, zeroCrossing, type VCMeasure, type VCPoint, type VCProtocol, type VCSweep } from "../core/vclamp.ts";
 import { linePlot, type PlotTheme, type Series } from "../core/svgplot.ts";
 import type { VCRequest, VCResponse } from "../vc-worker.ts";
@@ -68,7 +68,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   const [result, setResult] = useState<{ sweeps: VCSweep[]; ms: number; protocol: VCProtocol } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const preset = VC_PRESETS.find((p) => p.id === presetId);
+  const preset = vcPresetsFor(cell.model).find((p) => p.id === presetId);
 
   const applyPreset = (id: string) => {
     const p = VC_PRESETS.find((x) => x.id === id);
@@ -283,7 +283,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
             <AmpSlot label="Preset">
               <Tip text={preset ? preset.note : "Your own protocol."}>
                 <select id="vc-preset" aria-label="Voltage-clamp protocol" value={preset ? presetId : "custom"} onChange={(e) => applyPreset(e.target.value)}>
-                  {VC_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                  {vcPresetsFor(cell.model).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                   {!preset && <option value="custom">Custom</option>}
                 </select>
               </Tip>

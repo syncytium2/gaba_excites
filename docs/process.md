@@ -1327,3 +1327,35 @@ to at 30× runs at 10×. The owner, asked why 30× was needed: slow patterns are
 neurons do, but this model was never meant to illustrate them. So the gate tables (13.3× → 22.3× at 30× in
 Chromium, spike times within 0.45 ms over 10 s, every test passing) are kept in reserve on the branch
 `gnrh-gate-tables` (commit 6cf05ba), not merged, for if the app ever goes that route.
+
+## 2026-10-29 — the squid axon checked against the 1952 paper; validation on the methods page
+
+The owner found the paper (J Physiol 117:500, now in the library) and asked for the checks, presets that quote it,
+the voltage-clamp presets, and "all this validation documented on the website so users are confident of our work".
+This supersedes the earlier entry's "the paper itself is not yet read".
+
+- **The equations agree exactly.** The paper's V is the displacement from rest with depolarization negative;
+  Vm = −(V + 65). Every rate function (Eqs. 12, 13, 20, 21, 23, 24) and every Table 3 constant is the port's.
+  `hh.test.ts` evaluates the paper's printed forms beside the port's to twelve decimals.
+- **The paper's computed action potentials agree.** Table 4 (p. 527) gives six membrane action potentials, computed by
+  hand: shocks of 7, 15, 90 and 100 mV at 6.3 °C, 15 mV at 18.5 °C, and anode break from 30 mV below rest. At
+  dt = 0.001 ms the port gives every printed number (height, undershoot, rise and fall times, length of the undershoot,
+  maximum rate of rise) within 0.08 ms or 4 V/s; Fig. 12's threshold (7 mV fires, 6 mV does not) holds. At the app's
+  dt = 0.01 ms heights are within 0.9 mV and the rate of rise 3–6% low; the methods page says so. Reading Table 4 took
+  rendering the page and rotating it: the PDF's text layer is garbage there.
+- **Voltage clamp against the paper's own solution.** At a fixed voltage the gates relax exponentially (Eqs. 8, 17,
+  18), so the clamped K⁺ and Na⁺ currents are known in closed form. Two new presets repeat Figs. 3 and 6 (steps of 10
+  to 110 mV from rest); run with the other channel blocked they measure the closed form within 0.5% and 1%. Figs. 3
+  and 6's points are axon 17's own data, fitted with that axon's ḡ, so they are not compared directly.
+- **Voltage-clamp presets can belong to one model** (`VCPreset.model`, `vcPresetsFor`). The standard ones still quote
+  no number; the paper's are offered only on the squid axon.
+- **Step presets can set a model's own controls** (`Preset.knobs`): the new "Warmed to 18.5 °C" preset sets the
+  temperature, and the other squid-axon presets now set 6.3 °C, so none of them quotes a number measured at another
+  temperature. The siren test builds each preset's cell with its knobs.
+- **Not a preset: the paper's brief shocks.** A 7 mV shock in one 0.01 ms step is 70 nA, far past the siren's current
+  bound (10 × rheobase, 2.25 nA here). The shocks are in the tests and on the methods page instead. The anode-break
+  preset keeps its smaller steps for the same reason and quotes the paper's mechanism (p. 537) and Table 4's spike.
+- **The methods page opens with "How each model was checked"**: one row per model, what it was checked against, the
+  result and the test that holds it, and a note that a paper-only check (the GnRH neuron) is weaker than a code
+  oracle. Section 7 is renamed "How each model was checked, in detail", and the squid axon's section has the Table 4
+  comparison.

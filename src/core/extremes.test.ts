@@ -27,7 +27,7 @@ describe("the siren stays silent in ordinary use", () => {
   for (const preset of PRESETS) {
     it(`${preset.model}: ${preset.label}`, () => {
       const m = MODELS[preset.model];
-      const cell = buildCell(publishedParams(preset.model));
+      const cell = buildCell({ ...publishedParams(preset.model), ...(preset.knobs && { knobs: preset.knobs }) });
       const proto = toProtocol(preset.protocol);
       const inputs = { ihold: preset.ihold ?? m.defaults.ihold, electrode: E, glu: preset.glu, gaba: { ...preset.gaba } };
       const sweeps = runFamily(cell, inputs, proto, { ...DEFAULT_SIM, settleMs: Math.min(m.settleMs, 3000) });

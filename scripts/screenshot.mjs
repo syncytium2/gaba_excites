@@ -314,6 +314,15 @@ if (modelIds.includes("hh")) {
   await vcRan("hh in pA/pF");
   if (!(await page.locator(".vc-table").innerText()).includes("pA/pF")) problems.push("units: the voltage-clamp table is not in pA/pF");
   await page.screenshot({ path: `${out}/units-vc.png`, fullPage: true });
+  // The squid axon's own voltage-clamp presets (Hodgkin & Huxley Figs. 3 and 6) are offered on it, and run.
+  for (const id of ["hh-vc-gk", "hh-vc-gna"]) {
+    if (!(await page.locator(`#vc-preset option[value="${id}"]`).count())) { problems.push(`vc: ${id} not offered on the squid axon`); continue; }
+    await page.selectOption("#vc-preset", id);
+    await page.waitForTimeout(300);
+    await vcRan(id);
+    if (!(await page.locator(".vc-side .svgplot svg").count())) problems.push(`vc: ${id} drew no measured curve`);
+    await page.screenshot({ path: `${out}/vc-${id}.png`, fullPage: true });
+  }
   await page.click("#mode-steps");
   await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
   await page.waitForTimeout(500);
@@ -322,6 +331,12 @@ if (modelIds.includes("hh")) {
   const readline = await page.locator(".readline").innerText();
   if (!/Rheobase\s+[\d.]+\s+pA\/pF/.test(readline)) problems.push(`units: rheobase does not read in pA/pF: "${readline.slice(0, 80)}"`);
   await page.screenshot({ path: `${out}/units-steps.png`, fullPage: true });
+  // the temperature preset sets the model's own control
+  await page.selectOption("#preset-select", "hh-temp");
+  await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
+  await page.waitForTimeout(500);
+  if (!(await page.locator("#rig-sim").innerText()).includes("18.5")) problems.push("hh: the temperature preset did not set 18.5 °C");
+  await page.screenshot({ path: `${out}/hh-temp.png`, fullPage: true });
   await page.click("#mode-scope");
   await page.waitForTimeout(2000);
   await page.screenshot({ path: `${out}/units-scope.png`, fullPage: true });

@@ -246,6 +246,8 @@ export function App() {
     setGlu(p.glu);
     setGaba(p.gaba);
     if (p.ihold !== undefined) setIhold(p.ihold);
+    // the model settings the preset's numbers were measured at (the squid axon's temperature)
+    if (p.knobs) setCell({ ...cell, knobs: { ...knobValues(MODELS[cell.model], cell.knobs), ...p.knobs } });
     setSelected(null);
   };
 

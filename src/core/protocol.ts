@@ -85,6 +85,11 @@ export interface Preset {
   gaba: SynInput;
   /** holding current the preset needs, pA; when absent the preset leaves Ihold alone */
   ihold?: number;
+  /**
+   * the model's own settings the preset's numbers were measured at (ModelDef.knobs), e.g. the squid axon's
+   * temperature; when absent the preset leaves them alone
+   */
+  knobs?: Record<string, number>;
 }
 
 const FI: ProtocolForm = {
@@ -211,15 +216,27 @@ export const PRESETS: Preset[] = [
     protocol: { ...FI, mode: "list", list: "200, 300, 500, 600, 700, 1000, 2000" },
     glu: DEFAULT_GLU,
     gaba: DEFAULT_GABA,
+    knobs: { celsius: 6.3 },
+  },
+  {
+    id: "hh-temp",
+    model: "hh",
+    label: "Warmed to 18.5 °C",
+    note: "The same axon at 18.5 °C, where every rate runs about 3.8 times faster (Q₁₀ = 3, the paper's p. 519). 500 pA no longer fires at all; 1000 pA fires 150 spikes in the 800 ms step (188 Hz), against 55 at 6.3 °C; 2000 pA, 202. The spike itself is shorter: in the paper's Table 4, a spike's fall from its peak back to rest takes 2.21 ms at 6.3 °C and 0.61 ms at 18.5 °C, and this model gives the same to within 0.01 ms. Turn the temperature control to watch it change.",
+    protocol: { ...FI, mode: "list", list: "500, 1000, 2000" },
+    glu: DEFAULT_GLU,
+    gaba: DEFAULT_GABA,
+    knobs: { celsius: 18.5 },
   },
   {
     id: "hh-anode",
     model: "hh",
     label: "Anode break: release fires",
-    note: "Steps of −200 to −500 pA for 800 ms, taking the axon only 2 to 7 mV below rest. Nothing fires during any step. On release, −200 pA does nothing; −300, −400 and −500 pA each fire one spike, 4.7–7.1 ms later. The hyperpolarization removed some Na⁺ inactivation and turned K⁺ down, so the return to rest overshoots threshold. Hodgkin and Huxley called it anode break excitation.",
+    note: "Steps of −200 to −500 pA for 800 ms, taking the axon only 2 to 7 mV below rest. Nothing fires during any step. On release, −200 pA does nothing; −300, −400 and −500 pA each fire one spike, 4.7–7.1 ms later. Hodgkin and Huxley's explanation (p. 537): “anodal polarization decreases the potassium conductance and removes inactivation”, so the membrane comes back to rest with less K⁺ current and more Na⁺ current than it had there. Their own calculation released the axon from 30 mV below rest, beyond E_K, which takes more current than the siren allows here; it gave a spike 112.1 mV high (Table 4), and this model gives 112.0 (the methods page has the comparison).",
     protocol: { ...FI, mode: "list", list: "-200, -300, -400, -500" },
     glu: DEFAULT_GLU,
     gaba: DEFAULT_GABA,
+    knobs: { celsius: 6.3 },
   },
   {
     id: "lts-rebound",
@@ -362,14 +379,18 @@ export function patternsFor(model: ModelId): ScopePattern[] {
 
 /**
  * A voltage-clamp preset: a protocol and where to measure it, as an
- * experimenter would set them up. These are the standard protocols, so they
+ * experimenter would set them up. Most are the standard protocols, so they
  * apply to every model; their notes say what to look at and quote no measured
  * number, so no cell's number shows on another (the rule for step presets).
+ * A preset that reproduces one paper's experiment names its model and is
+ * offered only on that cell.
  * Nothing is drawn until the protocol runs: the curves come only from what is
  * measured (the owner's choice, 2026-10-29).
  */
 export interface VCPreset {
   id: string;
+  /** set for a preset that belongs to one cell (a paper's own protocol); absent, it suits every model */
+  model?: ModelId;
   label: string;
   note: string;
   protocol: VCProtocol;
@@ -421,4 +442,31 @@ export const VC_PRESETS: VCPreset[] = [
     measures: [{ seg: 3, from: 0.2, to: 5, kind: "peakIn" }],
     norm: "I",
   },
+  // Hodgkin & Huxley (1952) J Physiol 117:500, Figs. 3 and 6: the conductance families the model was fitted to.
+  // Their depolarizations, 6 to 109 mV from rest, were uneven; these are the same range in even steps.
+  {
+    id: "hh-vc-gk",
+    model: "hh",
+    label: "K⁺ conductance (Hodgkin & Huxley Fig. 3)",
+    note: "The experiment behind the potassium equations. Hodgkin and Huxley's Fig. 3 (p. 508) follows the rise of K⁺ conductance during depolarizations of 6 to 109 mV from rest, on axon 17 at 6–7 °C; here, steps of 10 to 110 mV from −65 mV. They removed the sodium current by replacing sodium with choline: block INa with its switch under CHANNELS for the same view. M1 is the current at the end of each step, as conductance with E_K = −77 mV. The rise starts slowly and then speeds up, which is why they raised n to the fourth power (pp. 506–507).",
+    protocol: { hold: -65, segments: [{ dur: 5, v: -65 }, { dur: 12, v: 0 }, { dur: 5, v: -65 }], vary: { seg: 1, what: "v", first: -55, delta: 10, count: 11 } },
+    measures: [{ seg: 1, from: 10, to: 12, kind: "mean" }],
+    norm: "G",
+    erev: -77,
+  },
+  {
+    id: "hh-vc-gna",
+    model: "hh",
+    label: "Na⁺ conductance (Hodgkin & Huxley Fig. 6)",
+    note: "The experiment behind the sodium equations. Hodgkin and Huxley's Fig. 6 (p. 513) shows sodium conductance during the same depolarizations, rising and then falling as it inactivates; here, steps of 10 to 100 mV from −65 mV. Block IK under CHANNELS to see the sodium current alone. M1 is the peak inward current, as conductance with E_Na = +50 mV. Steps much past +35 mV sit so close to E_Na that the current, and the conductance worked out from it, become small and noisy.",
+    protocol: { hold: -65, segments: [{ dur: 5, v: -65 }, { dur: 12, v: 0 }, { dur: 5, v: -65 }], vary: { seg: 1, what: "v", first: -55, delta: 10, count: 10 } },
+    measures: [{ seg: 1, from: 0.1, to: 4, kind: "peakIn" }],
+    norm: "G",
+    erev: 50,
+  },
 ];
+
+/** The voltage-clamp presets a model is offered: the standard ones, and any that belong to it. */
+export function vcPresetsFor(model: ModelId): VCPreset[] {
+  return VC_PRESETS.filter((p) => !p.model || p.model === model);
+}

@@ -104,8 +104,13 @@ Squid axon: spike counts match NEURON 9.0.2's built-in hh mechanism (rate
 tables off, E_L -54.387 mV) exactly on 21 steps at 6.3 and 18.5 degC, every
 spike within 0.01 ms. Rheobase 225 pA (2.25 uA/cm^2, 800 ms step); no slow
 firing: between 600 and 700 pA it goes from one or two spikes to 59 Hz;
-release from -300 pA (3.3 mV below rest) fires an anode-break spike. The 1952
-paper itself has not yet been read for the port; the equations are hh.mod's.
+release from -300 pA (3.3 mV below rest) fires an anode-break spike. Checked
+against the 1952 paper as well: its rate functions and Table 3 constants
+exactly (after the sign change Vm = -(V + 65)), every membrane action
+potential in its Table 4 (e.g. 15 mV shock at 6.3 degC: spike 105.4 mV, max
+rise 310 V/s; the paper: 105.4, 311) and the threshold of Fig. 12 (7 mV fires,
+6 mV does not); voltage clamp matches the paper's clamped-step solution
+within 1%. methods.html#checked tabulates how every model was checked.
 
 Beta cell: transcribed from the paper, the PFK rate law from the authors' code.
 It reproduces what the paper reports: glycolysis alone oscillates at R_GK 0.2
