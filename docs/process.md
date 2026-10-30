@@ -1307,3 +1307,23 @@ mode switch, in all three modes, remembered per browser (src/ui/current.tsx).
 - Pinned by src/ui/current.test.ts; the screenshot check flips the switch on the squid axon in all three modes and
   fails unless the sweep table, the rheobase readout and the voltage-clamp table read in pA/pF. The name strip wraps on
   a phone: with the switch added it overflowed at 390 px, which the same check caught.
+
+## 2026-10-29 — the GnRH cell on the oscilloscope: why it stopped near 10×
+
+The owner reported the GnRH cell on the oscilloscope could not get past about 10× real time. Measured in headless
+Chromium at 30× on the MacBook: GnRH 9.5–10.0×, the pyramidal cell 30×. In Node, one core, the GnRH stream computes
+at about 19× (the pyramidal cell at 80–88×); sampling the screen every 1 ms instead of 0.05 ms changed nothing
+(18.7× against 18.8×), so the cost is the integration, not drawing. Its nine channels have sixteen gates, each
+computing x∞(V) and τ(V), two or three exponentials apiece, every 0.01 ms step.
+
+**The scope worker idled a third of the time.** Each tick computed for up to 30 ms, then waited 16 ms, even when it
+was behind. Now a tick that ends behind the asked speed schedules the next at 0 ms (still yielding, so messages are
+answered). GnRH at 30×: 13.3×. Cells that keep up are unchanged.
+
+**30× is offered only where a pattern asks for it.** The button came with the beta cell (a 5 min glycolytic cycle in
+10 s), and nothing on the GnRH cell or the cortical cells needs it; the GnRH cell already ran at 10× here. Now the
+speeds above 10× show only for a model whose scope patterns ask for them (`speedsFor`, ScopeMode.tsx); a cell switched
+to at 30× runs at 10×. The owner, asked why 30× was needed: slow patterns are probably the most important thing GnRH
+neurons do, but this model was never meant to illustrate them. So the gate tables (13.3× → 22.3× at 30× in
+Chromium, spike times within 0.45 ms over 10 s, every test passing) are kept in reserve on the branch
+`gnrh-gate-tables` (commit 6cf05ba), not merged, for if the app ever goes that route.

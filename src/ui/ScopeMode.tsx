@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { AmpDial, AmpRow, AmpSection, AmpSlot, RigPanels } from "./AmpFront.tsx";
 import type { CellParams } from "../core/cell.ts";
 import { MODELS, type ModelId } from "../core/models.ts";
+import { patternsFor } from "../core/protocol.ts";
 import { describe as describeTrip, ExtremeWatch, type Limits } from "../core/extremes.ts";
 import type { StreamInputs } from "../core/stream.ts";
 import type { ScopeRequest, ScopeResponse } from "../scope-worker.ts";
@@ -18,6 +19,11 @@ import type { MonitorMode } from "../core/monitor.ts";
 const TIMEBASES = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 30000, 60000];
 // 30×: a 5 min beta-cell cycle in 10 s, where the device keeps up (the readout says when it does not)
 const SPEEDS = [0.1, 1, 10, 30];
+/** speeds above 10× are offered only to a model with a scope pattern that asks for them (today, the beta cell) */
+function speedsFor(model: ModelId): number[] {
+  const top = Math.max(10, ...patternsFor(model).map((p) => p.speed));
+  return SPEEDS.filter((s) => s <= top);
+}
 /** stored screens kept at once; the oldest goes first */
 const MAX_STORED = 3;
 /** windows the live readouts (firing rate, mean Vm) can average over, in simulated ms */
@@ -203,6 +209,12 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
     setSpeed(s);
     worker.current?.postMessage({ kind: "update", speed: s } satisfies ScopeRequest);
   };
+  const speeds = speedsFor(cell.model);
+  // a model that does not offer the current speed runs at its fastest
+  useEffect(() => {
+    if (!speeds.includes(speed)) changeSpeed(speeds[speeds.length - 1]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cell.model]);
   useEffect(() => {
     if (!view) return;
     setMsPerDiv(view.msPerDiv);
@@ -277,7 +289,7 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
             </select>
           </label>
           <span className="seg small" role="radiogroup" aria-label="Simulation speed">
-            {SPEEDS.map((s) => (
+            {speeds.map((s) => (
               <button key={s} role="radio" aria-checked={speed === s} className={speed === s ? "on" : ""} onClick={() => changeSpeed(s)}>
                 {s}×
               </button>

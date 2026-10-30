@@ -24,6 +24,7 @@ export type ScopeResponse =
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
+/** the wait between ticks when the stream is keeping up */
 const TICK_MS = 16;
 /** wall time a tick may spend computing, so a slow device still answers messages */
 const BUDGET_MS = 30;
@@ -92,7 +93,9 @@ function tick() {
     const msg: ScopeResponse = { ...c, kind: "chunk", achieved, speed };
     ctx.postMessage(msg, [c.vRec.buffer, c.vm.buffer, c.iCmd.buffer, c.gGlu.buffer, c.gGaba.buffer] as ArrayBuffer[]);
   }
-  timer = setTimeout(tick, TICK_MS);
+  // Behind (the budget ran out first): go again at once rather than idle a
+  // tick. A zero timeout still yields, so messages are still answered.
+  timer = setTimeout(tick, done < want - 1e-9 ? 0 : TICK_MS);
 }
 
 function run() {
