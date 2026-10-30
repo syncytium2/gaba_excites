@@ -10,6 +10,7 @@ import type { StepProtocol } from "./simulate.ts";
 import type { Pulse } from "./stream.ts";
 import { DEFAULT_GABA, DEFAULT_GLU, type SynInput } from "./synapses.ts";
 import type { VCMeasure, VCProtocol } from "./vclamp.ts";
+import type { FilterKHz } from "./filter.ts";
 
 export interface ProtocolForm {
   mode: "family" | "list";
@@ -405,20 +406,26 @@ export interface VCPreset {
   erevIon?: Ion;
   /** fit a Boltzmann to the normalized first measurement (not for a tail family, which is linear) */
   fit?: boolean;
+  /** the amplifier's filter this preset opens with, kHz (0 = bypass); VC_DEFAULT_FILTER where not given */
+  filter?: FilterKHz;
 }
+
+/** the filter voltage clamp opens with, and every preset that does not set its own: 10 kHz, as current clamp */
+export const VC_DEFAULT_FILTER: FilterKHz = 10;
 
 export const VC_PRESETS: VCPreset[] = [
   {
     id: "vc-act",
     label: "Activation (I–V)",
-    note: "Steps from −80 mV to +40 mV. M1 takes Peak −, the most negative current, early in each step: the peak inward Na⁺ current, where the cell has it. M2 takes the Mean at the end, the sustained current (mostly K⁺). Normalized as G/Gmax, with E_rev the model's own sodium reversal.",
+    note: "Steps from −80 mV to +40 mV. M1 takes Peak −, the most negative current, early in each step: the peak inward Na⁺ current, where the cell has it. M2 takes the Mean at the end, the sustained current (mostly K⁺). Normalized as G/Gmax, with E_rev the model's own sodium reversal. The window opens at 0.1 ms to catch the early sodium, and the filter is off because a 10 kHz filter's ringing after the capacitive step reaches into that window; turn it back on to see it.",
     protocol: { hold: -80, segments: [{ dur: 10, v: -80 }, { dur: 50, v: 0 }, { dur: 20, v: -80 }], vary: { seg: 1, what: "v", first: -80, delta: 10, count: 13 } },
     measures: [
-      { seg: 1, from: 0.2, to: 10, kind: "peakIn" },
+      { seg: 1, from: 0.1, to: 10, kind: "peakIn" },
       { seg: 1, from: 40, to: 50, kind: "mean" },
     ],
     norm: "G",
     erevIon: "na",
+    filter: 0,
   },
   {
     id: "vc-inact",

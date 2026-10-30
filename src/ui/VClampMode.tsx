@@ -4,7 +4,7 @@ import type { CellParams } from "../core/cell.ts";
 import { DEFAULT_NOISE, type NoiseParams } from "../core/noise.ts";
 import { FILTER_KHZ } from "../core/filter.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "../core/synapses.ts";
-import { VC_PRESETS, vcPresetsFor } from "../core/protocol.ts";
+import { VC_DEFAULT_FILTER, VC_PRESETS, vcPresetsFor } from "../core/protocol.ts";
 import { ION_NAME, MODELS, ionReversal, type Ion } from "../core/models.ts";
 import { blankSweep, fitBoltzmann, measureSweep, transientMs, zeroCrossing, type VCMeasure, type VCPoint, type VCProtocol, type VCSweep } from "../core/vclamp.ts";
 import { linePlot, type PlotTheme, type Series } from "../core/svgplot.ts";
@@ -88,8 +88,9 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   // An ideal clamp to begin with, so the first view is clean; the Rs dial is beside it (docs/process.md)
   const [rs, setRs] = useState(0);
   const [blank, setBlank] = useState(false);
-  // 10 kHz, as current clamp opens: a lower filter blunts the fast sodium peak and moves the fitted G–V (vclamp.test.ts)
-  const [noise, setNoise] = useState<NoiseParams>({ ...DEFAULT_NOISE, recSigma: 2, recFilter: 10 });
+  // the opening preset's filter (the activation preset's is off), else 10 kHz as current clamp: a filter blunts the fast
+  // sodium peak, and its ring after the capacitive step reaches into an early window (vclamp.test.ts)
+  const [noise, setNoise] = useState<NoiseParams>({ ...DEFAULT_NOISE, recSigma: 2, recFilter: VC_PRESETS[0].filter ?? VC_DEFAULT_FILTER });
   const [showTrue, setShowTrue] = useState(false);
   const [xAxis, setXAxis] = useState<"cmd" | "vm">("cmd");
   const [seed, setSeed] = useState(1);
@@ -109,6 +110,8 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     setMeasures(p.measures);
     setNorm(p.norm);
     setFitOn(p.fit ?? true);
+    // a preset opens with its own filter (the activation preset's is off), every other at the default
+    setNoise((n) => ({ ...n, recFilter: p.filter ?? VC_DEFAULT_FILTER }));
     if (p.erevIon) {
       setErevIon(p.erevIon);
       setErevReset((n) => n + 1);

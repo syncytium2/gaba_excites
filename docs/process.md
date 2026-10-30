@@ -1562,3 +1562,27 @@ Checked: the window joins the standard run at its first sample (same Vm and curr
 same window twice, and the fine noise has the standard run's size (tested). Timings on the workstation, GnRH, 13
 sweeps: the family 1.0–1.1 s; a 1 ms zoom (1.6 ms re-simulated) shows its badge 1.4 s after the mouse is released,
 300 ms of that the wait.
+
+## 2026-10-30 — the activation preset measures from 0.1 ms, with the filter off
+
+The owner chose, of the options above: the window at 0.1 ms on every model, with the activation preset opening on
+Bypass (presets may now carry a `filter`; `VC_DEFAULT_FILTER` stays 10 kHz for every other preset and is pinned by a
+test). The note says why: the window opens at 0.1 ms to catch the early sodium, and the filter is off because a
+10 kHz filter's ring after the capacitive step reaches into it; turning it back on shows that.
+
+The quoted fits move (vc-act, ideal clamp, V½/k, re-derived in vclamp.test.ts):
+
+| cell | from 0.2 ms, unfiltered | from 0.1 ms, unfiltered (now) | from 0.1 ms, 10 kHz | from 0.1 ms, 5 kHz |
+|---|---|---|---|---|
+| pyramidal | −20.54 / −8.51 | −14.29 / −12.55 | −9.19 / −15.80 | −9.78 / −15.35 |
+| FS | −21.17 / −8.02 | −15.36 / −11.88 | −9.82 / −15.53 | −10.95 / −14.76 |
+| LTS | −19.89 / −9.22 | −12.18 / −13.97 | −7.27 / −16.84 | −7.85 / −16.39 |
+| GnRH (G > 0) | −14.20 / −4.50 | −11.33 / −5.49 | −11.03 / −5.91 | −11.68 / −5.49 |
+| squid | −16.93 / −12.54 | −16.93 / −12.54 | −16.96 / −12.54 | −17.02 / −12.51 |
+
+The GnRH cell still gives one clearly negative G, at +40 mV, where the current is outward from 0.1 ms on (+2.7 nA,
+the A current outrunning what sodium is left); fitting every point, unfiltered, still lands at the search's edge
+(rms 0.40). At 10 kHz it seemed to settle (−11.03/−5.91) only because the filter's ring turned that point inward.
+Unfiltered, the cortical cells' points at −70 to −50 mV come out a hair negative (leak current, under 0.5 nA; G above
+−0.05 of Gmax, so G > 0 only keeps them). The measurements behind the choice are in the entry "every step stored;
+the 0.1 ms window held back".

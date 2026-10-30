@@ -12,7 +12,7 @@ import { MODEL_LIST, MODELS, ionReversal } from "./models.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "./synapses.ts";
 import { DEFAULT_NOISE } from "./noise.ts";
 import { blankSweep, fitBoltzmann, measureSweep, transientMs, runVCFamily, runVCWindow, VC_SIM, variedValue, zeroCrossing, type VCInputs, type VCProtocol, type VCSweep } from "./vclamp.ts";
-import { VC_PRESETS } from "./protocol.ts";
+import { VC_DEFAULT_FILTER, VC_PRESETS } from "./protocol.ts";
 import { runFamily } from "./simulate.ts";
 import { detectSpikes } from "./analysis.ts";
 
@@ -190,26 +190,31 @@ describe("voltage clamp: the ideal clamp and the measurements", () => {
     expect(f.k).toBeLessThan(0);
   });
 
-  it("on the GnRH cell's activation preset, fitting every point lands on the search's edge; G > 0 only fits V½ −14 mV, k −4.5 mV", () => {
+  it("on the GnRH cell's activation preset, fitting every point lands on the search's edge (+40 mV is outward from 0.1 ms); G > 0 only fits V½ −11.3 mV, k −5.5 mV", () => {
     const pr = VC_PRESETS.find((p) => p.id === "vc-act")!;
     const pts = runVCFamily(buildCell(publishedParams("gnrh")), { rs: 0, noise: DEFAULT_NOISE, ...OFF }, pr.protocol).map((s) => measureSweep(s, pr.measures[0]));
     const x = pts.map((p) => p.value);
     const g = pts.map((p) => p.i / (p.value - ionReversal(MODELS.gnrh, pr.erevIon!)!));
     const big = Math.max(...g);
     const y = g.map((r) => r / big);
-    expect(y.filter((v) => v < -0.05).length).toBe(2);
+    expect(y.filter((v) => v < -0.05).length).toBe(1);
     const all = fitBoltzmann(x, y);
     expect(all.edge).toBe(true);
     expect(all.vHalf).toBeGreaterThanOrEqual(Math.min(...x) - 40);
     const ok = y.map((v) => v > -0.05);
     const f = fitBoltzmann(x.filter((_, i) => ok[i]), y.filter((_, i) => ok[i]));
     expect(f.edge).toBe(false);
-    expect(f.vHalf).toBeCloseTo(-14, 0);
-    expect(f.k).toBeCloseTo(-4.5, 0);
+    expect(f.vHalf).toBeCloseTo(-11.3, 0);
+    expect(f.k).toBeCloseTo(-5.5, 0);
   });
 
-  it("the amplifier's filter blunts the fast sodium peak and moves the fitted G–V: V½ −20.5 mV unfiltered, −17.3 at 10 kHz, −11.1 at 5 kHz", () => {
+  it("the activation preset opens its window at 0.1 ms with the filter off: V½ −14.3 mV, k −12.6 unfiltered; a filter's ring after the capacitive step reaches into the window and moves it (10 kHz −9.2/−15.8, 5 kHz −9.8/−15.4)", () => {
     const pr = VC_PRESETS.find((p) => p.id === "vc-act")!;
+    expect(pr.measures[0].from).toBe(0.1);
+    expect(pr.filter).toBe(0);
+    // every other preset opens at the default, 10 kHz
+    expect(VC_DEFAULT_FILTER).toBe(10);
+    for (const p of VC_PRESETS) if (p.id !== "vc-act") expect(p.filter).toBeUndefined();
     const fit = (recFilter: 0 | 5 | 10) => {
       const noise = { ...DEFAULT_NOISE, recSigma: 2, recFilter };
       const pts = runVCFamily(cell, { rs: 0, noise, ...OFF }, pr.protocol).map((s) => measureSweep(s, pr.measures[0]));
@@ -217,10 +222,22 @@ describe("voltage clamp: the ideal clamp and the measurements", () => {
       const big = g.reduce((a, r) => (Math.abs(r) > Math.abs(a) ? r : a), 0);
       return fitBoltzmann(pts.map((p) => p.value), g.map((r) => r / big));
     };
-    for (const [f, vh, k] of [[0, -20.5, -8.5], [10, -17.3, -10.6], [5, -11.1, -14.6]] as const) {
+    for (const [f, vh, k] of [[0, -14.3, -12.6], [10, -9.2, -15.8], [5, -9.8, -15.4]] as const) {
       const r = fit(f);
       expect(r.vHalf).toBeCloseTo(vh, 0);
       expect(r.k).toBeCloseTo(k, 0);
+    }
+  });
+
+  it("the window from 0.1 ms on the other cortical cells, filter off: FS V½ −15.4 k −11.9, LTS −12.2 and −14.0; the squid axon as from 0.2 (−16.9, −12.5)", () => {
+    const pr = VC_PRESETS.find((p) => p.id === "vc-act")!;
+    for (const [id, vh, k] of [["fs", -15.4, -11.9], ["lts", -12.2, -14.0], ["hh", -16.9, -12.5]] as const) {
+      const pts = runVCFamily(buildCell(publishedParams(id)), { rs: 0, ...OFF }, pr.protocol).map((s) => measureSweep(s, pr.measures[0]));
+      const g = pts.map((p) => p.i / (p.value - ionReversal(MODELS[id], "na")!));
+      const big = Math.max(...g);
+      const f = fitBoltzmann(pts.map((p) => p.value), g.map((r) => r / big));
+      expect(f.vHalf).toBeCloseTo(vh, 0);
+      expect(f.k).toBeCloseTo(k, 0);
     }
   });
 
