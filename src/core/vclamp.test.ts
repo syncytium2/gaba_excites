@@ -158,19 +158,25 @@ describe("voltage clamp: the ideal clamp and the measurements", () => {
     expect(e).toBeLessThan(-80);
   });
 
-  it("fitBoltzmann says no fit, rather than a wild curve, where the best lies on the edge of its search", () => {
+  it("fitBoltzmann returns its best however poor, and flags a best that lies on the edge of its search", () => {
     // the GnRH activation family as G/Gmax, every point: Peak − turns outward at +30 and +40 mV
     const x = [-80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40];
     const y = [0, 0, 0, 0, 0, 0.02, 0.22, 0.7, 1, 0.94, 0.54, -0.49, -4.01];
-    expect(fitBoltzmann(x, y).vHalf).toBeNaN(); // the unconstrained best is V½ −153 mV, k +30: the search's edge
+    // the best is V½ −120 mV (the search's lower edge), k +0.5: a flat line at 0 across the data, rms 1.2.
+    // It is returned, flagged, so the panel can draw it and say so.
+    const all = fitBoltzmann(x, y);
+    expect(all.edge).toBe(true);
+    expect(all.vHalf).toBeCloseTo(-120, 0);
+    expect(all.rms).toBeGreaterThan(1);
     // the same family with the two negative-G points left out does settle
     const f = fitBoltzmann(x.slice(0, 11), y.slice(0, 11));
+    expect(f.edge).toBe(false);
     expect(f.vHalf).toBeGreaterThan(-20);
     expect(f.vHalf).toBeLessThan(-10);
     expect(f.k).toBeLessThan(0);
   });
 
-  it("on the GnRH cell's activation preset, fitting every point gives no fit; G > 0 only fits V½ −14 mV, k −4.5 mV", () => {
+  it("on the GnRH cell's activation preset, fitting every point lands on the search's edge; G > 0 only fits V½ −14 mV, k −4.5 mV", () => {
     const pr = VC_PRESETS.find((p) => p.id === "vc-act")!;
     const pts = runVCFamily(buildCell(publishedParams("gnrh")), { rs: 0, noise: DEFAULT_NOISE, ...OFF }, pr.protocol).map((s) => measureSweep(s, pr.measures[0]));
     const x = pts.map((p) => p.value);
@@ -178,9 +184,10 @@ describe("voltage clamp: the ideal clamp and the measurements", () => {
     const big = Math.max(...g);
     const y = g.map((r) => r / big);
     expect(y.filter((v) => v < -0.05).length).toBe(2);
-    expect(fitBoltzmann(x, y).vHalf).toBeNaN();
+    expect(fitBoltzmann(x, y).edge).toBe(true);
     const ok = y.map((v) => v > -0.05);
     const f = fitBoltzmann(x.filter((_, i) => ok[i]), y.filter((_, i) => ok[i]));
+    expect(f.edge).toBe(false);
     expect(f.vHalf).toBeCloseTo(-14, 0);
     expect(f.k).toBeCloseTo(-4.5, 0);
   });

@@ -33,7 +33,8 @@ export interface PlotSpec {
   /** labeled points, e.g. thresholds */
   marks?: { x: number; y: number; color: string; shape?: "circle" | "diamond" }[];
   title?: string;
-  legend?: boolean;
+  /** true: top left. "clear": whichever corner has the fewest points under it */
+  legend?: boolean | "clear";
   /** colors for the frame and text; the report's light ones when absent (the app passes its dark ones in Old school) */
   theme?: PlotTheme;
 }
@@ -155,12 +156,44 @@ export function linePlot(p: PlotSpec): string {
   parts.push("</g>");
   if (p.legend) {
     const items = p.series.filter((s) => s.label);
+    // the legend's box, and where it goes: top left, or with "clear" the corner that covers the fewest points
+    const bw = 40 + Math.max(0, ...items.map((s) => s.label!.length)) * 6;
+    const bh = items.length * 15 + 6;
+    const L = M.l + 4;
+    const R = W - M.r - 4 - bw;
+    const T = M.t + 2;
+    const B = H - M.b - 2 - bh;
+    let [lx, ty] = [M.l, T];
+    if (p.legend === "clear") {
+      const under = (bx: number, by: number) => {
+        let n = 0;
+        for (const s of p.series)
+          for (let i = 0; i < s.x.length; i++) {
+            if (!Number.isFinite(s.x[i]) || !Number.isFinite(s.y[i])) continue;
+            const X = sx(s.x[i]);
+            const Y = sy(s.y[i]);
+            if (X >= bx - 5 && X <= bx + bw + 5 && Y >= by - 5 && Y <= by + bh + 5) n += s.dots ? 3 : 1;
+          }
+        return n;
+      };
+      let best = Infinity;
+      for (const [cx, cy] of [[L, T], [R, T], [L, B], [R, B]] as const) {
+        const n = under(cx, cy);
+        if (n < best) [best, lx, ty] = [n, cx, cy];
+      }
+      parts.push(`<rect x="${lx}" y="${ty}" width="${bw}" height="${bh}" fill="${th.surface}" fill-opacity="0.85" rx="3"/>`);
+    }
+    const dx = lx - M.l;
+    const dy = ty - M.t - 2;
     items.forEach((s, i) => {
-      const Y = M.t + 12 + i * 15;
+      const Y = M.t + 12 + i * 15 + dy;
+      const X0 = M.l + dx;
       parts.push(s.hollow
-        ? `<circle cx="${M.l + 17}" cy="${Y - 4}" r="3.6" fill="${th.surface}" stroke="${s.color}" stroke-width="1.6"/>`
-        : `<line x1="${M.l + 8}" x2="${M.l + 26}" y1="${Y - 4}" y2="${Y - 4}" stroke="${s.color}" stroke-width="2"${s.dash ? ` stroke-dasharray="${s.dash}"` : ""}/>`);
-      parts.push(`<text x="${M.l + 31}" y="${Y}" fill="${th.ink}">${esc(s.label!)}</text>`);
+        ? `<circle cx="${X0 + 17}" cy="${Y - 4}" r="3.6" fill="${th.surface}" stroke="${s.color}" stroke-width="1.6"/>`
+        : s.dots && s.line === false
+          ? `<circle cx="${X0 + 17}" cy="${Y - 4}" r="4" fill="${s.color}"/>`
+          : `<line x1="${X0 + 8}" x2="${X0 + 26}" y1="${Y - 4}" y2="${Y - 4}" stroke="${s.color}" stroke-width="2"${s.dash ? ` stroke-dasharray="${s.dash}"` : ""}/>`);
+      parts.push(`<text x="${X0 + 31}" y="${Y}" fill="${th.ink}">${esc(s.label!)}</text>`);
     });
   }
   parts.push("</svg>");

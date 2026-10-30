@@ -1491,8 +1491,15 @@ lies on the edge of its search (|k| at 30 mV, or V½ 40 mV beyond the data), and
 than drawing a curve from the edge.
 
 On the GnRH cell's activation preset this is the case: Peak − is outward at +40 mV (and at +30 without the filter),
-every point gives V½ −153 mV, k +30 at the edge, so no fit; G > 0 only gives V½ −14 mV, k −4.5 mV (tested). The
+every point puts the best at the edge of the search (V½ −120 mV, k +0.5: flat at zero across the data, rms 1.2); G > 0 only gives V½ −14 mV, k −4.5 mV (tested). The
 cloud session traced the negative G to the fast A-type K⁺ current, outward from the window's first sample because
 the GnRH sodium current peaks (~0.06 ms) before the preset's window opens at 0.2 ms; it also found that the preset's
 E_rev of +50 mV (the cortical E_Na) is below the GnRH cell's +54. Whether the GnRH presets get their own window start
 and E_rev is the owner's to decide; nothing in the presets changed.
+
+Revised the same day (4b): "No fit" hid the very thing the owner wanted seen. Now the best least-squares curve is
+always drawn, across the data's range only, with V½, k and the rms misfit; where the best lies at the search's edge
+the caption says so plainly ("the best fit lies at the edge of the search (V½ −120 mV, k 0.5 mV): these points do not
+settle on a Boltzmann") and the title marks it. `fitBoltzmann` returns the best with an `edge` flag instead of NaN.
+The normalized plot pads its x and y ranges so no marker is clipped, and both voltage-clamp plots put their legend
+in the corner that covers the fewest points (`legend: "clear"` in svgplot; other plots keep theirs top left).

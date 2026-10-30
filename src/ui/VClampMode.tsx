@@ -207,7 +207,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
       const order = pts.map((p, i) => [xOf(p, j), i] as const).sort((a, b) => a[0] - b[0]);
       return { x: order.map(([x]) => x), y: order.map(([, i]) => pts[i].i / u.div), color: colors[j], dots: true, label: `M${j + 1}: ${kindName(measures[j].kind)}` };
     });
-    return linePlot({ series, xlabel: xLabel, ylabel: `${u.unit === "pA/pF" ? "measured I" : "measured current"} (${u.unit})`, hlines: [{ y: 0, color: pal.muted }], legend: true, theme, width: 520, height: 150 });
+    return linePlot({ series, xlabel: xLabel, ylabel: `${u.unit === "pA/pF" ? "measured I" : "measured current"} (${u.unit})`, hlines: [{ y: 0, color: pal.muted }], legend: "clear", theme, width: 520, height: 150 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [points, xAxis, pal, u.div, u.unit]);
   const normSvg = useMemo(() => {
@@ -217,11 +217,15 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     const outFit = order.filter(([, i]) => !normalized.ok[i] && normalized.dropped);
     const series: Series[] = [{ x: inFit.map(([x]) => x), y: inFit.map(([, i]) => normalized.y[i]), color: colors[0], dots: true, line: false, label: "M1, normalized" }];
     if (outFit.length) series.push({ x: outFit.map(([x]) => x), y: outFit.map(([, i]) => normalized.y[i]), color: colors[0], dots: true, hollow: true, line: false, label: "left out of the fit" });
-    // every point on the plot: nothing is clipped
+    // every point on the plot, with room for its marker: nothing is clipped
     const ys = normalized.y.filter(Number.isFinite);
     const yLo = Math.min(0, ...ys);
     const yHi = Math.max(1, ...ys);
+    const yPad = 0.08 * (yHi - yLo);
+    const xs0 = order.map(([x]) => x);
+    const xPad = 0.02 * ((xs0[xs0.length - 1] ?? 1) - (xs0[0] ?? 0) || 1);
     const f = normalized.fit;
+    // the best curve is drawn however poor, across the data's range only, so a V½ far outside it stretches nothing
     if (f && Number.isFinite(f.vHalf) && order.length) {
       const lo = order[0][0];
       const hi = order[order.length - 1][0];
@@ -229,7 +233,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
       for (let v = lo; v <= hi; v += (hi - lo) / 100 || 1) xs.push(v);
       series.push({ x: xs, y: xs.map((v) => 1 / (1 + Math.exp((v - f.vHalf) / f.k))), color: pal.blue, label: "Boltzmann fit" });
     }
-    return linePlot({ series, xlabel: xLabel, ylabel: norm === "G" && varied === "v" ? "G / Gmax" : "I / |I|max", yrange: [Math.min(-0.1, yLo - 0.05), Math.max(1.1, yHi + 0.05)], legend: true, theme, width: 520, height: 150 });
+    return linePlot({ series, xlabel: xLabel, ylabel: norm === "G" && varied === "v" ? "G / Gmax" : "I / |I|max", xrange: xs0.length ? [xs0[0] - xPad, xs0[xs0.length - 1] + xPad] : undefined, yrange: [Math.min(-0.1, yLo - yPad), Math.max(1.1, yHi + yPad)], legend: "clear", theme, width: 520, height: 150 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalized, pal, norm]);
 
@@ -278,13 +282,13 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
           </figure>
           <figure className="card">
             <figcaption>
-              <span>M1 normalized{normalized?.fit && Number.isFinite(normalized.fit.vHalf) ? `: V½ ${fmt(normalized.fit.vHalf)} mV, k ${fmt(normalized.fit.k)} mV` : ""}
+              <span>M1 normalized{normalized?.fit && Number.isFinite(normalized.fit.vHalf) ? `: V½ ${fmt(normalized.fit.vHalf)} mV, k ${fmt(normalized.fit.k)} mV${normalized.fit.edge ? " (at the search's edge)" : ""}` : ""}
                 {normalized && !normalized.fit && Number.isFinite(normalized.zero) ? `: M1 reverses at ${fmt(normalized.zero)} mV` : ""}</span>
             </figcaption>
             {normSvg ? <div className="svgplot" dangerouslySetInnerHTML={{ __html: normSvg }} /> : null}
             <p className="legendline">
               {norm === "G" && varied === "v" ? <>G = I / (V − E_rev), E_rev {erev} mV, divided by the largest positive G. </> : <>I divided by the I largest in magnitude, so that point is 1 or −1. </>}
-              {varied !== "v" ? "No fit: the varied value is a duration." : !fitOn ? "No fit: a tail family is linear; where it crosses zero is the reversal of what was open." : !normalized?.fit || !Number.isFinite(normalized.fit.vHalf) ? "No fit: these points do not settle on a Boltzmann (the best V½ or k lies at the edge of the search)." : <>A Boltzmann, 1/(1 + exp((V − V½)/k)), is fitted by least squares to {normalized.dropped > 0 ? <>the rest; {normalized.dropped === 1 ? "1 point" : `${normalized.dropped} points`} with negative G {normalized.dropped === 1 ? "is" : "are"} left out of the fit (drawn hollow): there the current measured is outward, not the conductance being normalized</> : "every point"}. Rms misfit {fmt(normalized.fit.rms, 3)}.</>}
+              {varied !== "v" ? "No fit: the varied value is a duration." : !fitOn ? "No fit: a tail family is linear; where it crosses zero is the reversal of what was open." : !normalized?.fit || !Number.isFinite(normalized.fit.vHalf) ? "No fit: fewer than three points." : <>A Boltzmann, 1/(1 + exp((V − V½)/k)), is fitted by least squares to {normalized.dropped > 0 ? <>the rest; {normalized.dropped === 1 ? "1 point" : `${normalized.dropped} points`} with negative G {normalized.dropped === 1 ? "is" : "are"} left out of the fit (drawn hollow): there the current measured is outward, not the conductance being normalized</> : "every point"}. Rms misfit {fmt(normalized.fit.rms, 3)}.{normalized.fit.edge ? <> The best fit lies at the edge of the search (V½ {fmt(normalized.fit.vHalf)} mV, k {fmt(normalized.fit.k)} mV): these points do not settle on a Boltzmann.</> : null}</>}
               {xAxis === "vm" && vmOk(0) && " Plotted against the cell's true Vm, not the command."}
               {xAxis === "vm" && !vmOk(0) && " True Vm applies where M1 is taken in the varied segment; here it is plotted against the command."}
             </p>

@@ -349,13 +349,14 @@ export function zeroCrossing(x: number[], y: number[]): number {
  * Least-squares Boltzmann through normalized points: y = 1/(1 + exp((x − V½)/k)).
  * Activation curves have k < 0, inactivation curves k > 0. Grid search over
  * V½ and k, then a finer grid around the best; returns NaN for fewer than
- * three points, and NaN where the best lies on the edge of the search (|k| at
- * 30 mV, or V½ 40 mV beyond the data): there the points are not a Boltzmann
- * the search can settle on, and a curve drawn from the edge would be wild.
- * A poor fit that does settle is returned, with its rms misfit.
+ * three points. The best is always returned, with its rms misfit, however
+ * poor: a bad fit is something to see. Where it lies on the edge of the search
+ * (|k| at 30 mV, or V½ 40 mV beyond the data) `edge` is set: the points do not
+ * settle on a Boltzmann, and V½ and k are where the search stopped, not
+ * properties of the data.
  */
-export function fitBoltzmann(x: number[], y: number[]): { vHalf: number; k: number; rms: number } {
-  if (x.length < 3) return { vHalf: NaN, k: NaN, rms: NaN };
+export function fitBoltzmann(x: number[], y: number[]): { vHalf: number; k: number; rms: number; edge: boolean } {
+  if (x.length < 3) return { vHalf: NaN, k: NaN, rms: NaN, edge: false };
   const sse = (vh: number, k: number) => {
     let e = 0;
     for (let i = 0; i < x.length; i++) {
@@ -384,7 +385,7 @@ export function fitBoltzmann(x: number[], y: number[]): { vHalf: number; k: numb
     for (let k = best.k - 20 * step * 10; k <= best.k + 20 * step * 10; k += step * 10) kk.push(+k.toFixed(6));
     scan(best.vh - 20 * step * 10, best.vh + 20 * step * 10, step * 10, kk);
   }
+  if (!Number.isFinite(best.e)) return { vHalf: NaN, k: NaN, rms: NaN, edge: false };
   const edge = Math.abs(best.k) >= 29.9 || best.vh <= lo + 0.5 || best.vh >= hi - 0.5;
-  if (edge || !Number.isFinite(best.e)) return { vHalf: NaN, k: NaN, rms: NaN };
-  return { vHalf: best.vh, k: best.k, rms: Math.sqrt(best.e / x.length) };
+  return { vHalf: best.vh, k: best.k, rms: Math.sqrt(best.e / x.length), edge };
 }
