@@ -242,16 +242,19 @@ export function runVCFamily(cell: BuiltCell, inp: VCInputs, p: VCProtocol, opt: 
 
 /**
  * Where and how to measure, chosen by the experimenter: a window relative to
- * the start of one segment, and what to take in it. Peak inward is the most
- * negative current, peak outward the most positive; sustained is the mean
- * over the window; cursor is the value at the window's start.
+ * the start of one segment, and what to take in it. Plain operations, named
+ * for what they compute, so the student decides what each means: "peakIn" is
+ * the minimum (the most negative current), "peakOut" the maximum, "peakAbs"
+ * the value largest in magnitude with its sign kept, "mean" the mean over the
+ * window, and "cursor" the value at the window's start. (The keys predate the
+ * names; presets and saved state use them.)
  */
 export interface VCMeasure {
   seg: number;
   /** window, ms from the segment's start */
   from: number;
   to: number;
-  kind: "peakIn" | "peakOut" | "mean" | "cursor";
+  kind: "peakIn" | "peakOut" | "peakAbs" | "mean" | "cursor";
 }
 
 export interface VCPoint {
@@ -305,10 +308,10 @@ export function measureSweep(sw: VCSweep, m: VCMeasure): VCPoint {
   const b = Math.min(n - 1, Math.max(a, Math.round(t1 / sw.sampleMs)));
   let j = a;
   let i = sw.iRec[a];
-  if (m.kind === "peakIn" || m.kind === "peakOut") {
+  if (m.kind === "peakIn" || m.kind === "peakOut" || m.kind === "peakAbs") {
     for (let x = a; x <= b; x++) {
       const y = sw.iRec[x];
-      if (m.kind === "peakIn" ? y < i : y > i) {
+      if (m.kind === "peakIn" ? y < i : m.kind === "peakOut" ? y > i : Math.abs(y) > Math.abs(i)) {
         i = y;
         j = x;
       }

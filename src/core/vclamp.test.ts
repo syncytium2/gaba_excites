@@ -111,7 +111,7 @@ describe("voltage clamp: the ideal clamp and the measurements", () => {
     for (let j = 600; j < a.iTrue.length; j += 50) expect(Math.abs(a.iTrue[j] - b.iTrue[j])).toBeLessThan(0.5);
   });
 
-  it("measures peak inward, peak outward, the mean over a window, and a cursor, on the recorded current", () => {
+  it("measures the min, the max, the value largest in magnitude, the mean over a window, and a cursor, on the recorded current", () => {
     const sw: VCSweep = {
       value: 0,
       sampleMs: 1,
@@ -125,6 +125,11 @@ describe("voltage clamp: the ideal clamp and the measurements", () => {
     expect(measureSweep(sw, { seg: 1, from: 0, to: 7, kind: "peakOut" })).toMatchObject({ i: 8, t: 5 });
     expect(measureSweep(sw, { seg: 1, from: 4, to: 7, kind: "mean" }).i).toBe(6);
     expect(measureSweep(sw, { seg: 0, from: 1, to: 1, kind: "cursor" }).i).toBe(-5);
+    // Max |I|: the value largest in magnitude, with its sign kept
+    expect(measureSweep(sw, { seg: 1, from: 0, to: 7, kind: "peakAbs" })).toMatchObject({ i: -20, t: 2 });
+    expect(measureSweep(sw, { seg: 1, from: 2, to: 7, kind: "peakAbs" })).toMatchObject({ i: 8, t: 5 });
+    // Min is the plain minimum: where the current is outward throughout, it is the smallest outward value, not a peak
+    expect(measureSweep(sw, { seg: 1, from: 3, to: 7, kind: "peakIn" }).i).toBe(6);
   });
 
   it("fits a Boltzmann: recovers V½ and k from points on one, either sign of k", () => {

@@ -21,7 +21,14 @@ const MAX_SWEEPS = 30;
 const MAX_SWEEP_MS = 3000;
 /** after each command step, this much of the record is left out of the y autoscale: the capacitive transient */
 
-const KINDS = [["peakIn", "Peak in"], ["peakOut", "Peak out"], ["mean", "Mean"], ["cursor", "Cursor"]] as const;
+// What a measurement takes, named for what it computes, and the same name everywhere it shows: the buttons, the
+// captions, the table and the Old school readout. Nothing here decides what the current means; the student does.
+const KINDS = [["peakOut", "Max"], ["peakIn", "Min"], ["mean", "Mean"], ["peakAbs", "Max |I|"], ["cursor", "Cursor"]] as const;
+const kindName = (k: VCMeasure["kind"]) => KINDS.find((x) => x[0] === k)![1];
+const KIND_HINT =
+  "In the window: Max is the most positive current, Min the most negative, Mean the average, Max |I| the value " +
+  "largest in size whichever its sign (the sign is kept), and Cursor the value at the window's start. Min is not a " +
+  "peak when the current is outward throughout: it is then the smallest outward value.";
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 
 /**
@@ -189,7 +196,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     if (!sweeps.length) return "";
     const series: Series[] = points.map((pts, j) => {
       const order = pts.map((p, i) => [xOf(p, j), i] as const).sort((a, b) => a[0] - b[0]);
-      return { x: order.map(([x]) => x), y: order.map(([, i]) => pts[i].i / u.div), color: colors[j], dots: true, label: `M${j + 1}: ${KINDS.find((k) => k[0] === measures[j].kind)![1].toLowerCase()}` };
+      return { x: order.map(([x]) => x), y: order.map(([, i]) => pts[i].i / u.div), color: colors[j], dots: true, label: `M${j + 1}: ${kindName(measures[j].kind)}` };
     });
     return linePlot({ series, xlabel: xLabel, ylabel: `${u.unit === "pA/pF" ? "measured I" : "measured current"} (${u.unit})`, hlines: [{ y: 0, color: pal.muted }], legend: true, theme, width: 520, height: 150 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -210,7 +217,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
       for (let v = lo; v <= hi; v += (hi - lo) / 100 || 1) xs.push(v);
       series.push({ x: xs, y: xs.map((v) => 1 / (1 + Math.exp((v - f.vHalf) / f.k))), color: pal.blue, label: "Boltzmann fit" });
     }
-    return linePlot({ series, xlabel: xLabel, ylabel: norm === "G" && varied === "v" ? "G / Gmax" : "I / Imax", yrange: [Math.min(-0.1, yLo - 0.05), Math.max(1.1, yHi + 0.05)], legend: true, theme, width: 520, height: 150 });
+    return linePlot({ series, xlabel: xLabel, ylabel: norm === "G" && varied === "v" ? "G / Gmax" : "I / |I|max", yrange: [Math.min(-0.1, yLo - 0.05), Math.max(1.1, yHi + 0.05)], legend: true, theme, width: 520, height: 150 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalized, pal, norm]);
 
@@ -254,7 +261,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
         </figure>
         <div className="vc-side">
           <figure className="card">
-            <figcaption><span>Measured: {measures.map((m, j) => `M${j + 1} ${KINDS.find((k) => k[0] === m.kind)![1].toLowerCase()}`).join(", ")}</span></figcaption>
+            <figcaption><span>Measured: {measures.map((m, j) => `M${j + 1} ${kindName(m.kind)}`).join(", ")}</span></figcaption>
             {ivSvg ? <div className="svgplot" dangerouslySetInnerHTML={{ __html: ivSvg }} /> : <p className="legendline">Run a protocol to see what it measures.</p>}
           </figure>
           <figure className="card">
@@ -264,7 +271,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
             </figcaption>
             {normSvg ? <div className="svgplot" dangerouslySetInnerHTML={{ __html: normSvg }} /> : null}
             <p className="legendline">
-              {norm === "G" && varied === "v" ? <>G = I / (V − E_rev), E_rev {erev} mV, over its largest. </> : <>I over its largest. </>}
+              {norm === "G" && varied === "v" ? <>G = I / (V − E_rev), E_rev {erev} mV, divided by the largest positive G. </> : <>I divided by the I largest in magnitude, so that point is 1 or −1. </>}
               {varied !== "v" ? "No fit: the varied value is a duration." : fitOn ? <>A Boltzmann, 1/(1 + exp((V − V½)/k)), is fitted by least squares{normalized && normalized.dropped > 0 ? <>, leaving out {normalized.dropped === 1 ? "the point" : `the ${normalized.dropped} points`} where G is negative: there the current measured is outward, not the conductance being normalized (block K⁺ under CHANNELS for a clean curve)</> : null}.</> : "No fit: a tail family is linear; where it crosses zero is the reversal of what was open."}
               {xAxis === "vm" && vmOk(0) && " Plotted against the cell's true Vm, not the command."}
               {xAxis === "vm" && !vmOk(0) && " True Vm applies where M1 is taken in the varied segment; here it is plotted against the command."}
@@ -338,7 +345,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
                   {segs.map((_, i) => <option key={i} value={i}>{i + 1}</option>)}
                 </select>
               </AmpSlot>
-              <AmpChoice label="Take" value={m.kind} options={KINDS} onChange={(kind) => setMeasure(j, { kind })} />
+              <AmpChoice label="Take" value={m.kind} options={KINDS} onChange={(kind) => setMeasure(j, { kind })} hint={KIND_HINT} />
               <AmpSlot label="From, ms">{num(m.from, (from) => setMeasure(j, { from }), 52, 0.1)}</AmpSlot>
               {m.kind !== "cursor" && <AmpSlot label="To, ms">{num(m.to, (to) => setMeasure(j, { to }), 52, 0.1)}</AmpSlot>}
             </AmpSection>
@@ -349,7 +356,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
             </AmpSection>
           )}
           <AmpSection name="ANALYSIS">
-            <AmpChoice label="Normalize M1" value={norm} options={[["I", "I/Imax"], ["G", "G/Gmax"]] as const} onChange={setNorm} />
+            <AmpChoice label="Normalize M1" value={norm} options={[["I", "I/|I|max"], ["G", "G/Gmax"]] as const} onChange={setNorm} />
             {norm === "G" && <AmpSlot label="E_rev, mV">{num(erev, setErev)}</AmpSlot>}
             <AmpChoice label="Boltzmann fit" value={fitOn ? "on" : "off"} options={[["on", "On"], ["off", "Off"]] as const} onChange={(v) => setFitOn(v === "on")} />
             <AmpChoice label="Plot against" value={xAxis} options={[["cmd", "Command"], ["vm", "True Vm"]] as const} onChange={setXAxis} />
@@ -357,7 +364,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
               </AmpRow>
             </>
           ),
-          summary: `${preset ? preset.label : "Custom protocol"} · hold ${proto.hold} mV · ${proto.vary.count} sweeps · ` + measures.map((m, j) => `M${j + 1} ${KINDS.find((k) => k[0] === m.kind)![1].toLowerCase()} in segment ${m.seg + 1}`).join(", "),
+          summary: `${preset ? preset.label : "Custom protocol"} · hold ${proto.hold} mV · ${proto.vary.count} sweeps · ` + measures.map((m, j) => `M${j + 1} ${kindName(m.kind)} in segment ${m.seg + 1}`).join(", "),
         }}
         simulation={{
           rows: (
@@ -380,7 +387,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
       {sweeps.length > 0 && (
             <div className="tablewrap vc-table">
               <table>
-                <thead><tr><th>{varied === "dur" ? "ms" : "mV"}</th>{points.map((_, j) => <th key={j}>M{j + 1} ({u.unit})</th>)}<th>true Vm (mV)</th></tr></thead>
+                <thead><tr><th>{varied === "dur" ? "ms" : "mV"}</th>{points.map((_, j) => <th key={j}>M{j + 1} {kindName(measures[j]?.kind ?? "mean")} ({u.unit})</th>)}<th>true Vm (mV)</th></tr></thead>
                 <tbody>
                   {sweeps.map((sw, k) => (
                     <tr key={k}><td>{sw.value}</td>{points.map((pts, j) => <td key={j}>{fmt(pts[k].i / u.div, u.div === 1 ? 1 : 2)}</td>)}<td>{fmt(points[0]?.[k]?.vm ?? NaN, 1)}</td></tr>
@@ -578,7 +585,7 @@ function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height }:
           if (better) best = p;
         }
         if (!best) return "";
-        const name = { peakIn: "Min", peakOut: "Max", mean: "Mean", cursor: "Crsr" }[m.kind];
+        const name = kindName(m.kind);
         const v = best.value;
         return `M${j + 1} ${name} ${(best.i / u.div).toFixed(Math.abs(best.i / u.div) < 10 ? 2 : 1).replace("-", "−")}${u.unit} @${valueUnit === "mV" && v > 0 ? "+" : ""}${String(+v.toFixed(1)).replace("-", "−")}${valueUnit}`;
       })

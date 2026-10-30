@@ -568,8 +568,10 @@ ideal: V is the command, and each command step carries a one-step capacitive spi
 taken as compensated.</p>
 <ul>
   <li><strong>Nothing is drawn from the model's equations.</strong> No activation or inactivation curve appears until a
-  protocol has run and you have said where to measure: peak inward, peak outward, the mean over a window (sustained),
-  or a cursor, in a window of one segment. Up to two measurements; the first is normalized (I/Imax, or G/Gmax with
+  protocol has run and you have said what to take, in a window of one segment: the Max (most positive current), the
+  Min (most negative), the Mean, Max |I| (the value largest in magnitude, sign kept) or a Cursor. Each is the plain
+  operation it names: when the current is outward throughout a window, its Min is the smallest outward value, not a
+  peak. Up to two measurements; the first is normalized (I/|I|max, or G/Gmax with
   G = I/(V − E_rev)) and fitted with a Boltzmann, or, for a tail family, read for where it reverses.</li>
   <li><strong>Measured on the recorded current</strong>, through the amplifier's filter and with its noise, as on a rig.
   (Current clamp measures true Vm; this is the owner's choice for voltage clamp.) The true current and the cell's true

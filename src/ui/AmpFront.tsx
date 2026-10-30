@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { Knob, useNarrow } from "./Knob.tsx";
 import { NumField } from "./NumField.tsx";
+import { Tip } from "./Tip.tsx";
 
 /**
  * The oscilloscope's front panel: a made-up amplifier, with GABA and
@@ -63,7 +64,7 @@ export function AmpRow({ children }: { children: React.ReactNode }) {
  * Any control that is not a dial, in a cell the same height as a dial's, with its
  * name on the same line as the dials' names and its bottom on their bottom line.
  */
-export function AmpSlot({ label, children }: { label: string; children: React.ReactNode }) {
+export function AmpSlot({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="amp-slot">
       <span className="amp-slot-label">{label}</span>
@@ -73,11 +74,11 @@ export function AmpSlot({ label, children }: { label: string; children: React.Re
 }
 
 /** A row of push buttons that pick one value, such as Poisson / Regular. */
-export function AmpChoice<T extends string | number>({ label, value, options, onChange, disabled }: {
-  label: string; value: T; options: readonly (readonly [T, string])[]; onChange: (v: T) => void; disabled?: boolean;
+export function AmpChoice<T extends string | number>({ label, value, options, onChange, disabled, hint }: {
+  label: string; value: T; options: readonly (readonly [T, string])[]; onChange: (v: T) => void; disabled?: boolean; hint?: string;
 }) {
   return (
-    <AmpSlot label={label}>
+    <AmpSlot label={hint ? <>{label}<Tip text={hint}>{""}</Tip></> : label}>
       <span className="seg small" role="radiogroup" aria-label={label}>
         {options.map(([v, name]) => (
           <button key={String(v)} type="button" role="radio" aria-checked={value === v} className={value === v ? "on" : ""} disabled={disabled}

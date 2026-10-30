@@ -1458,3 +1458,18 @@ double-click reset on either moves both, each keeps its own y, and the crosshair
 its own (a measurement window moved) takes up the zoom the other is at. The step protocol already shared one zoom
 across its stacked plots, and the oscilloscope has none, so neither changed. `scripts/screenshot.mjs` zooms the
 current plot, checks the strip followed, and resets from the strip.
+
+## 2026-10-30 — voltage clamp: measurements named for what they compute
+
+Review of v0.2.10, the owner: M1 "peak" read as a smart peak, probably max(|I|). It was the plain minimum. "Peak in"
+returned the most negative current, which where the current is outward throughout a window is the smallest outward
+value, not a peak; the normalized panel divided by the largest magnitude, which is the max(|I|) he sensed; and the
+Old school readout called the same thing "Min". Asked whether to add a true peak-magnitude measure, the owner: a
+smart measure does the work for the student; the options should be the plain ones, max, min, mean and max(absolute).
+
+So the choices are now Max, Min, Mean, Max |I| (the value largest in magnitude, sign kept; new) and Cursor, with the
+same name on the buttons, the captions, the legend, the table and the readout, and a ? on Take saying what each
+computes and that Min is not a peak when the current is outward throughout. The normalized panel says what it divides
+by (I/|I|max; G by the largest positive G). No marker flags an outward Min: that would be interpreting for the
+student. The kind keys stay `peakIn`/`peakOut` (presets use them); `peakAbs` is new. No number changed, so the oracle
+and the quoted numbers stand. The preset notes, methods page, README and llms.txt say Max/Min/Mean/Max |I|/Cursor.
