@@ -241,10 +241,10 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
               </>}>true current and Vm</Tip>
             </span>
           </figcaption>
-          {sweeps.length > 0 && <VCTraces sweeps={sweeps} measures={measures} showTrue={showTrue} pal={pal} height={Math.max(330, screenH - 110)} />}
+          {sweeps.length > 0 && <VCTraces sweeps={sweeps} measures={measures} showTrue={showTrue} pal={pal} valueUnit={varied === "v" ? "mV" : "ms"} height={Math.max(330, screenH - 110)} />}
           <p className="legendline">
-            Sweeps shade {pal.name === "dark" ? "dim → bright" : "light → dark"} with the varied value. Shaded windows show where each
-            measurement is taken (<span style={{ color: colors[0] }}>■</span> M1, <span style={{ color: colors[1] }}>■</span> M2). The
+            Sweeps shade {pal.name === "dark" ? "dim → bright" : "light → dark"} with the varied value. {pal.name === "dark" ? <>Dotted gates mark where each measurement is taken, and the readout under the screen gives each one's extreme over the family.</> : <>Shaded windows show where each
+            measurement is taken (<span style={{ color: colors[0] }}>■</span> M1, <span style={{ color: colors[1] }}>■</span> M2).</>} The
             capacitive transient after each command step is left out of the autoscale.
           </p>
           {error && <div className="warn" role="alert">Simulation failed: {error}</div>}
@@ -389,11 +389,14 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   );
 }
 
+/** the gates' colors on the tube: phosphor green for M1, a paler, bluer green for M2 */
+const GATE = ["rgba(170, 255, 190, 0.95)", "rgba(150, 220, 255, 0.9)"];
+
 /** below this, a normalized G is taken as not the conductance at all, and left out of the fit */
 const NEG_G = 0.05;
 
 /** The current traces of a family over the command, with each measurement's window shaded. */
-function VCTraces({ sweeps, measures, showTrue, pal, height }: { sweeps: VCSweep[]; measures: VCMeasure[]; showTrue: boolean; pal: ChartColors; height: number }) {
+function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, height }: { sweeps: VCSweep[]; measures: VCMeasure[]; showTrue: boolean; pal: ChartColors; valueUnit: string; height: number }) {
   const cu = useCurrentUnit();
   const n = Math.max(...sweeps.map((s) => s.iRec.length));
   const dt = sweeps[0].sampleMs;
@@ -460,7 +463,28 @@ function VCTraces({ sweeps, measures, showTrue, pal, height }: { sweeps: VCSweep
       for (const [a, b] of merged) {
         const x0 = u0.valToPos(a, "x", true);
         const x1 = Math.max(x0 + 2, u0.valToPos(b, "x", true));
-        ctx.fillRect(x0, u0.bbox.top, x1 - x0, u0.bbox.height);
+        if (!tube) {
+          ctx.fillRect(x0, u0.bbox.top, x1 - x0, u0.bbox.height);
+          continue;
+        }
+        // a Tektronix measurement gate: two dotted bars and the gate's name at the top of the screen
+        const pr = devicePixelRatio || 1;
+        ctx.globalAlpha = 0.85;
+        ctx.strokeStyle = GATE[j];
+        ctx.lineWidth = pr;
+        ctx.setLineDash([2 * pr, 3 * pr]);
+        ctx.beginPath();
+        for (const x of [x0, x1]) {
+          ctx.moveTo(Math.round(x) + 0.5, u0.bbox.top);
+          ctx.lineTo(Math.round(x) + 0.5, u0.bbox.top + u0.bbox.height);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = `${10 * pr}px ui-monospace, Menlo, monospace`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.fillStyle = GATE[j];
+        ctx.fillText(`M${j + 1}`, x0 + 3 * pr, u0.bbox.top + 2 * pr);
       }
     });
     ctx.restore();
@@ -535,12 +559,33 @@ function VCTraces({ sweeps, measures, showTrue, pal, height }: { sweeps: VCSweep
     series: [],
     hooks,
   });
+  // In the tube, a readout under the graticule as a Tektronix prints its measurements: each one's extreme over
+  // the family, and the sweep it came from.
+  const readout = tube
+    ? measures.map((m, j) => {
+        let best: VCPoint | null = null;
+        for (const s of sweeps) {
+          const p = measureSweep(s, m);
+          const better = !best || (m.kind === "peakIn" ? p.i < best.i : m.kind === "peakOut" ? p.i > best.i : Math.abs(p.i) > Math.abs(best.i));
+          if (better) best = p;
+        }
+        if (!best) return "";
+        const name = { peakIn: "Min", peakOut: "Max", mean: "Mean", cursor: "Crsr" }[m.kind];
+        const v = best.value;
+        return `M${j + 1} ${name} ${(best.i / u.div).toFixed(Math.abs(best.i / u.div) < 10 ? 2 : 1).replace("-", "−")}${u.unit} @${valueUnit === "mV" && v > 0 ? "+" : ""}${String(+v.toFixed(1)).replace("-", "−")}${valueUnit}`;
+      })
+    : [];
   return (
     <div className={"vc-plots" + (tube ? " vc-tube" : "")}>
       <Plot className="vc-i" deps={[pal, showTrue, sweeps.length, u.unit, JSON.stringify(measures), yr[0], yr[1], height]} data={iData}
         options={(w) => ({ ...common(w, Math.max(160, height - CMD_H - 34), [xBare, yAxis(`current (${u.unit})`)], { draw: [windows] }), series: series("I"), scales: { x: { time: false }, y: { range: yr } } })} />
       <Plot className="vc-v" deps={[pal, showTrue, sweeps.length, ySize, vr[0], vr[1], JSON.stringify(levels)]} data={vData}
         options={(w) => ({ ...common(w, CMD_H + 34, [xTime, { ...yAxis("command"), grid: { show: false }, splits: () => [hold], values: () => [mv(hold)] }], { draw: [labelLevels] }), series: series("V"), scales: { x: { time: false }, y: { range: vr } } })} />
+      {tube && (
+        <div className="tek-readout" aria-label="Measurement readout">
+          {readout.map((r, j) => <span key={j} style={{ color: GATE[j] }}>{r}</span>)}
+        </div>
+      )}
     </div>
   );
 }
