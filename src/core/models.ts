@@ -18,6 +18,7 @@ import {
   sigmoidRate,
   tauBell,
   tauGauss,
+  type GateTable,
   type Channel,
 } from "./channels.ts";
 import { BETA_MOUSE } from "./beta.ts";
@@ -293,6 +294,8 @@ export const LTS: ModelDef = {
 const EK_G = -101;
 const ENA_G = 54;
 const ECA_G = 82.5;
+/** GnRH gates are tabulated (channels.ts GateTable) for speed on the oscilloscope; gnrh.test.ts still holds the paper numbers. */
+const GNRH_TABLE: GateTable = { vmin: -130, vmax: 80, dv: 0.05 };
 
 export const GNRH: ModelDef = {
   id: "gnrh",
@@ -320,7 +323,7 @@ export const GNRH: ModelDef = {
       channel: makeGated("nap", "INaP", [
         { name: "m", inf: boltzmann(-41.5, -3.0), tau: 0.4 },
         { name: "h", inf: boltzmann(-47.4, 8.2), tau: tauBell(67.3, -27.5, 67.3, 27.5, 574.5, 62.6) },
-      ], (g, o) => g[o] * g[o + 1]),
+      ], (g, o) => g[o] * g[o + 1], GNRH_TABLE),
       gbar: 0.39,
       erev: ENA_G,
     },
@@ -329,14 +332,14 @@ export const GNRH: ModelDef = {
         { name: "m", inf: boltzmann(-29.4, -6.64), tau: tauBell(-2.91, 25.6, 65.3, -10.6, 1, 0.0527) },
         { name: "h1", inf: boltzmann(-69.8, 4.26), tau: 7.67 },
         { name: "h2", inf: boltzmann(-69.8, 4.26), tau: 100 },
-      ], (g, o) => g[o] * (0.8 * g[o + 1] + 0.2 * g[o + 2])),
+      ], (g, o) => g[o] * (0.8 * g[o + 1] + 0.2 * g[o + 2]), GNRH_TABLE),
       gbar: 313,
       erev: EK_G,
     },
     {
       channel: makeGated("k", "IK", [
         { name: "m", inf: boltzmann(-19.7, -12.3), tau: tauBell(23.8, 18, 23.8, -18, 10.6, 0) },
-      ], (g, o) => g[o] ** 4),
+      ], (g, o) => g[o] ** 4, GNRH_TABLE),
       gbar: 57,
       erev: EK_G,
     },
@@ -344,7 +347,7 @@ export const GNRH: ModelDef = {
       channel: makeGated("lva", "ILVA (T-type)", [
         { name: "m", inf: boltzmann(-51.4, -4.07), tau: tauBell(31.3, 10.1, 31.3, -10.1, 109, 0.0391) },
         { name: "h", inf: boltzmann(-80.1, 5.5), tau: 250 },
-      ], (g, o) => g[o] * g[o] * g[o + 1]),
+      ], (g, o) => g[o] * g[o] * g[o + 1], GNRH_TABLE),
       gbar: 0.0679,
       erev: ECA_G,
       carriesCa: true,
@@ -354,7 +357,7 @@ export const GNRH: ModelDef = {
         { name: "m", inf: boltzmann(-11, -7), tau: 0.816 },
         { name: "h1", inf: boltzmann(-36.6, 14.6), tau: 53.4 },
         { name: "h2", inf: boltzmann(-36.6, 14.6), tau: 728 },
-      ], (g, o) => g[o] * (0.2 * g[o + 1] + 0.8 * g[o + 2])),
+      ], (g, o) => g[o] * (0.2 * g[o + 1] + 0.8 * g[o + 2]), GNRH_TABLE),
       gbar: 5.16,
       erev: ECA_G,
       carriesCa: true,
@@ -362,7 +365,7 @@ export const GNRH: ModelDef = {
     {
       channel: makeGated("s", "IS (slow inward)", [
         { name: "m", inf: boltzmann(-45, -12), tau: 1500 },
-      ], (g, o) => g[o]),
+      ], (g, o) => g[o], GNRH_TABLE),
       gbar: 0.18,
       erev: ECA_G,
       carriesCa: true,
@@ -371,7 +374,7 @@ export const GNRH: ModelDef = {
       channel: makeGated("h", "Ih", [
         { name: "h1", inf: boltzmann(-77.4, 9.2), tau: tauGauss(-89.8, 11.6, 35.8, 7.6) },
         { name: "h2", inf: boltzmann(-77.4, 9.2), tau: tauGauss(-82.6, 25.7, 370.9, 54.1) },
-      ], (g, o) => 0.384 * g[o] + 0.616 * g[o + 1]),
+      ], (g, o) => 0.384 * g[o] + 0.616 * g[o + 1], GNRH_TABLE),
       gbar: 1,
       erev: -40,
     },

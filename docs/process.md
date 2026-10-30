@@ -1265,3 +1265,14 @@ computing x∞(V) and τ(V), two or three exponentials apiece, every 0.01 ms ste
 **The scope worker idled a third of the time.** Each tick computed for up to 30 ms, then waited 16 ms, even when it
 was behind. Now a tick that ends behind the asked speed schedules the next at 0 ms (still yielding, so messages are
 answered). GnRH at 30×: 13.3×. Cells that keep up are unchanged.
+
+**GnRH gates tabulated, as NEURON's TABLE does.** `makeGated` takes an optional voltage grid (`GateTable`, channels.ts):
+each gate's step x ← A·x + B, A = exp(−dt/τ), B = x∞·(1 − A), precomputed per dt at 0.05 mV from −130 to +80 mV and
+interpolated linearly; outside the grid, the exact formulas. Only the GnRH model opts in (its seven `makeGated`
+channels; the Markov INaF is not tabulated), so the pyramidal cell's NEURON check and the beta cell are untouched.
+Cost to accuracy, 10 s at +10 pA, dt 0.01: the same 35 spikes, spike times drifting by at most 0.45 ms by the end.
+All 181 tests pass, `gnrh.test.ts` (the paper's numbers) and `gaba.test.ts` (the quoted crossovers) among them.
+Speed, Node one core: 18× → 28×. Chromium at 30×: 13.3× → 22.3×; RS and FS 30×, LTS 29.5×, unchanged.
+
+Not done: 30× for GnRH. What is left is spread out (the stream loop, the voltage solve, the Markov INaF). A larger
+dt would get there but changes the model and every quoted number; not without the owner.

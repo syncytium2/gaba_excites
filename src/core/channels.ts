@@ -202,10 +202,55 @@ export interface GateSpec {
   tau: number | ((v: number) => number);
 }
 
+/**
+ * A voltage grid for tabulating gates, as NEURON's TABLE does: each gate's
+ * step x ← A·x + B, with A = exp(−dt/τ(V)) and B = x∞(V)·(1 − A), is
+ * precomputed per dt on the grid and interpolated linearly. Outside
+ * [vmin, vmax) the exact formulas are used.
+ */
+export interface GateTable {
+  vmin: number;
+  vmax: number;
+  dv: number;
+}
+
 /** A channel made of independent HH gates; `combine` turns the gate values into an open fraction. */
-export function makeGated(id: string, label: string, gates: GateSpec[], combine: (g: Float64Array | number[], o: number) => number): Channel {
+export function makeGated(
+  id: string,
+  label: string,
+  gates: GateSpec[],
+  combine: (g: Float64Array | number[], o: number) => number,
+  table?: GateTable,
+): Channel {
   const n = gates.length;
   const tauOf = gates.map((g) => (typeof g.tau === "number" ? (() => g.tau as number) : g.tau));
+  // rows of [A₀, B₀, A₁, B₁, …], one row per grid voltage, one table per dt
+  const tables = new Map<number, Float64Array>();
+  const rows = table ? Math.round((table.vmax - table.vmin) / table.dv) + 1 : 0;
+  const vmin = table ? table.vmin : 0;
+  const vmax = table ? table.vmax : -Infinity;
+  const dv = table ? table.dv : 1;
+  let lastDt = NaN;
+  let last: Float64Array = new Float64Array(0);
+  const tableFor = (dt: number): Float64Array => {
+    if (dt === lastDt) return last;
+    let t = tables.get(dt);
+    if (!t) {
+      t = new Float64Array(rows * n * 2);
+      for (let r = 0; r < rows; r++) {
+        const v = vmin + r * dv;
+        for (let i = 0; i < n; i++) {
+          const a = Math.exp(-dt / tauOf[i](v));
+          t[(r * n + i) * 2] = a;
+          t[(r * n + i) * 2 + 1] = gates[i].inf(v) * (1 - a);
+        }
+      }
+      tables.set(dt, t);
+    }
+    lastDt = dt;
+    last = t;
+    return t;
+  };
   return {
     id,
     label,
@@ -215,6 +260,20 @@ export function makeGated(id: string, label: string, gates: GateSpec[], combine:
       for (let i = 0; i < n; i++) s[o + i] = gates[i].inf(v);
     },
     advance(v, dt, s, o) {
+      if (v >= vmin && v < vmax) {
+        const t = tableFor(dt);
+        const x = (v - vmin) / dv;
+        const r = Math.floor(x);
+        const f = x - r;
+        const j0 = r * n * 2;
+        const j1 = j0 + n * 2;
+        for (let i = 0; i < n; i++) {
+          const a = t[j0 + 2 * i] + f * (t[j1 + 2 * i] - t[j0 + 2 * i]);
+          const b = t[j0 + 2 * i + 1] + f * (t[j1 + 2 * i + 1] - t[j0 + 2 * i + 1]);
+          s[o + i] = a * s[o + i] + b;
+        }
+        return;
+      }
       for (let i = 0; i < n; i++) s[o + i] = relax(s[o + i], gates[i].inf(v), tauOf[i](v), dt);
     },
     open(s, o) {
