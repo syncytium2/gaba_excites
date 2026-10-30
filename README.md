@@ -59,6 +59,14 @@ Five cell models, chosen from a menu:
   compound, accordion and slow glycolytic bursting. Transcribed from the paper
   (the PFK rate law from the authors' code) and checked against what it
   reports.
+- **Squid giant axon:** Hodgkin & Huxley (1952, J Physiol 117:500). The first
+  model of the action potential, only Na⁺, K⁺ and a leak, on a space-clamped
+  10 000 µm² patch (no propagation), with a temperature control (Q₁₀ = 3, from
+  6.3 °C). Checked against NEURON's built-in `hh`: spike counts match exactly
+  on 21 steps at 6.3 and 18.5 °C, every spike within 0.01 ms. Rheobase 225 pA
+  (2.25 µA/cm²); between 600 and 700 pA it jumps from no repetitive firing to
+  59 Hz; and release from a step only 3.3 mV below rest fires a spike (anode
+  break).
 
 Side by side, they make the course's point. A large, leaky cell needs hundreds
 of picoamps to fire (561 pA). A small cell with an input resistance near

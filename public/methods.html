@@ -42,6 +42,7 @@
   <li><a href="#lts">The LTS cell: rebound</a></li>
   <li><a href="#gnrh">The GnRH neuron</a></li>
   <li><a href="#beta">The mouse pancreatic beta cell</a></li>
+  <li><a href="#hh">The squid giant axon (Hodgkin–Huxley)</a></li>
   <li><a href="#passive">Leak, Cm, Ihold, and the measured Rin</a></li>
   <li><a href="#electrode">The electrode: Rs, bridge balance, pipette capacitance</a></li>
   <li><a href="#synapses">PSCs</a></li>
@@ -247,6 +248,35 @@ glucose-free cell, R<sub>GK</sub> = 0) sets the siren's current scale, and the l
 recording would have. E<sub>GABA</sub> for this cell is the app's generic −80 mV, a placeholder: GABA's action on beta
 cells is the human cell's lesson (Braun et al. 2010), next on the roadmap.</p>
 
+<h2 id="hh">1e. The squid giant axon (Hodgkin–Huxley)</h2>
+<p>The sixth model is where the subject began: Hodgkin &amp; Huxley's (1952) description of the action potential of the
+squid giant axon, with only a Na⁺ and a K⁺ current and a leak. It is <strong>space-clamped</strong>: one patch of
+membrane, with no propagation, the paper's "membrane action potential". A propagating spike needs a cable, which is on
+the roadmap. The patch is 10 000 µm², so 1 µF/cm² makes 100 pF and 100 pA is 1 µA/cm²:</p>
+<span class="eq">Cm dV/dt = −(I_Na + I_K + I_L) + I_inj
+
+I_Na = 120 mS/cm² · m³h (V − 50)     α_m = 0.1 (V + 40)/(1 − exp(−(V + 40)/10))   β_m = 4 exp(−(V + 65)/18)
+                                      α_h = 0.07 exp(−(V + 65)/20)                 β_h = 1/(1 + exp(−(V + 35)/10))
+I_K  = 36 mS/cm² · n⁴ (V + 77)       α_n = 0.01 (V + 55)/(1 − exp(−(V + 55)/10))  β_n = 0.125 exp(−(V + 65)/80)
+I_L  = 0.3 mS/cm² · (V + 54.387)
+
+every rate × φ = 3^((T − 6.3)/10)</span>
+<p>These are the paper's equations in the modern sign convention, rest at −65 mV and depolarization positive, as
+NEURON's built-in <code>hh</code> mechanism writes them. A <strong>Temperature</strong> control scales every rate by
+φ, with Q<sub>10</sub> = 3; it opens at 6.3 °C, the temperature of the paper's calculations.</p>
+<p><strong>How it was checked.</strong> Against NEURON 9.0.2 running its own <code>hh</code> on the same patch
+(<code>tools/neuron_oracle_hh.py</code>), with NEURON's rate tables turned off (it otherwise interpolates the rates
+from a 200-point table) and its leak reversal set to the paper's −54.387 mV (NEURON rounds it to −54.3). On 21 current
+steps at 6.3 and 18.5 °C, from no spikes to 280, depolarization block and anode break included, the spike counts match
+exactly and every spike is within one time step (0.01 ms). So, like the pyramidal cell and unlike the GnRH neuron, it
+has a code oracle (<code>src/core/hh.test.ts</code>). The paper itself has not yet been read for this port; the
+equations come from NEURON's file, and nothing here quotes a page or figure from the paper.</p>
+<p><strong>What it shows.</strong> It rests at −65 mV, and its rheobase for an 800 ms step is 225 pA (2.25 µA/cm²).
+Up to 600 pA it fires once or twice as the step starts, then stops. At 700 pA it fires all the way through, at
+59 Hz; there is no slow firing in between, unlike the cortical cells, whose rate climbs from near zero. A step of only
+−300 pA, which holds it 3.3 mV below rest, fires a spike on release: anode break excitation. E<sub>GABA</sub> for
+this cell defaults to rest, a placeholder: the squid giant axon has no GABA synapse.</p>
+
 <h2 id="passive">2. Leak, Cm, Ihold, and the measured Rin</h2>
 <p>A model file specifies densities per unit area. An experimenter reads whole-cell quantities off the amplifier. The
 simulator takes the whole-cell quantities and maps them onto the model:</p>
@@ -271,6 +301,11 @@ simulator takes the whole-cell quantities and maps them onto the model:</p>
   from that same settled state, as though each were recorded after a long interval.</li>
   <li><strong>τm = Rin·Cm</strong>, with the measured Rin, is shown as a derived value. With a single compartment it is also the time constant
   of the voltage response to a small step.</li>
+  <li><strong>Current, in pA or in pA/pF.</strong> A switch beside the mode switch shows every injected and recorded
+  current either in pA or divided by Cm, as current density in pA/pF, which at 1 µF/cm² is the same number as µA/cm².
+  Density takes the cell's size out: the pyramidal cell's 561 pA rheobase is 1.94 pA/pF, the squid axon's 225 pA is
+  2.25. It changes only what is shown. The app, the simulation and the CSV keep every current in pA, and each number
+  converts by the Cm of the cell it came from, a pinned F–I curve by its own.</li>
 </ul>
 <p class="note">Rin at the holding potential is also reported. Depolarizing holding current recruits the M current and
 lowers the effective input resistance. That is physiology, not a discrepancy.</p>

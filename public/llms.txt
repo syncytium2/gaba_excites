@@ -36,10 +36,17 @@ background, is at https://gaba.tonydefazio.com/explainer (a first draft).
     IK(Ca), IK(ATP), cytosolic and ER calcium, oscillating glycolysis and
     calcium-slowed ATP production. It fires on its own in glucose, so it runs
     on the oscilloscope only, with a glucose control (the glucokinase rate) and
-    the paper's patterns.
+    the paper's patterns;
+  - the squid giant axon of Hodgkin & Huxley 1952 (J Physiol 117:500,
+    doi:10.1113/jphysiol.1952.sp004764): INa and IK only, on a space-clamped
+    10 000 um^2 patch (100 pF, so 100 pA = 1 uA/cm^2), with a temperature
+    control (Q10 = 3, default 6.3 degC). No propagation.
 - The user sets whole-cell passive properties — the leak conductance gL in nS,
   Cm (sets cell size; channel densities stay fixed) and holding current — and
   electrode properties: series resistance, bridge balance, pipette capacitance.
+- Currents show in pA or, with a switch, as density in pA/pF (= uA/cm^2 at
+  1 uF/cm^2), each converted by its own cell's Cm. Display only: the
+  simulation and the CSV stay in pA.
 - Runs families of current steps (first/increment/count, or any list) and
   reports rheobase (refinable to 1 pA), spike threshold (dV/dt >= 20 V/s),
   AP peak and half-width, input resistance (measured, never set: from the
@@ -92,6 +99,13 @@ within 0.2 ms (dt = 0.01 ms).
 GnRH neuron: transcribed from the paper (no public code exists to compare
 against). It reproduces what the paper reports: -6 pA holds it at -70 mV, and
 500 ms steps of 0/6/12/18/24/30 pA give 0/0/0/1/4/6 spikes, as in its Fig. 7F.
+
+Squid axon: spike counts match NEURON 9.0.2's built-in hh mechanism (rate
+tables off, E_L -54.387 mV) exactly on 21 steps at 6.3 and 18.5 degC, every
+spike within 0.01 ms. Rheobase 225 pA (2.25 uA/cm^2, 800 ms step); no slow
+firing: between 600 and 700 pA it goes from one or two spikes to 59 Hz;
+release from -300 pA (3.3 mV below rest) fires an anode-break spike. The 1952
+paper itself has not yet been read for the port; the equations are hh.mod's.
 
 Beta cell: transcribed from the paper, the PFK rate law from the authors' code.
 It reproduces what the paper reports: glycolysis alone oscillates at R_GK 0.2
