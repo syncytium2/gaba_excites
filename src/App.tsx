@@ -133,7 +133,7 @@ export function App() {
     }
   };
   // Old school dresses the whole page, in both modes, so switching modes is not a change of theme; the
-  // phosphor tube itself stays the oscilloscope's (ScopeMode)
+  // phosphor tube is the oscilloscope's (ScopeMode) and voltage clamp's traces (VClampMode)
   const oldSchool = oldSchoolPref;
   const pal = oldSchool ? DARK_CHART : LIGHT_CHART;
 
