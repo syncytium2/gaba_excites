@@ -31,6 +31,10 @@ one CI step. It merges that framework to main first, so the other sessions can n
   approved; not yet merged or deployed; see `docs/process.md`). Also the
   state of the site after the v0.2.2 deploy and what is open with him.
 
+- [`2026-10-30-workstation.md`](2026-10-30-workstation.md): set the owner's workstation up to deploy, deploy `main`
+  (the voltage-clamp review round, v0.2.10), and push the release and its record before the session ends. Written for
+  a workstation session the cloud session "cloud gaba deploy" will orchestrate.
+
 ## Superseded
 
 - [`2026-10-18-adrs-addendum.md`](2026-10-18-adrs-addendum.md): superseded the same day by
