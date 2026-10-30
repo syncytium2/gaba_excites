@@ -77,6 +77,13 @@ export class OU {
     this.x = this.x * this.decay + this.kick * this.n();
     return this.x;
   }
+  /** the current value, so a run that changes its step can carry the noise on from where it was */
+  get value(): number {
+    return this.x;
+  }
+  set value(x: number) {
+    this.x = x;
+  }
 }
 
 /** RMS of the 10 kHz filter's output for unit white noise at dtMs: Σh² of its impulse response, square-rooted. */
@@ -120,6 +127,11 @@ export class Recorder {
     this.hum = p.humAmp;
     this.humW = (2 * Math.PI * p.humHz) / 1000;
     this.humPhase = 2 * Math.PI * rng(seed ^ 0x5bd1e995)();
+  }
+
+  /** Set the recorder's clock (for the hum's phase), ms: a recorder taking over partway through a sweep. */
+  at(tMs: number): void {
+    this.n = Math.round(tMs / this.dtMs);
   }
 
   /** Start at a steady pipette signal: the filter is settled there, and this is the first sample. */

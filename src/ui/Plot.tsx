@@ -9,10 +9,12 @@ interface Props {
   className?: string;
   /** recreate the chart when this changes (series count, colors…) */
   deps: unknown[];
+  /** new data keep the current zoom instead of autoscaling (a zoomed view's data refined in place) */
+  keepScales?: boolean;
 }
 
 /** Thin uPlot wrapper: recreate on structural change, setData otherwise, resize with the container. */
-export function Plot({ options, data, className, deps }: Props) {
+export function Plot({ options, data, className, deps, keepScales }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const chart = useRef<uPlot | null>(null);
 
@@ -34,7 +36,17 @@ export function Plot({ options, data, className, deps }: Props) {
   }, deps);
 
   useEffect(() => {
-    chart.current?.setData(data);
+    const u = chart.current;
+    if (!u) return;
+    if (!keepScales) {
+      u.setData(data);
+      return;
+    }
+    // new data under the same zoom: setData without rescaling keeps the old visible index range, so the x range is
+    // set again to have uPlot find which samples it now covers
+    const { min, max } = u.scales.x;
+    u.setData(data, false);
+    if (min != null && max != null) u.setScale("x", { min, max });
   }, [data]);
 
   return <div ref={box} className={className} />;

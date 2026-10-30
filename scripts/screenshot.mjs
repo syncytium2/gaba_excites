@@ -295,6 +295,52 @@ for (const id of await page.locator("#vc-preset option").evaluateAll((os) => os.
 }
 await page.selectOption("#vc-preset", "vc-act");
 await vcRan("activation again");
+// The current plot and the command strip share one time axis: a drag-zoom on either moves both, and the
+// double-click reset does too (the owner: "command does not follow", 2026-10-30).
+{
+  const xOf = (sel) => page.locator(`${sel} .uplot`).getAttribute("data-x");
+  const full = await xOf(".vc-i");
+  const over = await page.locator(".vc-i .u-over").boundingBox();
+  await page.mouse.move(over.x + over.width * 0.1, over.y + over.height * 0.5);
+  await page.mouse.down();
+  await page.mouse.move(over.x + over.width * 0.3, over.y + over.height * 0.5, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const [zi, zv] = [await xOf(".vc-i"), await xOf(".vc-v")];
+  if (zi === full) problems.push("vc zoom: a drag on the current plot did not zoom it");
+  if (zi !== zv) problems.push(`vc zoom: the command strip did not follow the current plot (${zi} vs ${zv})`);
+  await page.screenshot({ path: `${out}/vc-zoom.png`, fullPage: false });
+  await page.locator(".vc-v .u-over").dblclick();
+  await page.waitForTimeout(200);
+  const [ri, rv] = [await xOf(".vc-i"), await xOf(".vc-v")];
+  if (ri !== full || rv !== full) problems.push(`vc zoom: a double-click on the strip did not reset both (${ri}, ${rv}; full ${full})`);
+  // Zoomed to 2 ms or less, the view re-simulates at 1 µs steps, with a progress bar, then a badge (the owner,
+  // 2026-10-30). Zoom twice: the second zoom cancels the first refinement, and only the last may land.
+  const dragFrac = async (f0, f1) => {
+    const o = await page.locator(".vc-i .u-over").boundingBox();
+    await page.mouse.move(o.x + o.width * f0, o.y + o.height * 0.5);
+    await page.mouse.down();
+    await page.mouse.move(o.x + o.width * f1, o.y + o.height * 0.5, { steps: 6 });
+    await page.mouse.up();
+  };
+  const [x0, x1] = full.split(",").map(Number);
+  await dragFrac((9.5 - x0) / (x1 - x0), (11.5 - x0) / (x1 - x0)); // 2 ms around the step
+  await page.waitForTimeout(500);
+  await dragFrac(0.25, 0.5); // about 0.5 ms
+  const span = (await xOf(".vc-i")).split(",").map(Number);
+  if (!(span[1] - span[0] < 1)) problems.push(`vc refine: the second zoom is ${span[1] - span[0]} ms wide`);
+  try {
+    await page.waitForSelector(".vc-i-wrap .refine-badge", { timeout: 30000 });
+    if (await page.locator(".refine-bar").count()) problems.push("vc refine: the progress bar is still up beside the badge");
+    if ((await xOf(".vc-i")) !== span.join(",")) problems.push("vc refine: the refinement moved the zoom");
+    await page.screenshot({ path: `${out}/vc-refined.png`, fullPage: false });
+  } catch {
+    problems.push("vc refine: no 1 µs badge within 30 s of zooming to 0.5 ms");
+  }
+  await page.locator(".vc-v .u-over").dblclick();
+  await page.waitForTimeout(300);
+  if (await page.locator(".refine-badge, .refine-bar").count()) problems.push("vc refine: the badge or bar outlived the reset");
+}
 await page.locator(".vc-block input").first().uncheck();
 await page.waitForTimeout(300);
 await vcRan("a blocked run");

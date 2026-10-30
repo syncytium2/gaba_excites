@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type uPlot from "uplot";
 import type { CellParams } from "../core/cell.ts";
 import { DEFAULT_NOISE, type NoiseParams } from "../core/noise.ts";
 import { FILTER_KHZ } from "../core/filter.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "../core/synapses.ts";
-import { VC_PRESETS, vcPresetsFor } from "../core/protocol.ts";
+import { VC_DEFAULT_FILTER, VC_PRESETS, vcPresetsFor } from "../core/protocol.ts";
+import { ION_NAME, MODELS, ionReversal, type Ion } from "../core/models.ts";
 import { blankSweep, fitBoltzmann, measureSweep, transientMs, zeroCrossing, type VCMeasure, type VCPoint, type VCProtocol, type VCSweep } from "../core/vclamp.ts";
 import { linePlot, type PlotTheme, type Series } from "../core/svgplot.ts";
 import type { VCRequest, VCResponse } from "../vc-worker.ts";
 import { AmpChoice, AmpDial, AmpRow, AmpSection, AmpSlot, RigPanels } from "./AmpFront.tsx";
 import { Plot } from "./Plot.tsx";
+import { mergeHooks, xSyncGroup } from "./xsync.ts";
+import { FINE_DT, REFINE_DELAY_MS, planRefine, spliceWindow, type Refined } from "./refine.ts";
 import { Tip } from "./Tip.tsx";
 import { axisOpts } from "./axis.ts";
 import { useCurrentUnit, type CurrentUnit } from "./current.tsx";
@@ -20,7 +23,21 @@ const MAX_SWEEPS = 30;
 const MAX_SWEEP_MS = 3000;
 /** after each command step, this much of the record is left out of the y autoscale: the capacitive transient */
 
-const KINDS = [["peakIn", "Peak in"], ["peakOut", "Peak out"], ["mean", "Mean"], ["cursor", "Cursor"]] as const;
+// What a measurement takes, named for what it computes, and the same name everywhere it shows: the buttons, the
+// captions, the table and the Old school readout. Nothing here decides what the current means; the student does.
+// "In" and "out" are hard for students (the owner, 2026-10-30), so a peak is one choice with a sign: Peak + is the
+// most positive current (key peakOut), Peak − the most negative (key peakIn). The keys predate the names.
+const NAMES: Record<VCMeasure["kind"], string> = { peakOut: "Peak +", peakIn: "Peak −", peakAbs: "Max |I|", mean: "Mean", cursor: "Cursor" };
+const kindName = (k: VCMeasure["kind"]) => NAMES[k];
+type Take = "peak" | "peakAbs" | "mean" | "cursor";
+const TAKES = [["peak", "Peak"], ["peakAbs", "Max |I|"], ["mean", "Mean"], ["cursor", "Cursor"]] as const;
+const SIGNS = [["peakOut", "+"], ["peakIn", "−"]] as const;
+const takeOf = (k: VCMeasure["kind"]): Take => (k === "peakIn" || k === "peakOut" ? "peak" : k);
+const KIND_HINT =
+  "In the window: Peak + is the most positive current, Peak − the most negative; Max |I| is the value largest in " +
+  "size whichever its sign (the sign is kept); Mean is the average, and Cursor the value at the window's start. " +
+  "Peak − is not a peak when the current is outward throughout: it is then the smallest outward value.";
+const erevSub = (ion: Ion) => ({ na: "_Na", k: "_K", ca: "_Ca", cation: "_rev" })[ion];
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 
 /**
@@ -54,18 +71,37 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   const [presetId, setPresetId] = useState(VC_PRESETS[0].id);
   const [proto, setProto] = useState<VCProtocol>(VC_PRESETS[0].protocol);
   const [measures, setMeasures] = useState<VCMeasure[]>(VC_PRESETS[0].measures);
-  const [norm, setNorm] = useState<"I" | "G">(VC_PRESETS[0].norm);
-  const [erev, setErev] = useState(VC_PRESETS[0].erev ?? 50);
+  // With two measurements on, they are usually different currents (sodium early, potassium late), and one E_rev
+  // cannot make both a conductance, so the normalization opens as I/|I|max; G/Gmax is one click away (the owner,
+  // 2026-10-30). With one, the preset's own choice.
+  const normFor = (ms: VCMeasure[], preset: "I" | "G") => (ms.length > 1 ? "I" : preset);
+  const [norm, setNorm] = useState<"I" | "G">(normFor(VC_PRESETS[0].measures, VC_PRESETS[0].norm));
+  // E_rev is the selected model's own reversal for the ion the preset normalizes by, from its channel data; it
+  // resets on every model or preset change, and a typed value holds until then (the owner, 2026-10-30)
+  const [erevIon, setErevIon] = useState<Ion | undefined>(VC_PRESETS[0].erevIon);
+  const [erevReset, setErevReset] = useState(0);
+  const modelErev = erevIon ? ionReversal(MODELS[cell.model], erevIon, cell.knobs) : undefined;
+  const [erev, setErev] = useState(modelErev ?? 50);
+  useEffect(() => {
+    if (modelErev !== undefined) setErev(modelErev);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cell.model, erevIon, erevReset]);
   const [fitOn, setFitOn] = useState(VC_PRESETS[0].fit ?? true);
+  // which points the fit uses: all of them by default, so a poor fit shows (the owner, 2026-10-30)
+  const [fitPos, setFitPos] = useState(false);
   // An ideal clamp to begin with, so the first view is clean; the Rs dial is beside it (docs/process.md)
   const [rs, setRs] = useState(0);
   const [blank, setBlank] = useState(false);
-  // 10 kHz, as current clamp opens: a lower filter blunts the fast sodium peak and moves the fitted G–V (vclamp.test.ts)
-  const [noise, setNoise] = useState<NoiseParams>({ ...DEFAULT_NOISE, recSigma: 2, recFilter: 10 });
+  // the opening preset's filter (the activation preset's is off), else 10 kHz as current clamp: a filter blunts the fast
+  // sodium peak, and its ring after the capacitive step reaches into an early window (vclamp.test.ts)
+  const [noise, setNoise] = useState<NoiseParams>({ ...DEFAULT_NOISE, recSigma: 2, recFilter: VC_PRESETS[0].filter ?? VC_DEFAULT_FILTER });
   const [showTrue, setShowTrue] = useState(false);
   const [xAxis, setXAxis] = useState<"cmd" | "vm">("cmd");
   const [seed, setSeed] = useState(1);
-  const [result, setResult] = useState<{ sweeps: VCSweep[]; ms: number; protocol: VCProtocol } | null>(null);
+  // the run on screen, and the request that made it: a zoomed window re-simulates exactly that
+  const [result, setResult] = useState<{ sweeps: VCSweep[]; ms: number; protocol: VCProtocol; req: VCRequest } | null>(null);
+  // the family run's progress, 0..1, while one is running (a GnRH family takes seconds)
+  const [runProgress, setRunProgress] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const preset = vcPresetsFor(cell.model).find((p) => p.id === presetId);
@@ -76,9 +112,14 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     setPresetId(id);
     setProto(p.protocol);
     setMeasures(p.measures);
-    setNorm(p.norm);
+    setNorm(normFor(p.measures, p.norm));
     setFitOn(p.fit ?? true);
-    if (p.erev !== undefined) setErev(p.erev);
+    // a preset opens with its own filter (the activation preset's is off), every other at the default
+    setNoise((n) => ({ ...n, recFilter: p.filter ?? VC_DEFAULT_FILTER }));
+    if (p.erevIon) {
+      setErevIon(p.erevIon);
+      setErevReset((n) => n + 1);
+    }
   };
   const putProto = (p: VCProtocol) => {
     setProto(p);
@@ -100,17 +141,22 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
 
   const worker = useRef<Worker | null>(null);
   const lastId = useRef(0);
-  const pending = useRef(proto);
+  const pending = useRef<VCRequest | null>(null);
   useEffect(() => {
     const w = new Worker(new URL("../vc-worker.ts", import.meta.url), { type: "module" });
     w.onmessage = (ev: MessageEvent<VCResponse>) => {
       const r = ev.data;
       if (r.id !== lastId.current) return; // stale
-      if (r.kind === "run") {
-        setResult({ sweeps: r.sweeps, ms: r.ms, protocol: pending.current });
+      if (r.kind === "progress") {
+        setRunProgress(r.f);
+        return;
+      }
+      if (r.kind === "run" && pending.current) {
+        setResult({ sweeps: r.sweeps, ms: r.ms, protocol: pending.current.protocol, req: pending.current });
         setError(null);
-      } else setError(r.message);
+      } else if (r.kind === "error") setError(r.message);
       setBusy(false);
+      setRunProgress(null);
     };
     worker.current = w;
     return () => w.terminate();
@@ -121,7 +167,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     setBusy(true);
     const h = setTimeout(() => {
       const id = ++lastId.current;
-      pending.current = proto;
+      setRunProgress(0);
       const msg: VCRequest = {
         id,
         cell,
@@ -129,6 +175,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
         protocol: proto,
         seed,
       };
+      pending.current = msg;
       worker.current?.postMessage(msg);
     }, 90);
     return () => clearTimeout(h);
@@ -137,7 +184,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
 
   // ------------------------------------------------------------ measuring
   // the capacitive transient after a step, for the plot's range and for blanking
-  const capMs = transientMs(rs, cell.cm, result?.sweeps[0]?.sampleMs ?? 0.02, noise.recFilter);
+  const capMs = transientMs(rs, cell.cm, result?.sweeps[0]?.sampleMs ?? 0.01, noise.recFilter);
   const sweeps = useMemo(() => (blank ? (result?.sweeps ?? []).map((sw) => blankSweep(sw, capMs)) : result?.sweeps ?? []), [result, blank, capMs]);
   const points: VCPoint[][] = useMemo(() => measures.map((m) => sweeps.map((sw) => measureSweep(sw, m))), [sweeps, measures]);
   const vary = result?.protocol.vary ?? proto.vary;
@@ -156,30 +203,34 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   const cu = useCurrentUnit();
   const u = vcUnit(maxAbs, cu);
 
-  // the first measurement, normalized: I/Imax, or G/Gmax with G = I/(V − E_rev); fitted where the varied thing is a voltage
+  // each measurement, normalized: I/|I|max, or G/Gmax with G = I/(V − E_rev); fitted where the varied thing is a
+  // voltage (the owner, 2026-10-30: the normalized panel takes M2 as well as M1)
   const normalized = useMemo(() => {
-    const pts = points[0] ?? [];
-    if (!pts.length) return null;
-    const x = pts.map(xOf);
-    const asG = norm === "G" && varied === "v";
-    const raw = pts.map((p, i) => (asG ? p.i / (x[i] - erev) : p.i));
-    // A conductance is positive: Gmax is the largest positive G. A point whose G comes out clearly negative is
-    // not that conductance (at +40 mV the K⁺ current can outweigh what sodium is left, so "peak in" is outward);
-    // it is drawn but not fitted. Near zero is a closed channel plus noise, and is fitted. A current keeps its
-    // sign: Imax is the largest in magnitude.
-    let big = 0;
-    for (const r of raw) if (Number.isFinite(r) && (asG ? r > big : Math.abs(r) > Math.abs(big))) big = r;
-    const y = raw.map((r) => (big !== 0 ? r / big : NaN));
-    const ok = x.map((_, i) => Number.isFinite(x[i]) && Number.isFinite(y[i]) && (!asG || y[i] > -NEG_G));
-    const dropped = asG ? y.filter((v) => Number.isFinite(v) && v <= -NEG_G).length : 0;
-    const fx = x.filter((_, i) => ok[i]);
-    const fy = y.filter((_, i) => ok[i]);
-    const fit = varied === "v" && fitOn ? fitBoltzmann(fx, fy) : null;
-    // where the measured current changes sign, by linear interpolation: a reversal potential, for a tail family
-    const zero = varied === "v" ? zeroCrossing(x, pts.map((p) => p.i)) : NaN;
-    return { x, y, fit, zero, dropped };
+    const out = points.map((pts, j) => {
+      if (!pts.length) return null;
+      const x = pts.map((p) => xOf(p, j));
+      const asG = norm === "G" && varied === "v";
+      const raw = pts.map((p, i) => (asG ? p.i / (x[i] - erev) : p.i));
+      // Gmax is the largest positive G; a current keeps its sign, and I is divided by the one largest in magnitude.
+      // By default every point is fitted, so a family that is not one conductance (at +40 mV the K⁺ current can
+      // outweigh what sodium is left, and Peak − is outward) shows as a poor fit. "G > 0 only" leaves out the
+      // points whose G is clearly negative, draws them hollow, and says how many.
+      let big = 0;
+      for (const r of raw) if (Number.isFinite(r) && (asG ? r > big : Math.abs(r) > Math.abs(big))) big = r;
+      const y = raw.map((r) => (big !== 0 ? r / big : NaN));
+      const leaveOut = asG && fitPos;
+      const ok = x.map((_, i) => Number.isFinite(x[i]) && Number.isFinite(y[i]) && (!leaveOut || y[i] > -NEG_G));
+      const dropped = leaveOut ? y.filter((v) => Number.isFinite(v) && v <= -NEG_G).length : 0;
+      const fx = x.filter((_, i) => ok[i]);
+      const fy = y.filter((_, i) => ok[i]);
+      const fit = varied === "v" && fitOn && big !== 0 ? fitBoltzmann(fx, fy) : null;
+      // where the measured current changes sign, by linear interpolation: a reversal potential, for a tail family
+      const zero = varied === "v" ? zeroCrossing(x, pts.map((p) => p.i)) : NaN;
+      return { x, y, ok, fit, zero, dropped, noMax: big === 0 };
+    });
+    return out.some(Boolean) ? out : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, norm, erev, xAxis, varied, fitOn]);
+  }, [points, norm, erev, xAxis, varied, fitOn, fitPos]);
 
   // ------------------------------------------------------------ plots
   const theme: PlotTheme = { ink: pal.ink2, ink2: pal.ink2, grid: pal.grid, axis: pal.axis, surface: pal.surface };
@@ -188,28 +239,46 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     if (!sweeps.length) return "";
     const series: Series[] = points.map((pts, j) => {
       const order = pts.map((p, i) => [xOf(p, j), i] as const).sort((a, b) => a[0] - b[0]);
-      return { x: order.map(([x]) => x), y: order.map(([, i]) => pts[i].i / u.div), color: colors[j], dots: true, label: `M${j + 1}: ${KINDS.find((k) => k[0] === measures[j].kind)![1].toLowerCase()}` };
+      return { x: order.map(([x]) => x), y: order.map(([, i]) => pts[i].i / u.div), color: colors[j], dots: true, label: `M${j + 1}: ${kindName(measures[j].kind)}` };
     });
-    return linePlot({ series, xlabel: xLabel, ylabel: `${u.unit === "pA/pF" ? "measured I" : "measured current"} (${u.unit})`, hlines: [{ y: 0, color: pal.muted }], legend: true, theme, width: 520, height: 150 });
+    return linePlot({ series, xlabel: xLabel, ylabel: `${u.unit === "pA/pF" ? "measured I" : "measured current"} (${u.unit})`, hlines: [{ y: 0, color: pal.muted }], legend: "clear", theme, width: 520, height: 150 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [points, xAxis, pal, u.div, u.unit]);
   const normSvg = useMemo(() => {
     if (!normalized) return "";
-    const order = normalized.x.map((x, i) => [x, i] as const).filter(([x]) => Number.isFinite(x)).sort((a, b) => a[0] - b[0]);
-    const series: Series[] = [{ x: order.map(([x]) => x), y: order.map(([, i]) => normalized.y[i]), color: colors[0], dots: true, line: false, label: "M1, normalized" }];
-    // every point on the plot: nothing is clipped
-    const ys = normalized.y.filter(Number.isFinite);
-    const yLo = Math.min(0, ...ys);
-    const yHi = Math.max(1, ...ys);
-    const f = normalized.fit;
-    if (f && Number.isFinite(f.vHalf) && order.length) {
-      const lo = order[0][0];
-      const hi = order[order.length - 1][0];
-      const xs: number[] = [];
-      for (let v = lo; v <= hi; v += (hi - lo) / 100 || 1) xs.push(v);
-      series.push({ x: xs, y: xs.map((v) => 1 / (1 + Math.exp((v - f.vHalf) / f.k))), color: pal.blue, label: "Boltzmann fit" });
-    }
-    return linePlot({ series, xlabel: xLabel, ylabel: norm === "G" && varied === "v" ? "G / Gmax" : "I / Imax", yrange: [Math.min(-0.1, yLo - 0.05), Math.max(1.1, yHi + 0.05)], legend: true, theme, width: 520, height: 150 });
+    const series: Series[] = [];
+    const fits: Series[] = [];
+    const allX: number[] = [];
+    const allY: number[] = [];
+    normalized.forEach((nm, j) => {
+      if (!nm) return;
+      const order = nm.x.map((x, i) => [x, i] as const).filter(([x]) => Number.isFinite(x)).sort((a, b) => a[0] - b[0]);
+      const inFit = order.filter(([, i]) => nm.ok[i] || !nm.dropped);
+      const outFit = order.filter(([, i]) => !nm.ok[i] && nm.dropped);
+      series.push({ x: inFit.map(([x]) => x), y: inFit.map(([, i]) => nm.y[i]), color: colors[j], dots: true, line: false, label: `M${j + 1}` });
+      if (outFit.length) series.push({ x: outFit.map(([x]) => x), y: outFit.map(([, i]) => nm.y[i]), color: colors[j], dots: true, hollow: true, line: false, label: `M${j + 1}, left out of the fit` });
+      for (const [x, i] of order) {
+        allX.push(x);
+        if (Number.isFinite(nm.y[i])) allY.push(nm.y[i]);
+      }
+      const f = nm.fit;
+      // the best curve is drawn however poor, across the data's range only, so a V½ far outside it stretches nothing
+      if (f && Number.isFinite(f.vHalf) && order.length) {
+        const lo = order[0][0];
+        const hi = order[order.length - 1][0];
+        const xs: number[] = [];
+        for (let v = lo; v <= hi; v += (hi - lo) / 100 || 1) xs.push(v);
+        fits.push({ x: xs, y: xs.map((v) => 1 / (1 + Math.exp((v - f.vHalf) / f.k))), color: j === 0 ? pal.blue : colors[j], dash: j === 0 ? undefined : "5 3", label: `M${j + 1} fit` });
+      }
+    });
+    // every point on the plot, with room for its marker: nothing is clipped
+    const yLo = Math.min(0, ...allY);
+    const yHi = Math.max(1, ...allY);
+    const yPad = 0.08 * (yHi - yLo);
+    const xLo = Math.min(...allX);
+    const xHi = Math.max(...allX);
+    const xPad = 0.02 * (xHi - xLo || 1);
+    return linePlot({ series: [...series, ...fits], xlabel: xLabel, ylabel: norm === "G" && varied === "v" ? "G / Gmax" : "I / |I|max", xrange: allX.length ? [xLo - xPad, xHi + xPad] : undefined, yrange: [Math.min(-0.1, yLo - yPad), Math.max(1.1, yHi + yPad)], legend: "clear", theme, width: 520, height: 150 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalized, pal, norm]);
 
@@ -224,7 +293,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     setPresetId("custom");
   };
 
-  const status = !valid ? "check the protocol" : tooLong ? `sweeps are limited to ${MAX_SWEEP_MS} ms` : busy ? "simulating…" : result ? `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms` : "";
+  const status = !valid ? "check the protocol" : tooLong ? `sweeps are limited to ${MAX_SWEEP_MS} ms` : busy ? `simulating…${runProgress ? ` ${Math.round(runProgress * 100)}%` : ""}` : result ? `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms` : "";
 
   return (
     <>
@@ -243,7 +312,12 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
               </>}>true current and Vm</Tip>
             </span>
           </figcaption>
-          {sweeps.length > 0 && <VCTraces sweeps={sweeps} measures={measures} showTrue={showTrue} pal={pal} valueUnit={varied === "v" ? "mV" : "ms"} capMs={capMs} height={Math.max(330, screenH - 110)} />}
+          {busy && runProgress !== null && (
+            <div className="sim-progress" role="progressbar" aria-label="Simulating the family" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(runProgress * 100)}>
+              <span style={{ width: `${Math.round(runProgress * 100)}%` }} />
+            </div>
+          )}
+          {sweeps.length > 0 && result && <VCTraces sweeps={sweeps} measures={measures} showTrue={showTrue} pal={pal} valueUnit={varied === "v" ? "mV" : "ms"} capMs={capMs} height={Math.max(330, screenH - 110)} req={result.req} blank={blank} />}
           <p className="legendline">
             Sweeps shade {pal.name === "dark" ? "dim → bright" : "light → dark"} with the varied value. {pal.name === "dark" ? <>Dotted gates mark where each measurement is taken, and the readout under the screen gives each one's extreme over the family.</> : <>Shaded windows show where each
             measurement is taken (<span style={{ color: colors[0] }}>■</span> M1, <span style={{ color: colors[1] }}>■</span> M2).</>} The
@@ -253,20 +327,31 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
         </figure>
         <div className="vc-side">
           <figure className="card">
-            <figcaption><span>Measured: {measures.map((m, j) => `M${j + 1} ${KINDS.find((k) => k[0] === m.kind)![1].toLowerCase()}`).join(", ")}</span></figcaption>
+            <figcaption><span>Measured: {measures.map((m, j) => `M${j + 1} ${kindName(m.kind)}`).join(", ")}</span></figcaption>
             {ivSvg ? <div className="svgplot" dangerouslySetInnerHTML={{ __html: ivSvg }} /> : <p className="legendline">Run a protocol to see what it measures.</p>}
           </figure>
           <figure className="card">
             <figcaption>
-              <span>M1 normalized{normalized?.fit && Number.isFinite(normalized.fit.vHalf) ? `: V½ ${fmt(normalized.fit.vHalf)} mV, k ${fmt(normalized.fit.k)} mV` : ""}
-                {normalized && !normalized.fit && Number.isFinite(normalized.zero) ? `: M1 reverses at ${fmt(normalized.zero)} mV` : ""}</span>
+              <span>Normalized{normalized?.some((nm) => nm?.fit && Number.isFinite(nm.fit.vHalf))
+                ? ": " + normalized.map((nm, j) => (nm?.fit && Number.isFinite(nm.fit.vHalf) ? `M${j + 1} V½ ${fmt(nm.fit.vHalf)} mV, k ${fmt(nm.fit.k)} mV${nm.fit.edge ? " (at the search's edge)" : ""}` : null)).filter(Boolean).join(" · ")
+                : normalized?.some((nm) => nm && !nm.fit && Number.isFinite(nm.zero))
+                  ? ": " + normalized.map((nm, j) => (nm && Number.isFinite(nm.zero) ? `M${j + 1} reverses at ${fmt(nm.zero)} mV` : null)).filter(Boolean).join(" · ")
+                  : ""}</span>
             </figcaption>
             {normSvg ? <div className="svgplot" dangerouslySetInnerHTML={{ __html: normSvg }} /> : null}
             <p className="legendline">
-              {norm === "G" && varied === "v" ? <>G = I / (V − E_rev), E_rev {erev} mV, over its largest. </> : <>I over its largest. </>}
-              {varied !== "v" ? "No fit: the varied value is a duration." : fitOn ? <>A Boltzmann, 1/(1 + exp((V − V½)/k)), is fitted by least squares{normalized && normalized.dropped > 0 ? <>, leaving out {normalized.dropped === 1 ? "the point" : `the ${normalized.dropped} points`} where G is negative: there the current measured is outward, not the conductance being normalized (block K⁺ under CHANNELS for a clean curve)</> : null}.</> : "No fit: a tail family is linear; where it crosses zero is the reversal of what was open."}
-              {xAxis === "vm" && vmOk(0) && " Plotted against the cell's true Vm, not the command."}
-              {xAxis === "vm" && !vmOk(0) && " True Vm applies where M1 is taken in the varied segment; here it is plotted against the command."}
+              {norm === "G" && varied === "v" ? <>G = I / (V − E_rev), E_rev {erev} mV, divided by the largest positive G. </> : <>I divided by the I largest in magnitude, so that point is 1 or −1. </>}
+              {varied !== "v" ? "No fit: the varied value is a duration." : !fitOn ? "No fit: a tail family is linear; where it crosses zero is the reversal of what was open." : <>A Boltzmann, 1/(1 + exp((V − V½)/k)), is fitted by least squares to each measurement.{normalized?.map((nm, j) => {
+                if (!nm) return null;
+                const tag = `M${j + 1}`;
+                if (nm.noMax) return <span key={j}> {tag}: no point has a positive G, so there is no Gmax to divide by.</span>;
+                if (!nm.fit || !Number.isFinite(nm.fit.vHalf)) return <span key={j}> {tag}: no fit, fewer than three points.</span>;
+                return (
+                  <span key={j}> {tag}: {nm.dropped > 0 ? <>{nm.dropped === 1 ? "1 point" : `${nm.dropped} points`} with negative G left out (drawn hollow), where the current measured is outward, not the conductance being normalized; </> : "every point; "}rms misfit {fmt(nm.fit.rms, 3)}.{nm.fit.edge ? <> The best fit lies at the edge of the search (V½ {fmt(nm.fit.vHalf)} mV, k {fmt(nm.fit.k)} mV): these points do not settle on a Boltzmann.</> : null}</span>
+                );
+              })}</>}
+              {xAxis === "vm" && measures.some((_, j) => vmOk(j)) && " Plotted against the cell's true Vm, not the command."}
+              {xAxis === "vm" && measures.some((_, j) => !vmOk(j)) && " True Vm applies where a measurement is taken in the varied segment; elsewhere it is plotted against the command."}
             </p>
           </figure>
         </div>
@@ -337,26 +422,44 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
                   {segs.map((_, i) => <option key={i} value={i}>{i + 1}</option>)}
                 </select>
               </AmpSlot>
-              <AmpChoice label="Take" value={m.kind} options={KINDS} onChange={(kind) => setMeasure(j, { kind })} />
+              <AmpChoice label="Take" value={takeOf(m.kind)} options={TAKES} hint={KIND_HINT}
+                onChange={(t) => setMeasure(j, { kind: t === "peak" ? (takeOf(m.kind) === "peak" ? m.kind : "peakIn") : t })} />
+              {takeOf(m.kind) === "peak" && (
+                <AmpChoice label="Sign" value={m.kind as "peakIn" | "peakOut"} options={SIGNS} onChange={(kind) => setMeasure(j, { kind })} />
+              )}
               <AmpSlot label="From, ms">{num(m.from, (from) => setMeasure(j, { from }), 52, 0.1)}</AmpSlot>
               {m.kind !== "cursor" && <AmpSlot label="To, ms">{num(m.to, (to) => setMeasure(j, { to }), 52, 0.1)}</AmpSlot>}
             </AmpSection>
           ))}
           {measures.length < 2 && (
-            <AmpSection name="MEASURE M2" power={{ on: false, onChange: () => { setMeasures([...measures, { ...measures[0], kind: "mean" }]); setPresetId("custom"); } }}>
+            <AmpSection name="MEASURE M2" power={{ on: false, onChange: () => { setMeasures([...measures, { ...measures[0], kind: "mean" }]); setNorm("I"); setPresetId("custom"); } }}>
               <AmpSlot label="Off">{""}</AmpSlot>
             </AmpSection>
           )}
           <AmpSection name="ANALYSIS">
-            <AmpChoice label="Normalize M1" value={norm} options={[["I", "I/Imax"], ["G", "G/Gmax"]] as const} onChange={setNorm} />
-            {norm === "G" && <AmpSlot label="E_rev, mV">{num(erev, setErev)}</AmpSlot>}
+            <AmpChoice label="Normalize" value={norm} options={[["I", "I/|I|max"], ["G", "G/Gmax"]] as const} onChange={setNorm} />
+            {norm === "G" && (
+              <AmpSlot label="E_rev, mV">
+                {num(erev, setErev)}
+                {erevIon && (
+                  <span className="amp-note">
+                    {modelErev === undefined
+                      ? `this model has no ${ION_NAME[erevIon]} channel`
+                      : `E${erevSub(erevIon)} of this model: ${modelErev > 0 ? "+" : ""}${+modelErev.toFixed(1)} mV${Math.abs(erev - modelErev) > 1e-9 ? " (typed over)" : ""}`}
+                  </span>
+                )}
+              </AmpSlot>
+            )}
             <AmpChoice label="Boltzmann fit" value={fitOn ? "on" : "off"} options={[["on", "On"], ["off", "Off"]] as const} onChange={(v) => setFitOn(v === "on")} />
+            {fitOn && norm === "G" && varied === "v" && (
+              <AmpChoice label="Fit" value={fitPos ? "pos" : "all"} options={[["all", "All points"], ["pos", "G > 0 only"]] as const} onChange={(v) => setFitPos(v === "pos")} />
+            )}
             <AmpChoice label="Plot against" value={xAxis} options={[["cmd", "Command"], ["vm", "True Vm"]] as const} onChange={setXAxis} />
           </AmpSection>
               </AmpRow>
             </>
           ),
-          summary: `${preset ? preset.label : "Custom protocol"} · hold ${proto.hold} mV · ${proto.vary.count} sweeps · ` + measures.map((m, j) => `M${j + 1} ${KINDS.find((k) => k[0] === m.kind)![1].toLowerCase()} in segment ${m.seg + 1}`).join(", "),
+          summary: `${preset ? preset.label : "Custom protocol"} · hold ${proto.hold} mV · ${proto.vary.count} sweeps · ` + measures.map((m, j) => `M${j + 1} ${kindName(m.kind)} in segment ${m.seg + 1}`).join(", "),
         }}
         simulation={{
           rows: (
@@ -379,7 +482,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
       {sweeps.length > 0 && (
             <div className="tablewrap vc-table">
               <table>
-                <thead><tr><th>{varied === "dur" ? "ms" : "mV"}</th>{points.map((_, j) => <th key={j}>M{j + 1} ({u.unit})</th>)}<th>true Vm (mV)</th></tr></thead>
+                <thead><tr><th>{varied === "dur" ? "ms" : "mV"}</th>{points.map((_, j) => <th key={j}>M{j + 1} {kindName(measures[j]?.kind ?? "mean")} ({u.unit})</th>)}<th>true Vm (mV)</th></tr></thead>
                 <tbody>
                   {sweeps.map((sw, k) => (
                     <tr key={k}><td>{sw.value}</td>{points.map((pts, j) => <td key={j}>{fmt(pts[k].i / u.div, u.div === 1 ? 1 : 2)}</td>)}<td>{fmt(points[0]?.[k]?.vm ?? NaN, 1)}</td></tr>
@@ -399,8 +502,80 @@ const GATE = ["rgba(170, 255, 190, 0.95)", "rgba(150, 220, 255, 0.9)"];
 const NEG_G = 0.05;
 
 /** The current traces of a family over the command, with each measurement's window shaded. */
-function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height }: { sweeps: VCSweep[]; measures: VCMeasure[]; showTrue: boolean; pal: ChartColors; valueUnit: string; capMs: number; height: number }) {
+function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height, req, blank }: { sweeps: VCSweep[]; measures: VCMeasure[]; showTrue: boolean; pal: ChartColors; valueUnit: string; capMs: number; height: number; req: VCRequest; blank: boolean }) {
   const cu = useCurrentUnit();
+  // the current plot and the command strip share one time axis, so they zoom together
+  // (the zoom is carried by the xSync hooks; the sync key moves the crosshair on both at once)
+  const onXRef = useRef<(x0: number, x1: number) => void>(() => {});
+  const [xSync] = useState(() => xSyncGroup((x0, x1) => onXRef.current(x0, x1)));
+  const xSyncKey = `vc-time-${useId()}`;
+
+  // Zoomed to 2 ms or less, and still for 300 ms, the view is re-simulated at 1 µs steps in a worker of its own
+  // (the owner: "build it now with a progress bar so no one spazzes out"). Any new zoom, a reset or a new run
+  // terminates that worker, so a stale window never lands; zooming out shows the standard traces at once.
+  // Measurements stay on the standard run.
+  const [refined, setRefined] = useState<Refined | null>(null);
+  const [refining, setRefining] = useState<{ f: number; span: number } | null>(null);
+  const refinedRef = useRef(refined);
+  refinedRef.current = refined;
+  const fineWorker = useRef<Worker | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gen = useRef(0);
+  const total = Math.max(...sweeps.map((s) => (s.iRec.length - 1) * s.sampleMs));
+  const cancel = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    fineWorker.current?.terminate();
+    fineWorker.current = null;
+    gen.current++;
+    setRefining(null);
+  };
+  const start = (t0: number, t1: number) => {
+    const id = ++gen.current;
+    const span = t1 - t0;
+    const w = new Worker(new URL("../vc-worker.ts", import.meta.url), { type: "module" });
+    fineWorker.current = w;
+    setRefining({ f: 0, span });
+    w.onmessage = (ev: MessageEvent<VCResponse>) => {
+      const r = ev.data;
+      if (id !== gen.current) return; // cancelled
+      if (r.kind === "progress") setRefining({ f: r.f, span });
+      else {
+        if (r.kind === "window") setRefined({ t0: r.t0, t1: r.t1, fineDt: r.fineDt, sweeps: r.sweeps });
+        w.terminate();
+        fineWorker.current = null;
+        setRefining(null);
+      }
+    };
+    w.postMessage({ ...req, kind: "window", id, t0, t1, fineDt: FINE_DT } satisfies VCRequest);
+  };
+  onXRef.current = (x0, x1) => {
+    const plan = planRefine(x0, x1, total, refinedRef.current);
+    if (plan.action === "keep" && !refinedRef.current && !timer.current && !fineWorker.current) return;
+    if (plan.action === "keep") return;
+    cancel();
+    if (plan.action === "drop") {
+      setRefined(null);
+      return;
+    }
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      start(plan.t0, plan.t1);
+    }, REFINE_DELAY_MS);
+  };
+  // a new run (or blanking toggled) drops the refinement; leaving the mode stops its worker
+  useEffect(() => {
+    cancel();
+    setRefined(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sweeps]);
+  useEffect(() => () => cancel(), []);
+  // new data from a refinement keep the zoom; a new run's data autoscale
+  const prevSweeps = useRef(sweeps);
+  const keepScales = prevSweeps.current === sweeps;
+  useEffect(() => {
+    prevSweeps.current = sweeps;
+  });
   const n = Math.max(...sweeps.map((s) => s.iRec.length));
   const dt = sweeps[0].sampleMs;
   // the y range without the capacitive transients
@@ -431,14 +606,13 @@ function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height }:
     // dim to bright phosphor with the varied value
     return `rgba(${Math.round(60 + 140 * f)}, 255, ${Math.round(110 + 100 * f)}, ${(0.45 + 0.55 * f).toFixed(2)})`;
   };
-  const pad0 = (a: Float32Array, div = 1) => {
-    const out: (number | null)[] = new Array(n).fill(null);
-    for (let j = 0; j < a.length; j++) out[j] = a[j] / div;
-    return out;
-  };
-
-  const iData: uPlot.AlignedData = [t, ...(showTrue ? sweeps.map((s) => pad0(s.iTrue, u.div)) : []), ...sweeps.map((s) => pad0(s.iRec, u.div))] as uPlot.AlignedData;
-  const vData: uPlot.AlignedData = [t, ...(showTrue ? sweeps.map((s) => pad0(s.vm)) : []), ...sweeps.map((s) => pad0(s.vCmd))] as uPlot.AlignedData;
+  // the traces on one time axis, the refined window spliced in where there is one
+  const spliced = useMemo(() => spliceWindow(sweeps, refined, blank ? capMs : null), [sweeps, refined, blank, capMs]);
+  const iData = useMemo(() => {
+    const div = (c: (number | null)[]) => (u.div === 1 ? c : c.map((v) => (v === null ? null : v / u.div)));
+    return [spliced.t, ...(showTrue ? spliced.iTrue.map(div) : []), ...spliced.iRec.map(div)] as uPlot.AlignedData;
+  }, [spliced, showTrue, u.div]);
+  const vData = useMemo(() => [spliced.t, ...(showTrue ? spliced.vm : []), ...spliced.vCmd] as uPlot.AlignedData, [spliced, showTrue]);
   const series = (label: string): uPlot.Series[] => [
     {},
     ...(showTrue ? sweeps.map((_, k) => ({ label: `true ${k}`, stroke: tube ? "rgba(217, 211, 194, 0.45)" : pal.muted, width: 1, dash: [4, 3] })) : []),
@@ -556,11 +730,11 @@ function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height }:
     height: h,
     padding: [6, 8, 0, 0],
     legend: { show: false },
-    cursor: { drag: { x: true, y: false } },
+    cursor: { drag: { x: true, y: false }, sync: { key: xSyncKey } },
     scales: { x: { time: false } },
     axes,
     series: [],
-    hooks,
+    hooks: mergeHooks(xSync, hooks),
   });
   // In the tube, a readout under the graticule as a Tektronix prints its measurements: each one's extreme over
   // the family, and the sweep it came from.
@@ -573,16 +747,29 @@ function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height }:
           if (better) best = p;
         }
         if (!best) return "";
-        const name = { peakIn: "Min", peakOut: "Max", mean: "Mean", cursor: "Crsr" }[m.kind];
+        const name = kindName(m.kind);
         const v = best.value;
         return `M${j + 1} ${name} ${(best.i / u.div).toFixed(Math.abs(best.i / u.div) < 10 ? 2 : 1).replace("-", "−")}${u.unit} @${valueUnit === "mV" && v > 0 ? "+" : ""}${String(+v.toFixed(1)).replace("-", "−")}${valueUnit}`;
       })
     : [];
   return (
     <div className={"vc-plots" + (tube ? " vc-tube" : "")}>
-      <Plot className="vc-i" deps={[pal, showTrue, sweeps.length, u.unit, JSON.stringify(measures), yr[0], yr[1], height]} data={iData}
+      <div className="vc-i-wrap" data-samples={spliced.t.length} data-refined={refined ? `${refined.t0},${refined.t1}` : ""}>
+      <Plot className="vc-i" keepScales={keepScales} deps={[pal, showTrue, sweeps.length, u.unit, JSON.stringify(measures), yr[0], yr[1], height]} data={iData}
         options={(w) => ({ ...common(w, Math.max(160, height - CMD_H - 34), [xBare, yAxis(`current (${u.unit})`)], { draw: [windows] }), series: series("I"), scales: { x: { time: false }, y: { range: yr } } })} />
-      <Plot className="vc-v" deps={[pal, showTrue, sweeps.length, ySize, vr[0], vr[1], JSON.stringify(levels)]} data={vData}
+      {refining && (
+        <div className="refine-bar" role="progressbar" aria-label="Re-simulating the zoomed span" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(refining.f * 100)}>
+          <span className="refine-fill" style={{ width: `${Math.round(refining.f * 100)}%` }} />
+          <span className="refine-text">Re-simulating the zoomed {fmt(refining.span, 2)} ms at 1 µs steps… {Math.round(refining.f * 100)}%</span>
+        </div>
+      )}
+      {refined && !refining && (
+        <div className="refine-badge">
+          <Tip text="Shown at 1 µs steps while zoomed; measurements use the standard 10 µs run. Peak sizes agree to 0.01 nA; peak times come out up to 0.01 ms earlier at the finer step. Recording noise is drawn afresh at the finer step, with the same size.">1 µs steps</Tip>
+        </div>
+      )}
+      </div>
+      <Plot className="vc-v" keepScales={keepScales} deps={[pal, showTrue, sweeps.length, ySize, vr[0], vr[1], JSON.stringify(levels)]} data={vData}
         options={(w) => ({ ...common(w, CMD_H + 34, [xTime, { ...yAxis("command"), grid: { show: false }, splits: () => [hold], values: () => [mv(hold)] }], { draw: [labelLevels] }), series: series("V"), scales: { x: { time: false }, y: { range: vr } } })} />
       {tube && (
         <div className="tek-readout" aria-label="Measurement readout">

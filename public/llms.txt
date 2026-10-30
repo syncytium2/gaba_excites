@@ -65,8 +65,9 @@ background, is at https://gaba.tonydefazio.com/explainer (a first draft).
   activation (I-V), steady-state inactivation, tail currents, recovery from
   inactivation, or user-edited segments with one varied in voltage or
   duration. No curve is drawn from the model's equations: the user chooses
-  where to measure (peak, mean, cursor), and the I-V, G-V or availability
-  curve and a Boltzmann fit come from those measurements, made on the
+  what to take in a window (peak + or -, max |I|, mean, cursor), and the I-V,
+  G-V or availability curve and a Boltzmann fit come from those
+  measurements, made on the
   recorded current (filtered, with noise). Channels can be blocked one by one,
   in either clamp. Checked against NEURON's SEClamp on the pyramidal cell:
   every sample within 10 pA and 0.01 mV, near-ideal and at 2 MOhm.

@@ -1448,3 +1448,153 @@ live check used the same grep. Fixed where it happens and where it should have b
 the base from the rewriting (`MSYS2_ARG_CONV_EXCL`, a no-op elsewhere) and refuses a page with an asset URL outside
 the base; `deploy.sh` anchors both its gate and its live check at `src="`. Both new checks refuse a page with the
 rewritten paths; the old gate passed it.
+
+## 2026-10-30 — voltage clamp: the command strip zooms with the current
+
+Review of v0.2.10, the owner: "zoom only zooms the current display (command does not follow)". The current plot and
+the command strip are two uPlot charts, and the strip carries the only time axis, so a zoom on the current left the
+time labels describing the wrong span. They now share one x range (`src/ui/xsync.ts`): a drag-zoom or the
+double-click reset on either moves both, each keeps its own y, and the crosshair moves on both. A chart rebuilt on
+its own (a measurement window moved) takes up the zoom the other is at. The step protocol already shared one zoom
+across its stacked plots, and the oscilloscope has none, so neither changed. `scripts/screenshot.mjs` zooms the
+current plot, checks the strip followed, and resets from the strip.
+
+## 2026-10-30 — voltage clamp: measurements named for what they compute
+
+Review of v0.2.10, the owner: M1 "peak" read as a smart peak, probably max(|I|). It was the plain minimum. "Peak in"
+returned the most negative current, which where the current is outward throughout a window is the smallest outward
+value, not a peak; the normalized panel divided by the largest magnitude, which is the max(|I|) he sensed; and the
+Old school readout called the same thing "Min". Asked whether to add a true peak-magnitude measure, the owner: a
+smart measure does the work for the student; the options should be the plain ones, max, min, mean and max(absolute).
+
+So the choices are now Max, Min, Mean, Max |I| (the value largest in magnitude, sign kept; new) and Cursor, with the
+same name on the buttons, the captions, the legend, the table and the readout, and a ? on Take saying what each
+computes and that Min is not a peak when the current is outward throughout. The normalized panel says what it divides
+by (I/|I|max; G by the largest positive G). No marker flags an outward Min: that would be interpreting for the
+student. The kind keys stay `peakIn`/`peakOut` (presets use them); `peakAbs` is new. No number changed, so the oracle
+and the quoted numbers stand. The preset notes, methods page, README and llms.txt say Max/Min/Mean/Max |I|/Cursor.
+
+Revised the same day, before it shipped. The owner: "instead of peak in and peak out (in and out are very tough for
+students), use +/- toggle", and confirmed: "peak (+/- sign of the peak toggle), max(abs) and mean". So Take is Peak,
+Max |I|, Mean or Cursor, and Peak shows a Sign toggle: + is the most positive current (key `peakOut`), − the most
+negative (`peakIn`). Picking Peak from another choice starts at −; a preset's sign comes with the preset. The names
+everywhere are Peak +, Peak −, Max |I|, Mean and Cursor.
+
+## 2026-10-30 — voltage clamp: the Boltzmann fit uses every point unless told otherwise
+
+The owner: "the normalized panel should flag points left out of the curve fit OR start with fitting all and showing
+how poorly the fit works if you're not paying attention." Until now points with clearly negative G were left out of
+the fit silently, with a sentence in the caption. Now the fit uses every point by default, and the caption gives its
+rms misfit. A Fit toggle beside "Boltzmann fit" (G/Gmax only) offers "G > 0 only": the points with G below −0.05 of
+Gmax are drawn hollow and left out, and the caption says how many and why. `fitBoltzmann` returns NaN where its best
+lies on the edge of its search (|k| at 30 mV, or V½ 40 mV beyond the data), and the panel then says "No fit" rather
+than drawing a curve from the edge.
+
+On the GnRH cell's activation preset this is the case: Peak − is outward at +40 mV (and at +30 without the filter),
+every point puts the best at the edge of the search (V½ −120 mV, k +0.5: flat at zero across the data, rms 1.2); G > 0 only gives V½ −14 mV, k −4.5 mV (tested). The
+cloud session traced the negative G to the fast A-type K⁺ current, outward from the window's first sample because
+the GnRH sodium current peaks (~0.06 ms) before the preset's window opens at 0.2 ms; it also found that the preset's
+E_rev of +50 mV (the cortical E_Na) is below the GnRH cell's +54. Whether the GnRH presets get their own window start
+and E_rev is the owner's to decide; nothing in the presets changed.
+
+Revised the same day (4b): "No fit" hid the very thing the owner wanted seen. Now the best least-squares curve is
+always drawn, across the data's range only, with V½, k and the rms misfit; where the best lies at the search's edge
+the caption says so plainly ("the best fit lies at the edge of the search (V½ −120 mV, k 0.5 mV): these points do not
+settle on a Boltzmann") and the title marks it. `fitBoltzmann` returns the best with an `edge` flag instead of NaN.
+The normalized plot pads its x and y ranges so no marker is clipped, and both voltage-clamp plots put their legend
+in the corner that covers the fewest points (`legend: "clear"` in svgplot; other plots keep theirs top left).
+
+## 2026-10-30 — voltage clamp: E_rev is the model's own
+
+The owner: "each model has its own set of reversal potentials, those should automatically update in the voltage
+clamp mode (maybe there's another teaching point here but no time, so make a todo)". The presets carried a number
+(+50 mV for every model on the activation preset, the cortical E_Na). Now a preset names the ion it normalizes for
+(`erevIon`), each channel in `models.ts` carries its ion (a label; nothing in the integration reads it), and
+`ionReversal` takes the value from the selected model's channels: E_Na +50 mV on the pyramidal, FS, LTS and squid
+cells, +54 on the GnRH cell; the beta cell has no Na⁺ channel and the field then says so and keeps the last value.
+Changing model or preset resets E_rev; a typed value holds until then, and the field shows where its number came
+from ("E_Na of this model: +54 mV").
+
+Numbers: the cortical fits do not move (E_Na is still 50; tested). The GnRH activation fit (G > 0 only, ideal
+clamp, default noise): V½ −14.04 → −14.20 mV, k −4.50 → −4.50, rms 0.139 → 0.147. Every point: still at the search's
+edge, rms 1.210 → 0.978. The cloud session's run with IA blocked: G flat at about 433–447 nS with E = 54, against a
+climb from 476 to 621 with E = 50. The roadmap holds the owner's teaching point as a to-do. Also: `fitBoltzmann`'s
+finer passes now stay inside the search range (V½ within the data ± 40 mV, |k| ≤ 30), so an edge V½ is one the search
+could reach (it had walked to −130 past the −120 edge); no settled fit moved.
+
+## 2026-10-30 — voltage clamp: every step stored; the 0.1 ms window held back
+
+The owner: "the measurement window should be 0.1ms start. there's some really cute stuff going on early in there.
+what is our time step for the model and the display?" The model steps at 0.01 ms; the traces kept every second step
+(50 kHz). Now every step is stored (`VC_SIM.sampleMs` 0.01, 100 kHz): no simulation time, twice the memory. The
+recorder (noise and filter) already ran at every step, so no stored value changed; peaks are now found on the finer
+grid. What moved, vc-act at 10 kHz, fitted V½/k: pyramidal −17.35/−10.64 → −17.36/−10.63, FS −17.92/−10.29 →
+−17.94/−10.28, LTS −15.86/−11.81 → −15.87/−11.80, squid −16.95/−12.54 → −16.96/−12.53; GnRH (G > 0) unchanged. The
+quoted −17.3/−10.6 stands. The NEURON comparison finds peaks on the oracle's own 0.02 ms grid. The shortest
+transient left out of the autoscale is two samples, so it is 0.12 ms at Rs 0 and 10 kHz, not 0.14.
+
+The window start was not moved, because at the app's default 10 kHz the capacitive transient reaches past 0.1 ms.
+The filter's ring after the one-step capacitive spike, measured on each cell with every channel blocked, is at 0.1 ms
+into the step −10 to −34 nA on the cortical cells (−80 → −40…+40 mV), −3.5 to −8.9 nA on the squid axon and −0.8 to
+−2.3 nA on the GnRH cell. A window from 0.1 ms then reads it: pyramidal at −40 mV Peak − −11.0 nA at 0.10 ms
+against −7.5 nA from 0.2; GnRH at +40 mV −2.6 nA at 0.10 ms, about the transient's own −2.3. Unfiltered the ring is
+gone and 0.1 ms catches real sodium the 0.2 ms window misses on the fast cells (pyramidal at +40 mV −74.5 against
+−58.7 nA; GnRH at 0 mV −21.9 against −16.6), which moves every cortical fit (pyramidal −20.5/−8.5 → −14.3/−12.6). The
+fix is the owner's to choose.
+
+## 2026-10-30 — voltage clamp: a zoom re-simulates at 1 µs steps, with progress bars
+
+The owner: "possible to increase resolution when student zooms", then "build it now with a progress bar so no one
+spazzes out". Zoomed to 2 ms or less and still for 300 ms, the view plus a quarter of its span each side is
+re-simulated at 1 µs steps (`runVCWindow`): each sweep runs at the standard 10 µs step to the window, exactly as the
+displayed run did, then at 1 µs through it, so the cell's state, Rs and the synapses carry over. The recorder is
+rebuilt at the fine rate: its 4-pole Bessel has the same corner at 1 MHz, run in for 2 ms on the standard run's
+current so it is in the same state at the window's start, and its noise has the same RMS through 10 kHz, from its own
+seeded stream. The fine samples are spliced into the standard traces (`src/ui/refine.ts`), so the plot still spans
+the sweep and a double-click resets to all of it. The window runs in a worker of its own, terminated on any new
+zoom, reset or run, so a stale window cannot land. A thin bar with "Re-simulating the zoomed 1.60 ms at 1 µs steps…
+40%" runs across the current plot, then a "1 µs steps" badge with a ? saying measurements stay on the standard run.
+The family run has a progress bar too. `Plot`'s in-place data swap re-applies the x range: without it uPlot kept the
+old visible index range and went on drawing the standard samples.
+
+Checked: the window joins the standard run at its first sample (same Vm and current, tested); on the GnRH cell at
+0 mV the fine sodium peak is −21.93 against −21.92 nA and comes at 0.099 against 0.110 ms (tested); a seed gives the
+same window twice, and the fine noise has the standard run's size (tested). Timings on the workstation, GnRH, 13
+sweeps: the family 1.0–1.1 s; a 1 ms zoom (1.6 ms re-simulated) shows its badge 1.4 s after the mouse is released,
+300 ms of that the wait.
+
+## 2026-10-30 — the activation preset measures from 0.1 ms, with the filter off
+
+The owner chose, of the options above: the window at 0.1 ms on every model, with the activation preset opening on
+Bypass (presets may now carry a `filter`; `VC_DEFAULT_FILTER` stays 10 kHz for every other preset and is pinned by a
+test). The note says why: the window opens at 0.1 ms to catch the early sodium, and the filter is off because a
+10 kHz filter's ring after the capacitive step reaches into it; turning it back on shows that.
+
+The quoted fits move (vc-act, ideal clamp, V½/k, re-derived in vclamp.test.ts):
+
+| cell | from 0.2 ms, unfiltered | from 0.1 ms, unfiltered (now) | from 0.1 ms, 10 kHz | from 0.1 ms, 5 kHz |
+|---|---|---|---|---|
+| pyramidal | −20.54 / −8.51 | −14.29 / −12.55 | −9.19 / −15.80 | −9.78 / −15.35 |
+| FS | −21.17 / −8.02 | −15.36 / −11.88 | −9.82 / −15.53 | −10.95 / −14.76 |
+| LTS | −19.89 / −9.22 | −12.18 / −13.97 | −7.27 / −16.84 | −7.85 / −16.39 |
+| GnRH (G > 0) | −14.20 / −4.50 | −11.33 / −5.49 | −11.03 / −5.91 | −11.68 / −5.49 |
+| squid | −16.93 / −12.54 | −16.93 / −12.54 | −16.96 / −12.54 | −17.02 / −12.51 |
+
+The GnRH cell still gives one clearly negative G, at +40 mV, where the current is outward from 0.1 ms on (+2.7 nA,
+the A current outrunning what sodium is left); fitting every point, unfiltered, still lands at the search's edge
+(rms 0.40). At 10 kHz it seemed to settle (−11.03/−5.91) only because the filter's ring turned that point inward.
+Unfiltered, the cortical cells' points at −70 to −50 mV come out a hair negative (leak current, under 0.5 nA; G above
+−0.05 of Gmax, so G > 0 only keeps them). The measurements behind the choice are in the entry "every step stored;
+the 0.1 ms window held back".
+
+## 2026-10-30 — the normalized panel takes every measurement
+
+The owner, in the workstation session: "the normalized row should also process M2, remove M1 from the title of the
+tile." Each measurement is now normalized and fitted, M1 and M2 in their own colors with their own fit curves, and
+the tile is "Normalized", listing each fit (M1 V½ and k · M2 V½ and k). Asked what M2's G should use, since on the
+activation preset M2 is the sustained K⁺ current and V − E_Na made its G as large as −50 × Gmax and flattened M1:
+"Toggle I/imax and g/gmax. If multiple channels default to I/imax." So with two measurements on, the normalization
+opens as I/|I|max (a preset with two, or turning M2 on); G/Gmax stays one click away, with one E_rev for both; with
+one measurement a preset keeps its own choice. The activation preset therefore opens on I/|I|max; its G–V fits quoted
+above are what the G/Gmax toggle shows. Where a measurement has no positive G there is no Gmax, and the caption says
+so instead of drawing it.

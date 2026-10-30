@@ -291,7 +291,7 @@ export function betaMouse(set: DomSet = DOM_SETS.fast): ModelDef {
       {
         channel: makeGated("kdr", "IK (delayed rectifier)", [{ name: "n", inf: boltzmann(-16, -5), tau: 20 }], (g, o) => g[o]),
         gbar: 2.7,
-        erev: VK,
+        ion: "k", erev: VK,
       },
       // Eqs. 3, 9: m∞ = 1/(1 + exp(−(20 + V)/12)), instantaneous; gCa = 1000 pS.
       // "Instantaneous" here: a gate with τ = 1e-9 ms, set to m∞ at the new V
@@ -299,13 +299,13 @@ export function betaMouse(set: DomSet = DOM_SETS.fast): ModelDef {
       {
         channel: makeGated("cav", "ICa", [{ name: "m", inf: boltzmann(-20, -12), tau: 1e-9 }], (g, o) => g[o]),
         gbar: 1.0,
-        erev: VCA,
+        ion: "ca", erev: VCA,
         carriesCa: true,
       },
       // Eq. 6: gK(Ca) = ḡ·Ca²/(K_D² + Ca²), K_D = 0.5 µM
-      { channel: makeKCa("kca", "IK(Ca)", 0.5), gbar: knob(k, "gKCa"), erev: VK },
+      { channel: makeKCa("kca", "IK(Ca)", 0.5), gbar: knob(k, "gKCa"), ion: "k", erev: VK },
       // Eqs. 5, 10–11, 18–24
-      { channel: makeKatpDOM(knob(k, "rGK")), gbar: knob(k, "gKATP"), erev: VK },
+      { channel: makeKatpDOM(knob(k, "rGK")), gbar: knob(k, "gKATP"), ion: "k", erev: VK },
     ],
     // Eqs. 12–17 and Table 1: α = 4.5e-6 fA⁻¹ µM ms⁻¹ = 4.5e-3 pA⁻¹ µM ms⁻¹
     pool: bertramPool({ fcyt: 0.01, fer: 0.01, alpha: 4.5e-3, kPMCA: 0.2, kSERCA: 0.4, pleak: 0.0002, sigmaV: 31 }),

@@ -5,11 +5,12 @@
  * free list ("-100, 0, 250, 600"). Both end up as the same `amps` array.
  */
 
-import { GNRH, type ModelId } from "./models.ts";
+import { GNRH, type Ion, type ModelId } from "./models.ts";
 import type { StepProtocol } from "./simulate.ts";
 import type { Pulse } from "./stream.ts";
 import { DEFAULT_GABA, DEFAULT_GLU, type SynInput } from "./synapses.ts";
 import type { VCMeasure, VCProtocol } from "./vclamp.ts";
+import type { FilterKHz } from "./filter.ts";
 
 export interface ProtocolForm {
   mode: "family" | "list";
@@ -394,28 +395,37 @@ export interface VCPreset {
   label: string;
   note: string;
   protocol: VCProtocol;
-  /** one or two measurements: the first is the one normalized and fitted */
+  /** one or two measurements, each normalized and fitted */
   measures: VCMeasure[];
-  /** how the first measurement is normalized: by its largest value (I/Imax) or as a conductance (G/Gmax) */
+  /** how the measurements are normalized: by the largest in magnitude (I/|I|max) or as a conductance (G/Gmax); with two measurements the app opens as I/|I|max */
   norm: "I" | "G";
-  /** the reversal G = I/(V − E_rev) uses, mV */
-  erev?: number;
-  /** fit a Boltzmann to the normalized first measurement (not for a tail family, which is linear) */
+  /**
+   * the ion whose reversal G = I/(V − E_rev) uses. The value is not the preset's: it is the selected model's own,
+   * from its channel data (ionReversal), so one preset serves every model without quoting another cell's number.
+   */
+  erevIon?: Ion;
+  /** fit a Boltzmann to each normalized measurement (not for a tail family, which is linear) */
   fit?: boolean;
+  /** the amplifier's filter this preset opens with, kHz (0 = bypass); VC_DEFAULT_FILTER where not given */
+  filter?: FilterKHz;
 }
+
+/** the filter voltage clamp opens with, and every preset that does not set its own: 10 kHz, as current clamp */
+export const VC_DEFAULT_FILTER: FilterKHz = 10;
 
 export const VC_PRESETS: VCPreset[] = [
   {
     id: "vc-act",
     label: "Activation (I–V)",
-    note: "Steps from −80 mV to +40 mV. The first measurement takes the peak inward current early in each step (Na⁺, where the cell has it); the second, the sustained current at the end (mostly K⁺). Normalized as G/Gmax, with E_rev = +50 mV, the sodium reversal of the cortical cells.",
+    note: "Steps from −80 mV to +40 mV. M1 takes Peak −, the most negative current, early in each step: the peak inward Na⁺ current, where the cell has it. M2 takes the Mean at the end, the sustained current (mostly K⁺). With two measurements the panel opens as I/|I|max; as G/Gmax, E_rev is the model's own sodium reversal, which makes M1 a sodium conductance (M2, mostly K⁺, is not one at that E_rev). The window opens at 0.1 ms to catch the early sodium, and the filter is off because a 10 kHz filter's ringing after the capacitive step reaches into that window; turn it back on to see it.",
     protocol: { hold: -80, segments: [{ dur: 10, v: -80 }, { dur: 50, v: 0 }, { dur: 20, v: -80 }], vary: { seg: 1, what: "v", first: -80, delta: 10, count: 13 } },
     measures: [
-      { seg: 1, from: 0.2, to: 10, kind: "peakIn" },
+      { seg: 1, from: 0.1, to: 10, kind: "peakIn" },
       { seg: 1, from: 40, to: 50, kind: "mean" },
     ],
     norm: "G",
-    erev: 50,
+    erevIon: "na",
+    filter: 0,
   },
   {
     id: "vc-inact",
@@ -452,17 +462,17 @@ export const VC_PRESETS: VCPreset[] = [
     protocol: { hold: -65, segments: [{ dur: 5, v: -65 }, { dur: 12, v: 0 }, { dur: 5, v: -65 }], vary: { seg: 1, what: "v", first: -55, delta: 10, count: 11 } },
     measures: [{ seg: 1, from: 10, to: 12, kind: "mean" }],
     norm: "G",
-    erev: -77,
+    erevIon: "k",
   },
   {
     id: "hh-vc-gna",
     model: "hh",
     label: "Na⁺ conductance (Hodgkin & Huxley Fig. 6)",
-    note: "The experiment behind the sodium equations. Hodgkin and Huxley's Fig. 6 (p. 513) shows sodium conductance during the same depolarizations, rising and then falling as it inactivates; here, steps of 10 to 100 mV from −65 mV. Block IK under CHANNELS to see the sodium current alone. M1 is the peak inward current, as conductance with E_Na = +50 mV. Steps much past +35 mV sit so close to E_Na that the current, and the conductance worked out from it, become small and noisy.",
+    note: "The experiment behind the sodium equations. Hodgkin and Huxley's Fig. 6 (p. 513) shows sodium conductance during the same depolarizations, rising and then falling as it inactivates; here, steps of 10 to 100 mV from −65 mV. Block IK under CHANNELS to see the sodium current alone. M1 takes Peak −, the most negative current, as conductance with E_Na = +50 mV. Steps much past +35 mV sit so close to E_Na that the current, and the conductance worked out from it, become small and noisy.",
     protocol: { hold: -65, segments: [{ dur: 5, v: -65 }, { dur: 12, v: 0 }, { dur: 5, v: -65 }], vary: { seg: 1, what: "v", first: -55, delta: 10, count: 10 } },
     measures: [{ seg: 1, from: 0.1, to: 4, kind: "peakIn" }],
     norm: "G",
-    erev: 50,
+    erevIon: "na",
   },
 ];
 

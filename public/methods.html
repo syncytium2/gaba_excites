@@ -563,14 +563,19 @@ surface (sweeps run dim to bright with step amplitude), and, in the oscilloscope
 <p>The third mode holds the cell at a command and records the current, on the same cells, channels and integrator as
 current clamp. The amplifier holds the pipette at the command; the cell sits behind the series resistance Rs, so
 Cm dV/dt = (V<sub>cmd</sub> − V)/Rs − I<sub>membrane</sub>, solved by backward Euler with the conductances frozen over
-each 0.01 ms step, and the gates moved afterwards at the new V, exactly as in current clamp. With Rs = 0 the clamp is
+each 0.01 ms step, and the gates moved afterwards at the new V, exactly as in current clamp. Every step is stored
+(100 kHz). With Rs = 0 the clamp is
 ideal: V is the command, and each command step carries a one-step capacitive spike, Cm·ΔV/dt. Pipette capacitance is
 taken as compensated.</p>
 <ul>
   <li><strong>Nothing is drawn from the model's equations.</strong> No activation or inactivation curve appears until a
-  protocol has run and you have said where to measure: peak inward, peak outward, the mean over a window (sustained),
-  or a cursor, in a window of one segment. Up to two measurements; the first is normalized (I/Imax, or G/Gmax with
-  G = I/(V − E_rev)) and fitted with a Boltzmann, or, for a tail family, read for where it reverses.</li>
+  protocol has run and you have said what to take, in a window of one segment: a Peak, with its sign chosen (Peak +
+  the most positive current, Peak − the most negative), Max |I| (the value largest in magnitude, sign kept), the Mean,
+  or a Cursor. Each is the plain operation it names: when the current is outward throughout a window, its Peak − is
+  the smallest outward value, not a peak. Up to two measurements, each normalized (I/|I|max, or G/Gmax with
+  G = I/(V − E_rev), where E_rev is the selected model's own reversal for the ion the protocol measures, taken from
+  its channels: E_Na is +50 mV on the cortical cells and the squid axon, +54 mV on the GnRH cell) and fitted with a
+  Boltzmann, or, for a tail family, read for where it reverses.</li>
   <li><strong>Measured on the recorded current</strong>, through the amplifier's filter and with its noise, as on a rig.
   (Current clamp measures true Vm; this is the owner's choice for voltage clamp.) The true current and the cell's true
   Vm can be shown behind the record, and the I–V plotted against true Vm as well as against the command.</li>
@@ -583,9 +588,12 @@ taken as compensated.</p>
   at 0 mV. Behind even 2 MΩ the clamp loses it: at a −40 mV command the cell fires an unclamped action current past
   +30 mV, and the measured I–V is the classic escape. The mode therefore opens with an ideal clamp, Rs = 0, and the Rs
   dial shows the escape; shrinking Cm (channel densities stay fixed) brings the currents down, as a smaller cell would.</li>
-  <li><strong>The filter distorts the fast sodium peak.</strong> On the activation preset the fitted G–V has V½ −20.5 mV
-  and k −8.5 mV unfiltered, −17.3 and −10.6 mV through the 10 kHz filter (the default), and −11.1 and −14.6 mV at
-  5 kHz: the fastest peaks, at the most depolarized commands, are blunted most.</li>
+  <li><strong>The filter distorts the fast sodium peak.</strong> The activation preset measures from 0.1 ms into each
+  step, to catch the sodium peak that on the fast cells comes before 0.2 ms, and opens with the filter off. On the
+  pyramidal cell its fitted G–V has V½ −14.3 mV and k −12.6 mV. Through the 10 kHz filter (the default elsewhere) it is
+  −9.2 and −15.8 mV, and at 5 kHz −9.8 and −15.4 mV: the filter blunts the fastest peaks, and its ring after the
+  one-step capacitive transient, −10 to −34 nA at 0.1 ms on the cortical cells, reaches into the window. Measured
+  from 0.2 ms the same cell gave −20.5 and −8.5 mV unfiltered and −17.3 and −10.6 mV at 10 kHz.</li>
 </ul>
 
 <h2 id="validation">7. How each model was checked, in detail</h2>
