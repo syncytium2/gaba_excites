@@ -53,6 +53,31 @@ The owner's words are quoted where the item came from them.
   the view can drop the electrode altogether: ideal clamp, no noise, no filter, no capacitive transient, no leak,
   and optionally each channel's current as its own trace. It would be labeled as what no rig can record. The full rig
   stays the default for anyone learning the craft.
+  - **A pure simulation mode** (the owner, 2026-10-30: "pure simulation mode without the hassle of a cell/electrode.
+    just the channels and an interface to manipulate parameters and see the effect on the currents as well as the
+    curves"). Beyond the view above: no cell either, so no membrane, Cm or leak, only the channels under a commanded
+    voltage. Each channel's parameters exposed (maximal conductance or permeability, reversal, the half-activation and
+    slope of each gate, its time constants), and every change redrawn at once in two places: the currents for the
+    protocol, and the curves behind them (m∞, h∞ and τ against voltage, the steady-state and peak I–V, G–V). This is
+    where the channel editor in "Plug-and-play channels" above would live, and it needs that item's serializable
+    channel description first. Labeled, like the view above, as what no rig can record.
+- **Permeability beside conductance and current** (the owner, 2026-10-30). Today a channel is specified by a
+  maximal conductance and draws I = g·(V − E): an ohmic channel. Add permeability as a third way to specify and to
+  plot a channel, through the GHK current equation, I = P·z²F²V/RT · ([C]i − [C]o·e^(−zFV/RT)) / (1 − e^(−zFV/RT)).
+  Why each one matters, for the explainer:
+  - **Current** is what is measured and what moves the voltage: the electrode reports it, and it is what charges Cm.
+    It depends on everything at once, the channel, the voltage and both concentrations.
+  - **Conductance** is current per unit driving force, I / (V − E). It is the number HH-style models are written in
+    and what gating scales, and it is the right summary when the I–V of the open channel is a straight line. It is
+    not a property of the channel alone: change the concentrations and it changes, and where the open-channel I–V
+    bends, a single g is a different number at every voltage.
+  - **Permeability** is the property of the channel itself, how readily one ion crosses it, independent of how much
+    of that ion is on each side. It is the right specification whenever the concentrations are lopsided or change:
+    Ca²⁺ channels (micromolar inside, millimolar outside, so the I–V rectifies hard and never reaches E_Ca), and
+    chloride in this app's own subject, where moving [Cl⁻]i moves E_Cl and, by GHK, the GABA_A conductance too. A
+    channel defined by P keeps that P when the bath or pipette changes; one defined by g silently does not.
+  - Showing the three side by side for one channel, with the concentrations as knobs, is the lesson. It pairs with
+    the GHK teaching page below. Any equation or value taken from a source for it is cited through `lit/sources.json`.
 
 - **A GHK teaching page: divalents, activity, junction potentials.** Separate
   from the simulator. The GHK voltage equation with any mix of ±1 and ±2

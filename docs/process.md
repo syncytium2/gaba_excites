@@ -1414,3 +1414,19 @@ is the trade-off a real blank has, and the caption states the blank's length. Te
 
 Noticed, not changed: the presets' M1 windows start 0.2 ms into the step, but the GnRH cell's sodium peaks at about
 0.1 ms, so "peak in" there reads −16.6 nA against a true peak near −21.9 nA.
+
+## 2026-10-30 — the Mac's voltage-clamp work, rebuilt in the cloud; two roadmap entries
+
+The Mac session "mac gaba speed fix" committed five commits on a local branch `vc-layout`, merged it into its local
+`main` and started `npm run deploy`, then went offline with nothing pushed; the live site stayed at v0.2.9. A cloud
+session read that session's transcript, where every repository change is a script given in full, replayed the
+scripts in order on the same base (`173a881`), and checked the result against what the Mac session printed (line
+numbers, and one commit's "5 files changed, 101 insertions, 9 deletions"). The five commits are on GitHub as
+`vc-layout-rebuilt`, with the same files and messages and a `Rebuilt-From` trailer; the hashes differ. Tests,
+typecheck, build and the screenshot check pass. When the Mac is back, its `vc-layout` should diff empty against
+`vc-layout-rebuilt`, and its local merge and any release commit should be dropped, not pushed. The handoff on why
+this happened is in armory (`docs/handoffs/2026-10-30-work-that-exists-on-one-machine.md`).
+
+The owner asked for two roadmap entries, added under "channels only": a pure simulation mode (channels alone, no
+cell or electrode, parameters as controls, currents and curves redrawn live), and permeability beside conductance
+and current, with why each matters.
