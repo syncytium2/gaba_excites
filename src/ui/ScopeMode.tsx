@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useCurrentUnit } from "./current.tsx";
 import { createPortal } from "react-dom";
 import { AmpDial, AmpRow, AmpSection, AmpSlot, RigPanels } from "./AmpFront.tsx";
 import type { CellParams } from "../core/cell.ts";
@@ -217,12 +218,15 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
   // axes: voltage fixed, as on a scope; current spans the command levels in use
   const lo = Math.min(inputs.ihold, inputs.pulse.enabled ? inputs.ihold + inputs.pulse.amp : inputs.ihold);
   const hi = Math.max(inputs.ihold, inputs.pulse.enabled ? inputs.ihold + inputs.pulse.amp : inputs.ihold);
-  const iRange = niceRange(lo, hi, 4);
+  // in density mode the divisions are round in pA/pF; the scope itself draws in pA
+  const cu = useCurrentUnit();
+  const shownRange = niceRange(cu.show(lo), cu.show(hi), 4);
+  const iRange: [number, number] = cu.density ? [shownRange[0] * cu.cm, shownRange[1] * cu.cm] : shownRange;
 
   // what a stored trace was taken with, so the overlay says what it is
   const label = () => {
-    const parts = [MODELS[cell.model].short, `gL ${fmt(cell.gLeak, 2)} nS`, `Ihold ${inputs.ihold} pA`];
-    if (inputs.pulse.enabled) parts.push(`pulse ${inputs.pulse.amp} pA`);
+    const parts = [MODELS[cell.model].short, `gL ${fmt(cell.gLeak, 2)} nS`, `Ihold ${cu.text(inputs.ihold, 1)}`];
+    if (inputs.pulse.enabled) parts.push(`pulse ${cu.text(inputs.pulse.amp)}`);
     if (inputs.glu.enabled) parts.push(`glu ${inputs.glu.rate} Hz`);
     if (inputs.gaba.enabled) parts.push(`GABA ${inputs.gaba.rate} Hz, E ${inputs.gaba.erev} mV`);
     if (inputs.noise && inputs.noise.memSigma > 0) parts.push(`noise ${inputs.noise.memSigma} pA`);
@@ -263,7 +267,7 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
       <figure className="card scope-card screen-card">
         <figcaption className="sr-only">Oscilloscope{paused ? ", paused" : ""}</figcaption>
         {error && <p className="warn">Simulation failed: {error}</p>}
-        <Scope ref={scope} msPerDiv={msPerDiv} vRange={[-100, 60]} iRange={iRange} showVm={showVm} triggered={triggered} stored={stored} phosphor={oldSchool}
+        <Scope ref={scope} msPerDiv={msPerDiv} vRange={[-100, 60]} iRange={iRange} iUnit={{ div: cu.density ? cu.cm : 1, label: cu.label }} showVm={showVm} triggered={triggered} stored={stored} phosphor={oldSchool}
           height={screenH - (oldSchool ? 104 : 82)} />
         <div className="scope-bar">
           <label className="select inline">

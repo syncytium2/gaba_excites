@@ -28,11 +28,13 @@ import { Tour } from "./ui/Tour.tsx";
 import { AmpChoice, AmpDial, AmpRow, AmpSection, AmpSlot, RigPanels } from "./ui/AmpFront.tsx";
 import { TOUR, tourInputs, type TourControl, type TourSettings } from "./core/tour.ts";
 import { applyZoom, ZOOM_MENU, type Range, type ZoomOp } from "./ui/zoom.ts";
+import { CurrentContext, CurrentDial, CurrentList, currentUnit, digitsFor, niceStep, type CurrentUnit } from "./ui/current.tsx";
 
 // The app opens on the tour's first part: the GnRH cell in the oscilloscope,
 // held near −61 mV, with GABA PSCs on (the owner, 2026-10-19).
 const OPENING = TOUR[0].settings;
 const OLD_SCHOOL_KEY = "gaba_excites.oldschool.v2";
+const DENSITY_KEY = "gaba_excites.density.v1";
 const opening = tourInputs(OPENING);
 import type { RunSettings } from "./core/report.ts";
 
@@ -48,6 +50,8 @@ interface Result {
 
 interface Pin {
   label: string;
+  /** the pinned cell's Cm, pF, so its curve converts to pA/pF by its own size */
+  cm: number;
   points: { amp: number; rate: number }[];
 }
 
@@ -106,6 +110,24 @@ export function App() {
     setOldSchoolPref(on);
     try {
       localStorage.setItem(OLD_SCHOOL_KEY, on ? "1" : "0");
+    } catch {
+      /* storage unavailable: still works for this visit */
+    }
+  };
+  // Current in pA, or as density in pA/pF (= µA/cm² at 1 µF/cm²): display only (src/ui/current.tsx).
+  // Remembered in this browser as a convenience only; every access is guarded.
+  const [density, setDensityPref] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(DENSITY_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const setDensity = (on: boolean) => {
+    setDensityPref(on);
+    setZoom(NO_ZOOM); // a zoomed current axis was in the other unit
+    try {
+      localStorage.setItem(DENSITY_KEY, on ? "1" : "0");
     } catch {
       /* storage unavailable: still works for this visit */
     }
@@ -278,6 +300,9 @@ export function App() {
   }, [result]);
   const sweeps = result?.sweeps ?? [];
   const summary = result?.summary;
+  // the controls convert by the cell as dialed; a result, by the cell it was run on
+  const cu = useMemo(() => currentUnit(density, cell.cm), [density, cell.cm]);
+  const ru = useMemo(() => (result ? currentUnit(density, result.settings.cell.cm) : cu), [density, result, cu]);
   const rank = useMemo(() => {
     const order = sweeps.map((s, k) => [s.amp, k] as const).sort((a, b) => a[0] - b[0]);
     const r = new Array<number>(sweeps.length);
@@ -314,8 +339,8 @@ export function App() {
         seen.set(trip.kind, e);
       }
     }
-    return [...seen.values()].map((e) => `${e.text} (step${e.amps.length > 1 ? "s" : ""} ${e.amps.join(", ")} pA)`);
-  }, [result, limits]);
+    return [...seen.values()].map((e) => `${e.text} (step${e.amps.length > 1 ? "s" : ""} ${e.amps.map((a) => ru.fmt(a)).join(", ")} ${ru.label})`);
+  }, [result, limits, ru]);
   const [scopeReasons, setScopeReasons] = useState<string[]>([]);
   const [readoutSlot, setReadoutSlot] = useState<HTMLElement | null>(null);
   // One screen height for both modes, so the amplifier below the screen stays in
@@ -345,8 +370,8 @@ export function App() {
   const pinCurrent = () => {
     if (!summary) return;
     const label = `Pin ${pins.length + 1}: ${model.short}, gL ${fmt(cell.gLeak, 2)} nS (Rin ${fmt(rinRest, 0)} MΩ), Cm ${fmt(cell.cm, 0)} pF` +
-      (gaba.enabled ? `, GABA ${gaba.erev} mV` : "") + (glu.enabled ? ", glu on" : "") + (ihold ? `, Ihold ${ihold} pA` : "") + (noise.memSigma ? `, noise ${noise.memSigma} pA` : "");
-    setPins([...pins, { label, points: summary.stats.map((s) => ({ amp: s.amp, rate: s.meanRate })).sort((a, b) => a.amp - b.amp) }].slice(-4));
+      (gaba.enabled ? `, GABA ${gaba.erev} mV` : "") + (glu.enabled ? ", glu on" : "") + (ihold ? `, Ihold ${cu.text(ihold, 1)}` : "") + (noise.memSigma ? `, noise ${noise.memSigma} pA` : "");
+    setPins([...pins, { label, cm: result!.settings.cell.cm, points: summary.stats.map((s) => ({ amp: s.amp, rate: s.meanRate })).sort((a, b) => a.amp - b.amp) }].slice(-4));
   };
 
   const downloadCsv = () => {
@@ -377,7 +402,9 @@ export function App() {
     const r = model.ranges;
     switch (c) {
       case "ihold":
-        return <NumField label="Ihold (holding current)" unit="pA" value={ihold} min={r.ihold.min} max={r.ihold.max} step={0.5} slider digits={1} onChange={setIhold} />;
+        return cu.density
+          ? <NumField label="Ihold (holding current)" unit={cu.label} value={+cu.show(ihold).toFixed(4)} min={cu.show(r.ihold.min)} max={cu.show(r.ihold.max)} step={niceStep(0.5 / cu.cm)} slider digits={digitsFor(niceStep(0.5 / cu.cm))} onChange={(x) => setIhold(cu.toPA(x))} />
+          : <NumField label="Ihold (holding current)" unit="pA" value={ihold} min={r.ihold.min} max={r.ihold.max} step={0.5} slider digits={1} onChange={setIhold} />;
       case "gLeak":
         return <NumField label="gL (leak)" unit="nS" value={cell.gLeak} min={r.gLeak.min} max={r.gLeak.max} step={r.gLeak.step} slider digits={2} onChange={(gLeak) => setCell({ ...cell, gLeak })} />;
       case "cm":
@@ -530,7 +557,7 @@ export function App() {
   const ampCC = (
     <>
         <AmpSection name="HOLDING">
-          <AmpDial label="Ihold" unit="pA" value={ihold} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 0.5 : model.ranges.ihold.step} digits={1} onChange={setIhold} />
+          <CurrentDial label="Ihold" value={ihold} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 0.5 : model.ranges.ihold.step} digits={1} onChange={setIhold} />
         </AmpSection>
         <AmpSection name="ELECTRODE">
           <AmpDial label="Rs" unit="MΩ" value={electrode.rs} min={0} max={100} step={1} digits={0} onChange={(rs) => setElectrode({ ...electrode, rs })} />
@@ -542,7 +569,7 @@ export function App() {
         </AmpSection>
     </>
   );
-  const ampSummary = `Current clamp · hold ${ihold} pA · Rs ${electrode.rs} MΩ, bridge ${Math.round(electrode.bridge * 100)}% · Cp ${electrode.cp} pF · filter ${noise.recFilter ? `${noise.recFilter} kHz` : "bypass"}`;
+  const ampSummary = `Current clamp · hold ${cu.text(ihold, 1)} · Rs ${electrode.rs} MΩ, bridge ${Math.round(electrode.bridge * 100)}% · Cp ${electrode.cp} pF · filter ${noise.recFilter ? `${noise.recFilter} kHz` : "bypass"}`;
   // The acquisition software: the step protocol, or on the scope the pulse train.
   const acqRows = (
     <AmpRow>
@@ -556,17 +583,17 @@ export function App() {
           </AmpSlot>
           <AmpChoice label="Steps as" value={form.mode} options={[["family", "Family"], ["list", "List"]] as const} onChange={(m) => putForm({ mode: m })} />
           {form.mode === "family" ? <>
-            <AmpDial label="First" unit="pA" value={form.first} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 1 : 10} digits={cell.model === "gnrh" ? 1 : 0} onChange={(first) => putForm({ first })} />
+            <CurrentDial label="First" value={form.first} min={model.ranges.ihold.min} max={model.ranges.ihold.max} step={cell.model === "gnrh" ? 1 : 10} digits={cell.model === "gnrh" ? 1 : 0} onChange={(first) => putForm({ first })} />
             {/* the increment is a dial, a range and a sign: |delta| = dial × range, so one dial covers
                 0.1–200 pA on every cell, and a family can step down (0, −5, −10 … pA) as well as up */}
-            <AmpDial label="Increment" unit={incRange === 1 ? "pA" : `× ${incRange} pA`} value={Math.abs(form.delta) / incRange} min={INC_DIAL.min} max={INC_DIAL.max} step={INC_DIAL.step} digits={1} onChange={(n) => putForm({ delta: (form.delta < 0 ? -1 : 1) * +(n * incRange).toFixed(6) })} />
+            {cu.density
+              ? <CurrentDial label="Increment" value={Math.abs(form.delta)} min={INC_DIAL.min * incRange} max={INC_DIAL.max * incRange} step={INC_DIAL.step * incRange} onChange={(x) => putForm({ delta: (form.delta < 0 ? -1 : 1) * x })} />
+              : <AmpDial label="Increment" unit={incRange === 1 ? "pA" : `× ${incRange} pA`} value={Math.abs(form.delta) / incRange} min={INC_DIAL.min} max={INC_DIAL.max} step={INC_DIAL.step} digits={1} onChange={(n) => putForm({ delta: (form.delta < 0 ? -1 : 1) * +(n * incRange).toFixed(6) })} />}
             <AmpChoice label="Range" value={incRange} options={INC_RANGES.map((r) => [r, `×${r}`] as const)} onChange={(r) => { setIncPref(r); putForm({ delta: (form.delta < 0 ? -1 : 1) * +((Math.abs(form.delta) / incRange) * r).toFixed(6) }); }} />
             <AmpChoice label="Steps go" value={form.delta < 0 ? "down" : "up"} options={[["up", "+ up"], ["down", "− down"]] as const} onChange={(d) => putForm({ delta: (d === "down" ? -1 : 1) * Math.abs(form.delta) })} />
             <AmpDial label="Sweeps" unit="" value={form.count} min={1} max={MAX_SWEEPS} step={1} digits={0} onChange={(count) => putForm({ count })} />
           </> : (
-            <AmpSlot label="Steps, pA">
-              <input className="amp-list" aria-label="Steps, pA, comma or space separated" value={form.list} onChange={(e) => putForm({ list: e.target.value })} />
-            </AmpSlot>
+            <CurrentList list={form.list} onChange={(list) => putForm({ list })} />
           )}
           <AmpDial label="Step at" unit="ms" value={form.stepStart} min={0} max={2000} step={10} digits={0} onChange={(stepStart) => putForm({ stepStart })} />
           <AmpDial label="Duration" unit="ms" value={form.stepDur} min={0} max={5000} step={50} digits={0} onChange={(stepDur) => putForm({ stepDur })} />
@@ -574,7 +601,7 @@ export function App() {
         </AmpSection>
         ) : (
         <AmpSection name="PULSES" power={{ on: pulse.enabled, onChange: (on) => setPulse({ ...pulse, enabled: on }) }}>
-          <AmpDial label="Amplitude" unit="pA" value={pulse.amp} min={-3 * limits.iBound} max={3 * limits.iBound} step={cell.model === "gnrh" ? 1 : cell.model === "betamouse" ? 0.1 : 10} digits={cell.model === "betamouse" ? 1 : 0} disabled={!pulse.enabled} onChange={(amp) => setPulse({ ...pulse, amp })} />
+          <CurrentDial label="Amplitude" value={pulse.amp} min={-3 * limits.iBound} max={3 * limits.iBound} step={cell.model === "gnrh" ? 1 : cell.model === "betamouse" ? 0.1 : 10} digits={cell.model === "betamouse" ? 1 : 0} disabled={!pulse.enabled} onChange={(amp) => setPulse({ ...pulse, amp })} />
           <AmpDial label="Width" unit="ms" value={pulse.width} min={1} max={2000} step={10} digits={0} disabled={!pulse.enabled} onChange={(width) => setPulse({ ...pulse, width })} />
           <AmpDial label="Period" unit="ms" value={pulse.period} min={10} max={10000} step={50} digits={0} disabled={!pulse.enabled} onChange={(period) => setPulse({ ...pulse, period })} />
         </AmpSection>
@@ -583,7 +610,7 @@ export function App() {
   );
   const acqSummary = mode === "steps"
     ? `${preset ? preset.label : "Custom protocol"} · ${protocol.amps.length} sweep${protocol.amps.length === 1 ? "" : "s"} · ${form.sweepMs} ms`
-    : pulse.enabled ? `Pulses ${pulse.amp} pA, ${pulse.width} ms every ${pulse.period} ms` : "Pulses off";
+    : pulse.enabled ? `Pulses ${cu.text(pulse.amp)}, ${pulse.width} ms every ${pulse.period} ms` : "Pulses off";
   // The mode switch, and Old school in scope mode: in the amplifier's name strip.
   const ampControls = (
     <>
@@ -599,6 +626,14 @@ export function App() {
           title="Voltage clamp: hold the cell at a command and record the current">
           Voltage clamp
         </button>
+      </div>
+      <div className="seg small" role="radiogroup" aria-label="Current units">
+        {([[false, "pA"], [true, "pA/pF"]] as const).map(([d, name]) => (
+          <button key={name} id={d ? "units-density" : "units-pa"} type="button" role="radio" aria-checked={density === d} className={density === d ? "on" : ""} onClick={() => setDensity(d)}
+            title={d ? "Current density: pA per pF of membrane, the same number as µA/cm² at 1 µF/cm². Takes the cell's size out." : "Current in picoamps"}>
+            {name}
+          </button>
+        ))}
       </div>
       {(
         <label className="check oldschool-toggle">
@@ -623,6 +658,7 @@ export function App() {
       </header>
 
       <KnobContext.Provider value={oldSchool}>
+      <CurrentContext.Provider value={cu}>
       <div className={"layout" + (mode === "vc" ? " vc-wide" : "")}>
         <aside className="tools">
           <Panel title="Guided tour" open={panels.open.tour} onToggle={() => panels.toggle("tour")} className="tour-panel"
@@ -635,7 +671,7 @@ export function App() {
         <main className={"figures" + (mode === "scope" ? " pinned" : "")} style={{ "--screen-h": `${screenH}px` } as React.CSSProperties}>
           <div className="modebar">
             {mode === "scope" && <div className="readout-slot" ref={setReadoutSlot} />}
-            {mode === "steps" && <StepReadouts summary={playing ? undefined : summary} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} />}
+            {mode === "steps" && <StepReadouts summary={playing ? undefined : summary} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} cu={ru} />}
             <Siren reasons={mode === "scope" ? scopeReasons : stepReasons} />
             {error && <div className="warn" role="alert">Simulation failed: {error}</div>}
           </div>
@@ -662,7 +698,7 @@ export function App() {
                       <span className="status" aria-live="polite" hidden={cursorMode === "measure" && !busy}>{busy ? "simulating…" : `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms`}</span>
                     </span>
                     <span className="play-status" aria-live="polite">
-                      {playing && shown ? `Sweep ${shown.sweeps.length} of ${sweeps.length}: ${shown.sweeps[shown.sweeps.length - 1].amp} pA` : ""}
+                      {playing && shown ? `Sweep ${shown.sweeps.length} of ${sweeps.length}: ${ru.text(shown.sweeps[shown.sweeps.length - 1].amp)}` : ""}
                     </span>
                     {cursorMode === "measure" && <span className="readout" ref={readoutRef}>{READOUT_HINT}</span>}
                     <span className="seg small cursor-mode" role="radiogroup" aria-label="Cursor">
@@ -685,14 +721,14 @@ export function App() {
                     </span>
                   </figcaption>
                   {playing && shown ? (
-                    <TracePlots result={shown} rank={shown.sweeps.map((_, k) => k)} sel={shown.sweeps.length - 1} showVm={showVm} synOn={synOn} onSelect={() => {}} ranges={playRanges} screenH={screenH} zoom={zoom} onZoom={setZoom} cursorMode={cursorMode} readoutRef={readoutRef} pal={pal} />
+                    <TracePlots result={shown} rank={shown.sweeps.map((_, k) => k)} sel={shown.sweeps.length - 1} showVm={showVm} synOn={synOn} onSelect={() => {}} ranges={playRanges} screenH={screenH} zoom={zoom} onZoom={setZoom} cursorMode={cursorMode} readoutRef={readoutRef} pal={pal} cu={ru} />
                   ) : (
-                    <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} screenH={screenH} zoom={zoom} onZoom={setZoom} cursorMode={cursorMode} readoutRef={readoutRef} pal={pal} />
+                    <TracePlots result={result} rank={rank} sel={sel} showVm={showVm} synOn={synOn} onSelect={setSelected} screenH={screenH} zoom={zoom} onZoom={setZoom} cursorMode={cursorMode} readoutRef={readoutRef} pal={pal} cu={ru} />
                   )}
                   <p className="legendline">
                     Sweeps shade {pal.name === "dark" ? "dim → bright" : "light → dark"} with step amplitude; {playing && shown
-                      ? <><span style={{ color: pal.orange }}>■</span> the newest sweep ({shown.sweeps[shown.sweeps.length - 1].amp} pA).</>
-                      : <><span style={{ color: pal.orange }}>■</span> the selected sweep ({sweeps[sel]?.amp} pA). Hover to read values, click a trace to select it. Drag a marquee and click inside it to zoom; ⌘/Ctrl-A autoscales.</>}
+                      ? <><span style={{ color: pal.orange }}>■</span> the newest sweep ({ru.text(shown.sweeps[shown.sweeps.length - 1].amp)}).</>
+                      : <><span style={{ color: pal.orange }}>■</span> the selected sweep ({sweeps[sel] ? ru.text(sweeps[sel].amp) : "—"}). Hover to read values, click a trace to select it. Drag a marquee and click inside it to zoom; ⌘/Ctrl-A autoscales.</>}
                     {synOn && <> Conductances are the selected sweep's: <span style={{ color: pal.orange }}>■</span> glutamate, <span style={{ color: pal.aqua }}>■</span> GABA.</>}
                   </p>
                 </figure>
@@ -717,20 +753,20 @@ export function App() {
                         <button className="linkish" onClick={downloadCsv}>CSV</button>
                       </span>
                     </figcaption>
-                    <FIPlot summary={summary!} pins={pins} pal={pal} />
+                    <FIPlot summary={summary!} pins={pins} pal={pal} cu={ru} />
                     <p className="legendline">
                       Mean rate is spikes in the step ÷ its duration; initial rate is 1 / the first interspike interval. Steps below
-                      0 pA are left off; they are in the table.
+                      zero are left off; they are in the table.
                       {pins.map((p, i) => <span key={i} className="pinlabel"><br /><span className="dash">- -</span> {p.label}</span>)}
                     </p>
                   </figure>
                   <figure className="card">
-                    <figcaption><span>Phase plot, {sweeps[sel]?.amp} pA</span></figcaption>
+                    <figcaption><span>Phase plot, {sweeps[sel] ? ru.text(sweeps[sel].amp) : "—"}</span></figcaption>
                     <PhasePlot vm={sweeps[sel].vm} dt={sweeps[sel].sampleMs} color={pal.orange} />
                   </figure>
                 </div>
 
-                <SweepTable summary={summary!} sel={sel} onSelect={setSelected} />
+                <SweepTable summary={summary!} sel={sel} onSelect={setSelected} cu={ru} />
 
                 <Notebook run={busy ? null : { sweeps, summary: summary!, settings: result.settings, cell: result.cell }} model={MODELS[result.settings.cell.model]} app={{ version: VERSION, updated: UPDATED }} />
               </>
@@ -740,6 +776,7 @@ export function App() {
         </main>
       </div>
 
+      </CurrentContext.Provider>
       </KnobContext.Provider>
 
       <footer>
@@ -792,9 +829,11 @@ const READOUT_HINT = "hover a trace: time, V, I · click for a Δ reference · E
 
 interface MarqueeMenu { p: number; left: number; top: number; view: { x: Range; y: Range }; sel: { x: Range; y: Range } }
 
-function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screenH = 460, zoom, onZoom, cursorMode, readoutRef, pal }: {
+function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screenH = 460, zoom, onZoom, cursorMode, readoutRef, pal, cu }: {
   /** chart colors for the page's theme */
   pal: ChartColors;
+  /** the current units, by the Cm the result was run on */
+  cu: CurrentUnit;
   result: Result; rank: number[]; sel: number; showVm: boolean; synOn: boolean; onSelect: (k: number) => void;
   zoom: Zoom; onZoom: (z: Zoom) => void;
   cursorMode: CursorMode;
@@ -825,9 +864,9 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
   }, [result, sel, showVm, t]);
 
   const iData = useMemo<uPlot.AlignedData>(
-    () => [t, ...order.map((k) => sw[k].iCmd)] as unknown as uPlot.AlignedData,
+    () => [t, ...order.map((k) => (cu.density ? sw[k].iCmd.map((x) => x / cu.cm) : sw[k].iCmd))] as unknown as uPlot.AlignedData,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [result, sel, t],
+    [result, sel, t, cu],
   );
   const gData = useMemo<uPlot.AlignedData>(
     () => [t, sw[sel].gGlu, sw[sel].gGaba] as unknown as uPlot.AlignedData,
@@ -911,8 +950,8 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
   // a click pins a reference, and the readout adds Δt and ΔV from it
   const pin = useRef<{ t: number; v: number; k: number } | null>(null);
   const vChart = useRef<uPlot | null>(null);
-  const live = useRef({ sw, sel, showVm, cursorMode, t });
-  live.current = { sw, sel, showVm, cursorMode, t };
+  const live = useRef({ sw, sel, showVm, cursorMode, t, cu });
+  live.current = { sw, sel, showVm, cursorMode, t, cu };
   const sweepAtCursor = () => {
     const idx = focused.current;
     const k = idx != null && idx > 0 ? orderRef.current[idx - 1] : undefined;
@@ -933,9 +972,9 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
     const w = L.sw[k];
     const t = L.t[i], v = w.vRec[i];
     // the units name the quantities, which keeps the line short enough for the title row
-    let s = `${w.amp < 0 ? "−" : ""}${Math.abs(w.amp)} pA sweep: ${f2(t)} ms · ${f1(v)} mV`;
+    let s = `${L.cu.text(w.amp)} sweep: ${f2(t)} ms · ${f1(v)} mV`;
     if (L.showVm) s += ` (Vm ${f1(w.vm[i])})`;
-    s += ` · ${f1(w.iCmd[i])} pA`;
+    s += ` · ${L.cu.density ? L.cu.fmt(w.iCmd[i]) : f1(w.iCmd[i])} ${L.cu.label}`;
     if (pin.current) s += ` · Δ ${f2(t - pin.current.t)} ms, ${f1(v - pin.current.v)} mV`;
     out.textContent = s;
   };
@@ -1000,7 +1039,7 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
   });
 
   const vSeries: uPlot.Series[] = order.map((k) => ({
-    label: `${sw[k].amp} pA`,
+    label: cu.text(sw[k].amp),
     stroke: colors[k],
     width: k === sel ? 2 : 1,
     value: (_u, v) => (v == null ? "—" : v.toFixed(1) + " mV"),
@@ -1023,7 +1062,7 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
     });
   };
 
-  const structKey = `${sw.length}|${sel}|${showVm}|${colors.join()}|${n}|${vH}|${JSON.stringify(zoom)}|${cursorMode}|${pal.name}`;
+  const structKey = `${sw.length}|${sel}|${showVm}|${colors.join()}|${n}|${vH}|${JSON.stringify(zoom)}|${cursorMode}|${pal.name}|${cu.label}|${cu.cm}`;
   // each plot's scales: the marquee zoom where there is one, else the fixed play ranges, else autoscaled
   const scalesFor = (p: number, fixed?: [number, number]): uPlot.Scales => ({
     x: { time: false, ...(zoom.x && { range: zoom.x }) },
@@ -1034,7 +1073,7 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
       <Plot className="plot" data={vData} deps={[structKey]}
         options={(w) => base(w, vH, "V recorded (mV)", vSeries, { hooks: { init: [clickHook, marqueeHook(0), measureHook], setSeries: [focusHook], setCursor: [readCursor], draw: [drawPin] }, scales: scalesFor(0, ranges?.v) }, false)} />
       <Plot className="plot" data={iData} deps={[structKey]}
-        options={(w) => base(w, iH, "I (pA)", order.map((k) => ({ label: `${sw[k].amp} pA`, stroke: colors[k], width: k === sel ? 2 : 1 })), { hooks: { init: [marqueeHook(1)] }, scales: scalesFor(1, ranges?.i) }, !synOn)} />
+        options={(w) => base(w, iH, `I (${cu.label})`, order.map((k) => ({ label: cu.text(sw[k].amp), stroke: colors[k], width: k === sel ? 2 : 1 })), { hooks: { init: [marqueeHook(1)] }, scales: scalesFor(1, ranges?.i && [cu.show(ranges.i[0]), cu.show(ranges.i[1])]) }, !synOn)} />
       {synOn && (
         <Plot className="plot" data={gData} deps={[structKey, synOn]}
           options={(w) => base(w, gH, "g syn (nS)", [
@@ -1067,26 +1106,29 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
 
 // ------------------------------------------------------------------ F–I
 
-function FIPlot({ summary, pins, pal }: { summary: FamilySummary; pins: Pin[]; pal: ChartColors }) {
+function FIPlot({ summary, pins, pal, cu }: { summary: FamilySummary; pins: Pin[]; pal: ChartColors; cu: CurrentUnit }) {
   // The F–I curve starts at 0 pA: hyperpolarizing steps fire nothing and belong
   // to the Rin measurement. They stay in the table below.
+  // In density mode each curve converts by its own cell's Cm, which is what lets
+  // cells of different size share the axis.
+  const x = (amp: number, cm: number) => (cu.density ? +(amp / cm).toPrecision(6) : amp);
   const stats = [...summary.stats].filter((s) => s.amp >= 0).sort((a, b) => a.amp - b.amp);
-  const xs = Array.from(new Set([...stats.map((s) => s.amp), ...pins.flatMap((p) => p.points.filter((q) => q.amp >= 0).map((q) => q.amp))])).sort((a, b) => a - b);
-  const at = (pts: { amp: number; v: number }[]) => xs.map((x) => pts.find((p) => p.amp === x)?.v ?? null);
+  const xs = Array.from(new Set([...stats.map((s) => x(s.amp, cu.cm)), ...pins.flatMap((p) => p.points.filter((q) => q.amp >= 0).map((q) => x(q.amp, p.cm)))])).sort((a, b) => a - b);
+  const at = (pts: { x: number; v: number }[]) => xs.map((xx) => pts.find((p) => p.x === xx)?.v ?? null);
   const data = [
     xs,
-    at(stats.map((s) => ({ amp: s.amp, v: s.meanRate }))),
-    at(stats.map((s) => ({ amp: s.amp, v: Number.isFinite(s.initialRate) ? s.initialRate : NaN })).filter((p) => Number.isFinite(p.v))),
-    ...pins.map((p) => at(p.points.map((q) => ({ amp: q.amp, v: q.rate })))),
+    at(stats.map((s) => ({ x: x(s.amp, cu.cm), v: s.meanRate }))),
+    at(stats.map((s) => ({ x: x(s.amp, cu.cm), v: Number.isFinite(s.initialRate) ? s.initialRate : NaN })).filter((p) => Number.isFinite(p.v))),
+    ...pins.map((p) => at(p.points.map((q) => ({ x: x(q.amp, p.cm), v: q.rate })))),
   ] as unknown as uPlot.AlignedData;
 
   const series: uPlot.Series[] = [
-    { label: "I (pA)" },
+    { label: `I (${cu.label})` },
     { label: "mean rate", stroke: pal.blue, width: 2, points: { show: true, size: 8, fill: pal.blue, stroke: pal.surface, width: 2 }, spanGaps: true, value: (_u, v) => (v == null ? "—" : v.toFixed(1) + " Hz") },
     { label: "initial rate", stroke: pal.orange, width: 1.5, dash: [5, 3], points: { show: true, size: 8, fill: pal.orange, stroke: pal.surface, width: 2 }, spanGaps: true, value: (_u, v) => (v == null ? "—" : v.toFixed(1) + " Hz") },
     ...pins.map((_p, i): uPlot.Series => ({ label: `pin ${i + 1}`, stroke: pal.muted, width: 1.5, dash: [3, 3], spanGaps: true, points: { show: true, size: 6, fill: pal.muted } })),
   ];
-  const key = `${pins.length}|${xs.join()}|${pal.name}`;
+  const key = `${pins.length}|${xs.join()}|${pal.name}|${cu.label}`;
   return (
     <Plot className="plot" data={data} deps={[key]}
       options={(w) => ({
@@ -1098,7 +1140,7 @@ function FIPlot({ summary, pins, pal }: { summary: FamilySummary; pins: Pin[]; p
           x: { time: false, range: (_u, _lo, hi) => [0, Math.max(hi ?? 0, 1)] },
           y: { range: (_u, _lo, hi) => [0, Math.max(10, hi * 1.08)] },
         },
-        axes: [axisOpts(pal, "step current (pA)", 40), axisOpts(pal, "firing rate (Hz)", 50)],
+        axes: [axisOpts(pal, `step current (${cu.label})`, 40), axisOpts(pal, "firing rate (Hz)", 50)],
         series,
       })} />
   );
@@ -1106,7 +1148,7 @@ function FIPlot({ summary, pins, pal }: { summary: FamilySummary; pins: Pin[]; p
 
 // ------------------------------------------------------------------ table
 
-function SweepTable({ summary, sel, onSelect }: { summary: FamilySummary; sel: number; onSelect: (k: number) => void }) {
+function SweepTable({ summary, sel, onSelect, cu }: { summary: FamilySummary; sel: number; onSelect: (k: number) => void; cu: CurrentUnit }) {
   return (
     <figure className="card">
       <figcaption><span>Per sweep (click a row to select it)</span></figcaption>
@@ -1114,7 +1156,7 @@ function SweepTable({ summary, sel, onSelect }: { summary: FamilySummary; sel: n
         <table>
           <thead>
             <tr>
-              <th>Step (pA)</th><th>Spikes in step</th><th>Mean (Hz)</th><th>Initial (Hz)</th><th>Final (Hz)</th>
+              <th>Step ({cu.label})</th><th>Spikes in step</th><th>Mean (Hz)</th><th>Initial (Hz)</th><th>Final (Hz)</th>
               <th>Latency (ms)</th><th>V before (mV)</th><th>V steady (mV)</th>
               <th><Tip text="Spikes after the step ends, to the end of the sweep: rebound. Not part of the F–I curve, rheobase or rates, which count only spikes in the step.">After step</Tip></th>
               <th><Tip text="First spike after the step ends, from the moment of release.">After-step latency (ms)</Tip></th>
@@ -1123,7 +1165,7 @@ function SweepTable({ summary, sel, onSelect }: { summary: FamilySummary; sel: n
           <tbody>
             {summary.stats.map((s, k) => (
               <tr key={k} className={k === sel ? "sel" : ""} onClick={() => onSelect(k)}>
-                <td>{s.amp}</td><td>{s.nInStep}</td><td>{fmt(s.meanRate)}</td><td>{fmt(s.initialRate)}</td><td>{fmt(s.finalRate)}</td>
+                <td>{cu.fmt(s.amp)}</td><td>{s.nInStep}</td><td>{fmt(s.meanRate)}</td><td>{fmt(s.initialRate)}</td><td>{fmt(s.finalRate)}</td>
                 <td>{fmt(s.latency)}</td><td>{fmt(s.vBaseline)}</td><td>{fmt(s.vSteady)}</td>
                 <td>{s.nAfterStep}</td><td>{fmt(s.afterLatency)}</td>
               </tr>
@@ -1140,32 +1182,36 @@ function SweepTable({ summary, sel, onSelect }: { summary: FamilySummary; sel: n
  * Each name carries its explanation on hover and focus. Rheobase keeps its
  * "refine" link and the refined value, a result someone asked for.
  */
-function StepReadouts({ summary, rinRest, rinHold, refined, onRefine, tol }: {
+function StepReadouts({ summary, rinRest, rinHold, refined, onRefine, tol, cu }: {
   summary?: FamilySummary; rinRest: number; rinHold: number; refined: { value: number; tol: number } | null; onRefine: () => void; tol: number;
+  cu: CurrentUnit;
 }) {
   const s = summary;
   const d = tol < 1 ? 1 : 0; // decimals that the refinement actually resolves
-  const amp = (v: number) => fmt(v, Number.isInteger(v) ? 0 : 1);
+  const amp = (v: number) => (cu.density ? cu.fmt(v) : fmt(v, Number.isInteger(v) ? 0 : 1));
+  const amp2 = (v: number) => (cu.density ? cu.fmt(v) : fmt(v, d));
   const item = (name: string, note: React.ReactNode, value: string, unit: string) => (
     <span><Tip text={note}>{name}</Tip> <b>{value}</b> {unit}</span>
   );
   return (
     <span className="readline">
       <span>
-        <Tip text={s && !Number.isFinite(s.rheobase) ? "No step fired." : "The smallest step that fired."}>Rheobase</Tip> <b>{s ? amp(s.rheobase) : "—"}</b> pA{" "}
+        <Tip text={s && !Number.isFinite(s.rheobase) ? "No step fired." : "The smallest step that fired."}>Rheobase</Tip> <b>{s ? amp(s.rheobase) : "—"}</b> {cu.label}{" "}
         <small>
-          {refined ? (Number.isFinite(refined.value) ? `(refined ${fmt(refined.value, d)} ± ${fmt(refined.tol, d)})` : "(refining…)")
-            : s && Number.isFinite(s.rheobase) ? <button className="linkish" onClick={onRefine}>refine to {tol} pA</button> : null}
+          {refined ? (Number.isFinite(refined.value) ? `(refined ${amp2(refined.value)} ± ${amp2(refined.tol)})` : "(refining…)")
+            : s && Number.isFinite(s.rheobase) ? <button className="linkish" onClick={onRefine}>refine to {cu.text(tol)}</button> : null}
         </small>
       </span>
       {item("Threshold", "First spike, where dV/dt reaches 20 V/s.", s ? fmt(s.threshold, 1) : "—", "mV")}
       {item("AP peak", "First spike at rheobase.", s ? fmt(s.apPeak, 0) : "—", "mV")}
       {item("Half-width", "At half the threshold-to-peak height.", s ? fmt(s.apHalfWidth, 2) : "—", "ms")}
       {item("Rin", s && Number.isFinite(s.rinMeasured)
-        ? `Measured from steps ≤ 0 pA at the holding Vm. Steady-state slope: ${fmt(rinRest, 0)} MΩ at rest${Math.abs(rinHold - rinRest) > 0.02 * rinRest ? `, ${fmt(rinHold, 0)} MΩ at Ihold` : ""}.`
-        : "Needs two steps ≤ 0 pA.", s ? fmt(s.rinMeasured, 0) : "—", "MΩ")}
+        ? `Measured from steps ≤ 0 at the holding Vm. Steady-state slope: ${fmt(rinRest, 0)} MΩ at rest${Math.abs(rinHold - rinRest) > 0.02 * rinRest ? `, ${fmt(rinHold, 0)} MΩ at Ihold` : ""}.`
+        : "Needs two steps ≤ 0.", s ? fmt(s.rinMeasured, 0) : "—", "MΩ")}
       {item("Holding Vm", "Before the step.", s ? fmt(s.vHold, 1) : "—", "mV")}
-      {item("F–I gain", "Slope over the sweeps that fired.", s ? fmt(s.fiGain, 0) : "—", "Hz/nA")}
+      {cu.density
+        ? item("F–I gain", "Slope over the sweeps that fired.", s ? fmt((s.fiGain * cu.cm) / 1000, 1) : "—", "Hz per pA/pF")
+        : item("F–I gain", "Slope over the sweeps that fired.", s ? fmt(s.fiGain, 0) : "—", "Hz/nA")}
     </span>
   );
 }

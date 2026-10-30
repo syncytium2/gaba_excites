@@ -12,6 +12,7 @@ import { AmpChoice, AmpDial, AmpRow, AmpSection, AmpSlot, RigPanels } from "./Am
 import { Plot } from "./Plot.tsx";
 import { Tip } from "./Tip.tsx";
 import { axisOpts } from "./axis.ts";
+import { useCurrentUnit, type CurrentUnit } from "./current.tsx";
 import type { ChartColors } from "./palette.ts";
 
 /** Limits that keep a family quick: a run is settled once, then every sweep. */
@@ -23,8 +24,12 @@ const CAP_MS = 0.6;
 const KINDS = [["peakIn", "Peak in"], ["peakOut", "Peak out"], ["mean", "Mean"], ["cursor", "Cursor"]] as const;
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 
-/** pA, or nA once currents are large: the pyramidal soma's sodium current is hundreds of nA */
-function currentUnit(maxAbs: number): { div: number; unit: string } {
+/**
+ * pA, or nA once currents are large: the pyramidal soma's sodium current is hundreds of nA.
+ * With the current units switch on density, pA/pF at any size.
+ */
+function vcUnit(maxAbs: number, cu: CurrentUnit): { div: number; unit: string } {
+  if (cu.density) return { div: cu.cm, unit: cu.label };
   return maxAbs >= 5000 ? { div: 1000, unit: "nA" } : { div: 1, unit: "pA" };
 }
 
@@ -146,7 +151,8 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     for (const pts of points) for (const p of pts) m = Math.max(m, Math.abs(p.i));
     return m;
   }, [points]);
-  const u = currentUnit(maxAbs);
+  const cu = useCurrentUnit();
+  const u = vcUnit(maxAbs, cu);
 
   // the first measurement, normalized: I/Imax, or G/Gmax with G = I/(V − E_rev); fitted where the varied thing is a voltage
   const normalized = useMemo(() => {
@@ -176,9 +182,9 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
       const order = pts.map((p, i) => [xOf(p, j), i] as const).sort((a, b) => a[0] - b[0]);
       return { x: order.map(([x]) => x), y: order.map(([, i]) => pts[i].i / u.div), color: colors[j], dots: true, label: `M${j + 1}: ${KINDS.find((k) => k[0] === measures[j].kind)![1].toLowerCase()}` };
     });
-    return linePlot({ series, xlabel: xLabel, ylabel: `measured current (${u.unit})`, hlines: [{ y: 0, color: pal.muted }], legend: true, theme, width: 520, height: 150 });
+    return linePlot({ series, xlabel: xLabel, ylabel: `${u.unit === "pA/pF" ? "measured I" : "measured current"} (${u.unit})`, hlines: [{ y: 0, color: pal.muted }], legend: true, theme, width: 520, height: 150 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, xAxis, pal, u.div]);
+  }, [points, xAxis, pal, u.div, u.unit]);
   const normSvg = useMemo(() => {
     if (!normalized) return "";
     const order = normalized.x.map((x, i) => [x, i] as const).filter(([x]) => Number.isFinite(x)).sort((a, b) => a[0] - b[0]);
@@ -363,7 +369,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
                 <thead><tr><th>{varied === "dur" ? "ms" : "mV"}</th>{points.map((_, j) => <th key={j}>M{j + 1} ({u.unit})</th>)}<th>true Vm (mV)</th></tr></thead>
                 <tbody>
                   {sweeps.map((sw, k) => (
-                    <tr key={k}><td>{sw.value}</td>{points.map((pts, j) => <td key={j}>{fmt(pts[k].i / u.div, u.div > 1 ? 2 : 1)}</td>)}<td>{fmt(points[0]?.[k]?.vm ?? NaN, 1)}</td></tr>
+                    <tr key={k}><td>{sw.value}</td>{points.map((pts, j) => <td key={j}>{fmt(pts[k].i / u.div, u.div === 1 ? 1 : 2)}</td>)}<td>{fmt(points[0]?.[k]?.vm ?? NaN, 1)}</td></tr>
                   ))}
                 </tbody>
               </table>
@@ -375,6 +381,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
 
 /** The current traces of a family over the command, with each measurement's window shaded. */
 function VCTraces({ sweeps, measures, showTrue, pal, height }: { sweeps: VCSweep[]; measures: VCMeasure[]; showTrue: boolean; pal: ChartColors; height: number }) {
+  const cu = useCurrentUnit();
   const n = Math.max(...sweeps.map((s) => s.iRec.length));
   const dt = sweeps[0].sampleMs;
   // the y range without the capacitive transients
@@ -389,7 +396,7 @@ function VCTraces({ sweeps, measures, showTrue, pal, height }: { sweeps: VCSweep
       hi = Math.max(hi, s.iRec[j], showTrue ? s.iTrue[j] : -Infinity);
     }
   }
-  const u = currentUnit(Math.max(Math.abs(lo), Math.abs(hi)));
+  const u = vcUnit(Math.max(Math.abs(lo), Math.abs(hi)), cu);
   const pad = 0.06 * (hi - lo || 1);
   const yr: [number, number] = [(lo - pad) / u.div, (hi + pad) / u.div];
   const t = new Float64Array(n);

@@ -305,6 +305,30 @@ await page.waitForTimeout(800);
 await page.screenshot({ path: `${out}/vc-phone.png`, fullPage: true });
 if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) problems.push("vc: horizontal overflow at 390 px");
 
+// The current units switch: pA/pF in all three modes, on the squid axon, whose presets quote µA/cm² (= pA/pF).
+await page.setViewportSize({ width: 1440, height: 1000 });
+if (modelIds.includes("hh")) {
+  await page.selectOption("#model-select", "hh");
+  await page.waitForTimeout(500);
+  await page.click("#units-density");
+  await vcRan("hh in pA/pF");
+  if (!(await page.locator(".vc-table").innerText()).includes("pA/pF")) problems.push("units: the voltage-clamp table is not in pA/pF");
+  await page.screenshot({ path: `${out}/units-vc.png`, fullPage: true });
+  await page.click("#mode-steps");
+  await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
+  await page.waitForTimeout(500);
+  const head = await page.locator("table th").first().innerText();
+  if (!head.includes("pA/pF")) problems.push(`units: the sweep table's first column reads "${head}"`);
+  const readline = await page.locator(".readline").innerText();
+  if (!/Rheobase\s+[\d.]+\s+pA\/pF/.test(readline)) problems.push(`units: rheobase does not read in pA/pF: "${readline.slice(0, 80)}"`);
+  await page.screenshot({ path: `${out}/units-steps.png`, fullPage: true });
+  await page.click("#mode-scope");
+  await page.waitForTimeout(2000);
+  await page.screenshot({ path: `${out}/units-scope.png`, fullPage: true });
+  await page.click("#units-pa");
+  await page.waitForTimeout(300);
+}
+
 await browser.close();
 if (problems.length) { console.error(problems.join("\n")); process.exit(1); }
 console.log("clean: no console errors, no third-party requests, no phone overflow");

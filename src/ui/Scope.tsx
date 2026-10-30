@@ -59,6 +59,8 @@ interface Props {
   vRange: [number, number];
   /** current axis, pA, 4 divisions */
   iRange: [number, number];
+  /** how the current axis is labeled: pA ÷ div, in `label` (pA/pF in density mode) */
+  iUnit?: { div: number; label: string };
   showVm: boolean;
   /** start each pass at a pulse onset */
   triggered: boolean;
@@ -117,7 +119,15 @@ function columns(w: number): Columns {
   };
 }
 
-export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, vRange, iRange, showVm, triggered, stored, phosphor = false, height }, ref) {
+const PA = { div: 1, label: "pA" };
+
+/** a current-axis tick label, in the axis's unit, with the decimals its span needs */
+function iTick(i: number, range: [number, number], u: { div: number }): string {
+  const span = Math.abs(range[1] - range[0]) / u.div;
+  return (i / u.div).toFixed(span < 0.8 ? 2 : span < 8 ? 1 : 0);
+}
+
+export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, vRange, iRange, iUnit = PA, showVm, triggered, stored, phosphor = false, height }, ref) {
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const width = useRef(600);
@@ -130,8 +140,8 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
     vH.current = wantVH;
     dirty.current = true;
   }
-  const props = useRef({ msPerDiv, vRange, iRange, showVm, triggered, stored, phosphor });
-  props.current = { msPerDiv, vRange, iRange, showVm, triggered, stored, phosphor };
+  const props = useRef({ msPerDiv, vRange, iRange, iUnit, showVm, triggered, stored, phosphor });
+  props.current = { msPerDiv, vRange, iRange, iUnit, showVm, triggered, stored, phosphor };
   // the phosphor: an offscreen layer that the beam writes on and that fades with time
   const phos = useRef<HTMLCanvasElement | null>(null);
   const lastPush = useRef(0);
@@ -221,7 +231,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
   useEffect(reset, [msPerDiv, triggered, phosphor]);
   useEffect(() => {
     dirty.current = true;
-  }, [vRange[0], vRange[1], iRange[0], iRange[1], showVm, stored]);
+  }, [vRange[0], vRange[1], iRange[0], iRange[1], iUnit.div, iUnit.label, showVm, stored]);
 
   useEffect(() => {
     const el = box.current!;
@@ -263,7 +273,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
   function draw() {
     const cv = canvas.current;
     if (!cv) return;
-    const { msPerDiv, vRange, iRange, showVm, triggered, stored } = props.current;
+    const { msPerDiv, vRange, iRange, iUnit, showVm, triggered, stored } = props.current;
     const W = width.current;
     const V_H = vH.current;
     const H = TOP + V_H + GAP + I_H + BOTTOM;
@@ -307,14 +317,14 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
       g.strokeRect(LEFT + 0.5, top + 0.5, pw, h);
     };
     grid(vTop, V_H, DIVS_V, vRange[0], vRange[1], (v) => v.toFixed(0));
-    grid(iTop, I_H, DIVS_I, iRange[0], iRange[1], (i) => (Math.abs(iRange[1] - iRange[0]) < 8 ? i.toFixed(1) : i.toFixed(0)));
+    grid(iTop, I_H, DIVS_I, iRange[0], iRange[1], (i) => iTick(i, iRange, iUnit));
     g.save();
     g.translate(12, vTop + V_H / 2); g.rotate(-Math.PI / 2); g.textAlign = "center"; g.fillStyle = INK2;
     g.fillText("V recorded (mV)", 0, 0);
     g.restore();
     g.save();
     g.translate(12, iTop + I_H / 2); g.rotate(-Math.PI / 2); g.textAlign = "center"; g.fillStyle = INK2;
-    g.fillText("I (pA)", 0, 0);
+    g.fillText(`I (${iUnit.label})`, 0, 0);
     g.restore();
     g.textAlign = "right";
     g.fillStyle = MUTED;
@@ -381,7 +391,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
   function drawPhosphor() {
     const cv = canvas.current;
     if (!cv) return;
-    const { msPerDiv, vRange, iRange, showVm, triggered, stored } = props.current;
+    const { msPerDiv, vRange, iRange, iUnit, showVm, triggered, stored } = props.current;
     const W = width.current;
     const V_H = vH.current;
     const H = TOP + V_H + GAP + I_H + BOTTOM;
@@ -500,14 +510,14 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
       }
     };
     grid(vTop, V_H, DIVS_V, vRange[0], vRange[1], (v) => v.toFixed(0));
-    grid(iTop, I_H, DIVS_I, iRange[0], iRange[1], (i) => (Math.abs(iRange[1] - iRange[0]) < 8 ? i.toFixed(1) : i.toFixed(0)));
+    grid(iTop, I_H, DIVS_I, iRange[0], iRange[1], (i) => iTick(i, iRange, iUnit));
     g.save();
     g.translate(12, vTop + V_H / 2); g.rotate(-Math.PI / 2); g.textAlign = "center"; g.fillStyle = "#d9d3c2";
     g.fillText("V recorded (mV)", 0, 0);
     g.restore();
     g.save();
     g.translate(12, iTop + I_H / 2); g.rotate(-Math.PI / 2); g.textAlign = "center"; g.fillStyle = "#d9d3c2";
-    g.fillText("I (pA)", 0, 0);
+    g.fillText(`I (${iUnit.label})`, 0, 0);
     g.restore();
     g.textAlign = "right";
     g.fillStyle = "#a8a290";

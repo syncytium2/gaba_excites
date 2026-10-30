@@ -1285,3 +1285,25 @@ chose: **the space-clamped "membrane action potential" first, propagation later*
   and anode break.
 - Not yet: the unit toggle, presets for the refractory period and temperature, and HH
   voltage-clamp presets reproducing the 1952 conductance families, all waiting for voltage clamp on main.
+
+## 2026-10-29 — the current units switch: pA or pA/pF
+
+The owner asked to "toggle the current units". A pA ↔ pA/pF switch now sits in the amplifier's name strip, beside the
+mode switch, in all three modes, remembered per browser (src/ui/current.tsx).
+
+- **pA/pF, not µA/cm², and not only for the squid axon.** At 1 µF/cm², which every model here assumes, pA/pF is the
+  same number as µA/cm². Current density is the standard whole-cell normalization and takes the cell's size out, so it
+  is useful on every cell: the pyramidal cell's 561 pA rheobase is 1.94 pA/pF, the squid patch's 225 pA is 2.25.
+- **Display only.** Every current the app holds, sends to the worker or writes to a CSV stays in pA; the switch converts
+  at the edge. That keeps one representation, so no protocol or preset changes meaning when the switch is flipped. A
+  value dialed in pA/pF is stored as pA (Cm × the dial), so changing Cm afterward keeps the pA and moves the density.
+- **Each number converts by its own cell's Cm.** Controls use the cell as dialed; a result, the cell it was run on; a
+  pinned F–I curve, its own Cm (Pin.cm), so curves from cells of different size share the axis in pA/pF.
+- **Converted:** the holding current, the step family (first, increment) and step list, the pulse amplitude, the
+  recorded current axes (step view, oscilloscope, voltage clamp traces, I–V and its table), the F–I axis, the sweep
+  table, the rheobase readout and its refinement, the cursor readout, F–I gain (Hz per pA/pF), and the summaries.
+- **Left in pA:** noise amplitudes (membrane σ, voltage-clamp RMS), the CSV, the lab notebook's records, and the
+  siren's sentence about injected current.
+- Pinned by src/ui/current.test.ts; the screenshot check flips the switch on the squid axon in all three modes and
+  fails unless the sweep table, the rheobase readout and the voltage-clamp table read in pA/pF. The name strip wraps on
+  a phone: with the switch added it overflowed at 390 px, which the same check caught.
