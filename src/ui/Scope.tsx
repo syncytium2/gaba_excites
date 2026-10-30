@@ -418,8 +418,29 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
     }
     pg.globalCompositeOperation = "lighter";
 
-    // the beam: new columns only, each joined to its neighbor in the same pass
-    const beam = (lo: Float32Array, hi: Float32Array, y: (v: number) => number, top: number, h: number, rgb: string) => {
+    // The beam: new columns only, each joined to its neighbor in the same pass. A slow beam is bright, a fast
+    // one dim. Columns are grouped into a few brightness levels and each level is stroked as ONE path with one
+    // glow: stroking every column with its own shadow blur made a fast time base (10 ms/div writes ~12,000
+    // columns a second) cost more than a second per second, and the page fell further behind until it locked
+    // (found 2026-10-29; docs/process.md).
+    const LEVELS = [0.3, 0.5, 0.75, 1];
+    const beam = (lo: Float32Array, hi: Float32Array, y: (v: number) => number, top: number, h: number, rgb: string, cols: number[]) => {
+      const paths = LEVELS.map(() => new Path2D());
+      const used = LEVELS.map(() => false);
+      for (const x of cols) {
+        if (x < 0 || x >= w || !c.filled[x]) continue;
+        const px = LEFT + x + 0.5;
+        const join = x > 0 && c.filled[x - 1] && c.colPass[x - 1] === c.colPass[x];
+        const y0 = join ? y(hi[x - 1] / 2 + lo[x - 1] / 2) : y(hi[x]);
+        const len = Math.abs(y(lo[x]) - y(hi[x])) + Math.abs(y(hi[x]) - y0);
+        const alpha = Math.min(1, 0.22 + 3.5 / (1 + len));
+        let k = 0;
+        while (k < LEVELS.length - 1 && alpha > (LEVELS[k] + LEVELS[k + 1]) / 2) k++;
+        paths[k].moveTo(join ? px - 1 : px, y0);
+        paths[k].lineTo(px, y(hi[x]));
+        paths[k].lineTo(px, y(lo[x]));
+        used[k] = true;
+      }
       pg.save();
       pg.beginPath();
       pg.rect(LEFT, top, pw, h);
@@ -428,26 +449,19 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
       pg.lineJoin = "round"; // as for the live trace: no miter spikes at fast edges
       pg.shadowColor = `rgba(${rgb}, 0.9)`;
       pg.shadowBlur = 5;
-      for (const x of c.fresh) {
-        if (x < 0 || x >= w || !c.filled[x]) continue;
-        const px = LEFT + x + 0.5;
-        const join = x > 0 && c.filled[x - 1] && c.colPass[x - 1] === c.colPass[x];
-        const y0 = join ? y(hi[x - 1] / 2 + lo[x - 1] / 2) : y(hi[x]);
-        const len = Math.abs(y(lo[x]) - y(hi[x])) + Math.abs(y(hi[x]) - y0);
-        // slow beam, bright; fast beam, dim
-        pg.strokeStyle = `rgba(${rgb}, ${Math.min(1, 0.22 + 3.5 / (1 + len))})`;
-        pg.beginPath();
-        pg.moveTo(join ? px - 1 : px, y0);
-        pg.lineTo(px, y(hi[x]));
-        pg.lineTo(px, y(lo[x]));
-        pg.stroke();
-      }
+      LEVELS.forEach((a, k) => {
+        if (!used[k]) return;
+        pg.strokeStyle = `rgba(${rgb}, ${a})`;
+        pg.stroke(paths[k]);
+      });
       pg.restore();
     };
     if (c.fresh.length) {
-      beam(c.vrMin, c.vrMax, yV, vTop, V_H, "110, 255, 140");
-      if (showVm) beam(c.vmMin, c.vmMax, yV, vTop, V_H, "255, 190, 90");
-      beam(c.iMin, c.iMax, yI, iTop, I_H, "90, 220, 120");
+      // each column once, however many times it was written since the last frame
+      const cols = [...new Set(c.fresh)];
+      beam(c.vrMin, c.vrMax, yV, vTop, V_H, "110, 255, 140", cols);
+      if (showVm) beam(c.vmMin, c.vmMax, yV, vTop, V_H, "255, 190, 90", cols);
+      beam(c.iMin, c.iMax, yI, iTop, I_H, "90, 220, 120", cols);
       c.fresh = [];
     }
 

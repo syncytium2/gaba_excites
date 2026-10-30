@@ -1175,3 +1175,81 @@ that listed rs, fs and gnrh only. Choosing the LTS cell on the oscilloscope, whe
 the page; confirmed on gaba.tonydefazio.com (v0.2.6). It has been there since the LTS cell shipped in v0.2.3. The
 table is now typed by ModelId, so leaving a model out fails the typecheck, and the screenshot check chooses every
 model on the oscilloscope and fails if the page breaks.
+
+## 2026-10-29 — voltage clamp, the core: checked against NEURON
+
+Les Satin (a collaborator of Arthur Sherman's) asked for a voltage-clamp mode for every model. The owner's decisions:
+**measure the recorded current**, with the true current shown behind it as an option; **the pyramidal cell first**,
+checked against NEURON; and **no model curves**: activation and inactivation exist only once a protocol has been run
+and the experimenter has chosen where to measure (peak, sustained, or a cursor), as on a rig. Estimated at 8–10
+hours in six pieces.
+
+- **The circuit** (`stepVC`, simulate.ts): the amplifier holds the pipette at the command and the cell sits behind
+  Rs; the same conductances, gate order and calcium update as current clamp, by backward Euler. Rs = 0 is the ideal
+  clamp. Pipette capacitance is taken as compensated.
+- **Rs matters at once on this cell.** The 290 pF pyramidal soma carries ~270 nA of sodium current at 0 mV; behind
+  15 MΩ the clamp loses it and the cell fires an unclamped action current to +47 mV. That is what a real rig does
+  with a cell this size. The mode will open with an ideal clamp so the first view is clean, with the Rs dial beside
+  it.
+- **Protocols** (`vclamp.ts`): a holding potential, a list of segments, and one varied segment (its potential or its
+  duration), which covers activation, inactivation, tails and recovery. **Measurements** on the recorded current in
+  a window of one segment: peak inward, peak outward, mean (sustained), or a cursor; each point carries the true Vm
+  too. A Boltzmann fit for normalized curves. **Channel blocking** (`CellParams.block`), in either clamp.
+- **Checked against NEURON** (`tools/neuron_oracle_vc.py`, SEClamp on ModelDB 123623's mechanisms): activation and
+  inactivation families at rs = 0.001 MΩ, and activation at 2 MΩ, where the cell escapes. Every 0.2 ms sample
+  within 10 pA and 0.01 mV, and full-resolution peaks within 0.05%; measured, the worst differences are 1 pA (near
+  ideal) and 3 pA on 58 nA (2 MΩ). NEURON's 0.001 MΩ is not ideal: 262 nA through it is a 0.26 mV error, which on
+  the steep sodium current is a 60 nA difference from a true ideal clamp, so like is compared with like.
+- **Voltage-clamp storage is every 0.02 ms**, an exact multiple of dt, so sample times are exact; current clamp's
+  0.025 ms rounds to 0.03 (a known roadmap item), which first made the comparison look wrong.
+
+## 2026-10-29 — voltage clamp in the app
+
+A third mode, "Voltage clamp", beside Step protocol and Oscilloscope (`src/ui/VClampMode.tsx`, its own worker
+`src/vc-worker.ts`). The tour folds away in this mode, as the owner suggested, so the traces take the left of the
+page and what was measured the right.
+
+- **What is on screen.** The recorded current of the family over the command, with each measurement's window shaded
+  and the capacitive transients left out of the autoscale; the true current and Vm dashed behind on request. On the
+  right, the measured points (M1, M2), M1 normalized with its Boltzmann fit or, for a tail family, where it reverses,
+  and a table. Nothing appears until a protocol has run.
+- **The amplifier.** Model and cell size and leak as in the other modes (no holding current); CLAMP (Rs, 0–30 MΩ);
+  CHANNELS (one switch each, shared with current clamp through `CellParams.block`); RECORDING (filter, RMS in pA);
+  PROTOCOL (preset, hold, up to eight segments, which one varies and how); MEASURE M1 and M2 (segment, peak in/out,
+  mean or cursor, window); ANALYSIS (I/Imax or G/Gmax with E_rev, fit on or off, x as command or true Vm).
+- **Presets** are protocols, not claims: activation, inactivation, tails, recovery. They apply to every model and
+  quote no measured number, so no cell's number shows on another.
+- **Two findings while building it.** The x of an inactivation curve is the prepulse, not the potential where the
+  measurement is taken: the first version plotted every point at the test potential. True Vm can stand in for the
+  command only when the measurement is in the varied segment. And the amplifier's filter moves the fitted G–V of a
+  fast sodium current: V½ −20.5 mV unfiltered, −17.3 at 10 kHz, −11.1 at 5 kHz (pinned in vclamp.test.ts). The mode
+  opens at 10 kHz, like current clamp; 5 kHz was the first choice and was wrong for sodium.
+- **Defaults**: ideal clamp (Rs 0), filter 10 kHz, 2 pA RMS noise. Up to 30 sweeps of up to 3 s.
+- **Not yet**: Rs compensation (prediction/correction), P/N leak subtraction, ramps, a CSV of the measured points.
+
+## 2026-10-29 — the rig in three panels; a scope lockup fixed
+
+The owner asked whether the amplifier could fold away, sit directly below the recording window, and be split so that
+simulation parameters (gL beside a real amplifier's leak compensation) and the filter beside the noise sources stop
+confusing. Done for all three modes (`RigPanels`, src/ui/AmpFront.tsx):
+
+- **Amplifier**: clamp mode (the mode switch and Old school stay in its name strip), HOLDING (Ihold, moved out of CELL),
+  ELECTRODE, FILTER, and on the oscilloscope MONITOR. In voltage clamp: CLAMP (Rs) and FILTER.
+- **Acquisition**: STEPS, or PULSES on the scope, or the voltage-clamp PROTOCOL, MEASURE and ANALYSIS.
+- **Simulation**: MODEL, CELL (gL, Cm, measured Rin and τm), CHANNELS (block switches, now in every mode), a model's
+  own knobs, MEMBRANE NOISE, RECORDING NOISE (RMS, hum, mains; the filter left it for the amplifier), RANDOM DRAW, and
+  the PSC generators.
+- Each folds to a one-line summary (`▸`/`▾` in its name strip), remembered per browser. The panels sit directly under
+  the recording window: in voltage clamp the analysis plots were made shorter (and the table moved below the panels)
+  so that the right column no longer pushed them 250 px down; they now start 29 px below the traces.
+- In voltage clamp, "M1 reverses at" shows only when the fit is off (tails): on an activation curve it read the leak's
+  crossing near rest as if it were a reversal.
+
+**A lockup, found by the owner, on the live site too.** On the oscilloscope in Old school (the default), choosing
+10 ms/div made the page fall further and further behind until it froze: measured, it answered in 0.9 s after 1 s,
+8.5 s after 3 s and 80 s after 6 s, here and on gaba.tonydefazio.com. The phosphor drew every newly written column as
+its own stroke with a shadow blur, for each trace; 10 ms/div writes about 12,000 columns a second, which cost more
+than a second per second, so the work piled up. Now the columns are grouped into four brightness levels and each is
+stroked as one path with one blur, and a column written twice since the last frame is drawn once. After: the page
+answers within 16 ms at 10 ms/div at 0.1×, 1× and 10×, and at 20 ms/div at 30×. The screenshot check now runs
+10 ms/div in Old school and fails if the page falls a second behind.

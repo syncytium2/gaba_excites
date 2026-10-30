@@ -39,8 +39,9 @@ The owner's words are quoted where the item came from them.
 - **More GnRH parameter sets.** Adams et al. 2018 also fit positive feedback
   (OVX+E PM) and OVX; its Figs. 7–8 give the distributions. Each would be a
   model entry plus a test against the paper.
-- **Voltage clamp**, with the same electrode model (Rs, prediction/correction).
-  The brief said "current clamp only, to begin with".
+- **Voltage clamp**: done 2026-10-29 (a third mode, checked against NEURON's SEClamp on the pyramidal cell). Still
+  to come: Rs compensation (prediction/correction), P/N leak subtraction, ramps, a CSV of the measured points, and
+  NEURON checks for the FS and LTS cells.
 
 - **A GHK teaching page: divalents, activity, junction potentials.** Separate
   from the simulator. The GHK voltage equation with any mix of ±1 and ±2

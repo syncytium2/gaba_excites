@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import { Knob, useNarrow } from "./Knob.tsx";
 import { NumField } from "./NumField.tsx";
 
@@ -85,5 +85,86 @@ export function AmpChoice<T extends string | number>({ label, value, options, on
         ))}
       </span>
     </AmpSlot>
+  );
+}
+
+/**
+ * The rig, as three panels below the recording window, each folding to one line:
+ *
+ *   AMPLIFIER    the box on the rack: clamp mode, holding, electrode, filter (and, on the scope, the audio monitor)
+ *   ACQUISITION  the acquisition software: the protocol, and in voltage clamp what is measured
+ *   SIMULATION   what a rig does not have a knob for: the cell, the bath (channel blocks), synaptic input, noise
+ *
+ * Split so that a simulated property is never mistaken for an amplifier's control (the cell's leak gL beside a
+ * leak-subtraction setting, say), and so the filter sits on the amplifier, not among the noise sources (the
+ * owner, 2026-10-29). Whether each is folded is remembered per browser.
+ */
+export interface RigPanel {
+  rows: React.ReactNode;
+  /** one line shown when folded */
+  summary: string;
+}
+
+const PANELS = [
+  { key: "amp", brand: "GABA·EXCITES", model: "Model 578", note: "amplifier · fictional", label: "Amplifier" },
+  { key: "acq", brand: "ACQUISITION", model: "", note: "protocol and analysis, as in the acquisition software", label: "Acquisition" },
+  { key: "sim", brand: "SIMULATION", model: "", note: "the cell, the bath, the room: what a rig has no knob for", label: "Simulation" },
+] as const;
+
+function readFolded(key: string): boolean {
+  try {
+    return localStorage.getItem(`gaba_excites.panel.${key}`) === "folded";
+  } catch {
+    return false;
+  }
+}
+
+function useFolded(key: string): [boolean, (f: boolean) => void] {
+  const [folded, setFolded] = useState(() => readFolded(key));
+  const set = (f: boolean) => {
+    setFolded(f);
+    try {
+      localStorage.setItem(`gaba_excites.panel.${key}`, f ? "folded" : "open");
+    } catch {
+      /* private window: the choice lasts the visit */
+    }
+  };
+  return [folded, set];
+}
+
+export function RigPanels({ amplifier, acquisition, simulation, controls }: {
+  amplifier: RigPanel;
+  acquisition: RigPanel;
+  simulation: RigPanel;
+  /** the mode switch and Old school, in the amplifier's name strip */
+  controls?: React.ReactNode;
+}) {
+  const content = { amp: amplifier, acq: acquisition, sim: simulation };
+  return (
+    <div className="rig">
+      {PANELS.map((p) => (
+        <RigPanelView key={p.key} spec={p} panel={content[p.key]} controls={p.key === "amp" ? controls : undefined} />
+      ))}
+    </div>
+  );
+}
+
+function RigPanelView({ spec, panel, controls }: { spec: (typeof PANELS)[number]; panel: RigPanel; controls?: React.ReactNode }) {
+  const [folded, setFolded] = useFolded(spec.key);
+  const id = useId();
+  return (
+    <section className={`amp rig-panel rig-${spec.key}` + (folded ? " folded" : "")} id={`rig-${spec.key}`} aria-label={spec.label}>
+      <div className="amp-badge">
+        <button type="button" className="rig-fold" aria-expanded={!folded} aria-controls={id} onClick={() => setFolded(!folded)}
+          title={folded ? `Open the ${spec.label.toLowerCase()} panel` : `Fold the ${spec.label.toLowerCase()} panel to one line`}>
+          {folded ? "▸" : "▾"}
+        </button>
+        <span className="amp-brand" aria-hidden="true">{spec.brand}</span>
+        {spec.model && <> <span className="amp-model" aria-hidden="true">{spec.model}</span></>}
+        {controls && <span className="amp-badge-ctrls">{controls}</span>}
+        {folded ? <span className="rig-summary">{panel.summary}</span> : <span className="amp-note" aria-hidden="true">{spec.note}</span>}
+      </div>
+      <div className="amp-sections" id={id} hidden={folded}>{panel.rows}</div>
+    </section>
   );
 }

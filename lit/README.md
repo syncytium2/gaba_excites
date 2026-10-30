@@ -38,9 +38,9 @@ Destexhe A (2009). ModelDB 123623: minimal Hodgkin–Huxley models of cortical a
 
 [modeldb.science/123623](https://modeldb.science/123623) · [code @ 8dfc13f](https://github.com/ModelDBRepository/123623/tree/8dfc13fb03c162f5ad1b5e13f94225c983391af7) · *open (code)* · models: pyramidal, fs, LTS
 
-**Took:** Every pyramidal-cell parameter, from sPY_template; every fast-spiking-cell parameter, from sIN_template; every LTS-cell parameter, from sPYr_template with demo_PY_LTS.hoc's settings; with HH_traub.mod, IM_cortex.mod, IT_huguenard.mod and cadecay_destexhe.mod — and the mechanisms themselves, run in NEURON as the oracle each port is tested against.
+**Took:** Every pyramidal-cell parameter, from sPY_template; every fast-spiking-cell parameter, from sIN_template; every LTS-cell parameter, from sPYr_template with demo_PY_LTS.hoc's settings; with HH_traub.mod, IM_cortex.mod, IT_huguenard.mod and cadecay_destexhe.mod — and the mechanisms themselves, run in NEURON as the oracle each port is tested against, in current clamp and, for the pyramidal cell, in voltage clamp (SEClamp).
 
-**Used in:** [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/models.ts`](../src/core/models.ts), [`tools/neuron_oracle.py`](../tools/neuron_oracle.py), [`src/core/oracle.test.ts`](../src/core/oracle.test.ts), [`src/core/oracle/neuron_fs.json`](../src/core/oracle/neuron_fs.json), [`src/core/pools.ts`](../src/core/pools.ts), [`src/core/oracle/neuron_lts.json`](../src/core/oracle/neuron_lts.json), [`src/core/lts.test.ts`](../src/core/lts.test.ts)
+**Used in:** [`src/core/channels.ts`](../src/core/channels.ts), [`src/core/models.ts`](../src/core/models.ts), [`tools/neuron_oracle.py`](../tools/neuron_oracle.py), [`src/core/oracle.test.ts`](../src/core/oracle.test.ts), [`src/core/oracle/neuron_fs.json`](../src/core/oracle/neuron_fs.json), [`src/core/pools.ts`](../src/core/pools.ts), [`src/core/oracle/neuron_lts.json`](../src/core/oracle/neuron_lts.json), [`src/core/lts.test.ts`](../src/core/lts.test.ts), [`tools/neuron_oracle_vc.py`](../tools/neuron_oracle_vc.py), [`src/core/oracle/neuron_vc_rs.json`](../src/core/oracle/neuron_vc_rs.json), [`src/core/vclamp.test.ts`](../src/core/vclamp.test.ts)
 
 **Notes:** [`notes/pospischil2008.md`](notes/pospischil2008.md)
 
