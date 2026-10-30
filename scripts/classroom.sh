@@ -19,7 +19,13 @@ git -C "$ROOT" rev-parse -q --verify "refs/tags/$TAG" >/dev/null || { echo "clas
 TMP="$(mktemp -d)"
 trap 'git -C "$ROOT" worktree remove --force "$TMP/src" 2>/dev/null || true; rm -rf "$TMP"' EXIT
 git -C "$ROOT" worktree add -q --detach "$TMP/src" "$TAG"
-(cd "$TMP/src" && npm ci --silent >/dev/null && npx vite build --base "$BASE" --outDir "$OUT" --emptyOutDir --logLevel warn)
+# Git Bash on Windows rewrites an argument that looks like an absolute path ("/fall-2026/") into a Windows path
+# when it starts a native program, and vite then writes every asset URL under C:/.../Git/fall-2026/
+# (found on the owner's workstation, 2026-10-30). Exclude the base from that rewriting; elsewhere this is a no-op.
+(cd "$TMP/src" && npm ci --silent >/dev/null && MSYS2_ARG_CONV_EXCL="$BASE" npx vite build --base "$BASE" --outDir "$OUT" --emptyOutDir --logLevel warn)
+# Every asset URL in the classroom page must start with the base, or the page is blank where it is served.
+BAD="$(grep -oE '(src|href)="[^"]*assets/[^"]*"' "$OUT/index.html" | grep -v "=\"$BASE"'assets/' || true)"
+[[ -z "$BAD" ]] || { echo "classroom.sh: asset URLs outside $BASE: $BAD" >&2; exit 1; }
 
 # Site-wide files belong to the current version at the root, not to this copy.
 rm -f "$OUT/_headers" "$OUT/robots.txt" "$OUT/sitemap.xml" "$OUT/llms.txt"

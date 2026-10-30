@@ -67,3 +67,14 @@ patch `deploy.sh` or `classroom.sh` on this machine.
 4. Report to the owner, who relays to the cloud session. The real deploy waits for his yes.
 5. Deploy with `bash scripts/deploy.sh`, then commit `DEPLOYED.md` and push at once, exactly as the first handoff
    says.
+
+## Added after the dry run: the classroom base, fixed in the scripts
+
+The workstation's first dry run found that Git Bash rewrote `classroom.sh`'s `--base /fall-2026/` into a Windows path,
+so every asset URL in the classroom page pointed at the Git install folder, and the gates passed anyway because their
+grep matched inside the rewritten path. A real deploy would have shipped a blank classroom page and verified it as
+good. Fixed on `main` in the scripts, not in how they are run: `classroom.sh` sets `MSYS2_ARG_CONV_EXCL` for the vite
+call and refuses a classroom page with any asset URL outside `/fall-2026/`; `deploy.sh`'s gate and its live check
+are anchored at `src="`. So the deploy command stays plain `bash scripts/deploy.sh` from Git Bash; no environment
+variable is needed. Checked on Linux by a dry run (classroom bundle unchanged, `index-DcdzVBSe.js`) and by feeding
+the gates a page with the rewritten paths, which both now refuse and the old gate passed.

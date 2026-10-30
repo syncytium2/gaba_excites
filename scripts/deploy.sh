@@ -55,7 +55,9 @@ echo "  Born stamp baked: $BORN"
 LOCAL_HASH="$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' dist/index.html | head -1)"
 echo "  bundle: $LOCAL_HASH"
 grep -qF "$APP_VERSION" dist/assets/*.js || fail "version $APP_VERSION not baked into the bundle"
-CLASS_HASH="$(grep -o '/fall-2026/assets/index-[A-Za-z0-9_-]*\.js' dist/fall-2026/index.html || true)"
+# Anchored at the opening quote: a path rewritten on Windows (src="/C:/.../fall-2026/assets/...") contains the
+# same text and once passed an unanchored grep (2026-10-30).
+CLASS_HASH="$(grep -o 'src="/fall-2026/assets/index-[A-Za-z0-9_-]*\.js"' dist/fall-2026/index.html | head -1 | sed 's/^src="//; s/"$//' || true)"
 [[ -n "$CLASS_HASH" ]] || fail "classroom version missing or not built under /fall-2026/"
 grep -q "UM Physiol 578 used it in fall 2026" dist/fall-2026/index.html || fail "classroom banner missing"
 grep -Eq "connect-src ('|&#39;)none('|&#39;)" dist/fall-2026/index.html || fail "CSP missing from the classroom version"
@@ -81,7 +83,7 @@ for u in "${URLS[@]}"; do
   # polled like the bundle: right after an upload the edge can still hold a 404 for a new path
   ok=0
   for i in $(seq 1 12); do
-    curl -s --max-time 15 "$u/fall-2026/" | grep -qF "$CLASS_HASH" && { ok=1; echo "  $u/fall-2026/ serving the classroom version"; break; }
+    curl -s --max-time 15 "$u/fall-2026/" | grep -qF "src=\"$CLASS_HASH\"" && { ok=1; echo "  $u/fall-2026/ serving the classroom version"; break; }
     echo "  try $i: $u/fall-2026/ not serving the classroom version yet — retrying"; sleep 15
   done
   [[ $ok == 1 ]] || fail "$u/fall-2026/ never served the classroom version"

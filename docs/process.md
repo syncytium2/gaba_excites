@@ -1438,3 +1438,13 @@ gave the shell scripts CRLF, Node was missing, and `npm run deploy` on Windows c
 Bash. A `.gitattributes` now makes every checkout LF; every file was already stored LF, so no content changed. On
 Windows the deploy is run as `bash scripts/deploy.sh` from Git Bash: the same runbook, which is what the `AGENTS.md`
 rule protects. The details are in `docs/handoffs/2026-10-30-workstation-windows.md`.
+
+## 2026-10-30 — a blank classroom page the gates would have passed
+
+The workstation session's dry run on Windows built the classroom version with every asset URL under the Git install
+folder: Git Bash rewrites an argument that looks like an absolute path (`--base /fall-2026/`) when it starts a native
+program. Every gate passed, because `grep -o '/fall-2026/assets/index-…'` matched inside the rewritten path, and the
+live check used the same grep. Fixed where it happens and where it should have been caught: `classroom.sh` excludes
+the base from the rewriting (`MSYS2_ARG_CONV_EXCL`, a no-op elsewhere) and refuses a page with an asset URL outside
+the base; `deploy.sh` anchors both its gate and its live check at `src="`. Both new checks refuse a page with the
+rewritten paths; the old gate passed it.
