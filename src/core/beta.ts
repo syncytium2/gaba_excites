@@ -342,6 +342,8 @@ export function betaMouse(set: DomSet = DOM_SETS.fast): ModelDef {
     settleMs: 2000,
     validation:
       "Transcribed from the paper, the PFK rate law from the authors' code. Checked against the paper's reported glycolytic periods, its bistability point, and its burst patterns; not yet against the authors' code run in XPP.",
+    vcNote:
+      "This cell's currents were not fitted to voltage-clamp recordings. Bertram et al. (2004) took them from earlier models and checked the cell against islet bursting and calcium, so the I–V and G–V curves here show what the model assumes, not what was measured in beta cells.",
   };
 }
 

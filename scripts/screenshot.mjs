@@ -351,6 +351,22 @@ await page.waitForTimeout(800);
 await page.screenshot({ path: `${out}/vc-phone.png`, fullPage: true });
 if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) problems.push("vc: horizontal overflow at 390 px");
 
+// The beta cell's currents were not fitted to voltage-clamp data, and its voltage-clamp view says so; a cell
+// checked against NEURON shows no such note (2026-11-02).
+if (modelIds.includes("betamouse")) {
+  if (await page.locator("#vc-model-note").count()) problems.push("vc: the beta cell's note shows on the pyramidal cell");
+  await page.selectOption("#model-select", "betamouse");
+  await page.waitForTimeout(500);
+  await page.click("#mode-vc");
+  await vcRan("the beta cell");
+  if (!(await page.locator("#vc-model-note").isVisible())) problems.push("vc: the beta cell's note is missing");
+  await page.screenshot({ path: `${out}/vc-betamouse.png`, fullPage: true });
+  await page.selectOption("#model-select", "rs");
+  await page.waitForTimeout(500);
+  await page.click("#mode-vc");
+  await vcRan("back to the pyramidal cell");
+}
+
 // The current units switch: pA/pF in all three modes, on the squid axon, whose presets quote µA/cm² (= pA/pF).
 await page.setViewportSize({ width: 1440, height: 1000 });
 if (modelIds.includes("hh")) {

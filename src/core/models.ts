@@ -160,6 +160,12 @@ export interface ModelDef {
   settleMs: number;
   /** how far to trust it, in one sentence, shown in the UI */
   validation: string;
+  /**
+   * What voltage clamp on this model can and cannot show, where that differs
+   * from the rest: shown under the voltage-clamp plots. Set it when the
+   * model's currents were not fitted to voltage-clamp recordings.
+   */
+  vcNote?: string;
 }
 
 // ---------------------------------------------------------------- RS pyramidal

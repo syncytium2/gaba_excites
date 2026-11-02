@@ -53,7 +53,9 @@ it reached this site. Details are in each model's section and in <a href="#valid
 </tbody>
 </table></div>
 <p class="note">Where a model has no public code, as for the GnRH neuron, it is checked only against what its paper
-reports; that is a weaker check than running the original code, and the table says which kind each model got.</p>
+reports; that is a weaker check than running the original code, and the table says which kind each model got. The
+beta cell's checks are of its bursting, not its channels, which were not fitted to voltage-clamp data
+(<a href="#beta-vc">below</a>).</p>
 
 <nav aria-label="Contents">
 <ol>
@@ -267,6 +269,16 @@ at low glucose is unstable. With no leak its input resistance is about 26 GΩ, s
 glucose-free cell, R<sub>GK</sub> = 0) sets the siren's current scale, and the leak control can add the leak a real
 recording would have. E<sub>GABA</sub> for this cell is the app's generic −80 mV, a placeholder: GABA's action on beta
 cells is the human cell's lesson (Braun et al. 2010), next on the roadmap.</p>
+
+<p id="beta-vc"><strong>What the checks do not cover: its channels.</strong> Every check above is of the cell's
+behavior. None is of its currents, because the model's currents were not fitted to voltage-clamp recordings. The paper
+says its electrical part is "based on an earlier β-cell model" (Bertram &amp; Sherman 2004), with the K<sub>ATP</sub>
+channel's nucleotide dependence from Magnus &amp; Keizer (1998) "without modification"; the Ca²⁺ and delayed-rectifier
+K⁺ gates are Boltzmann curves with round-number parameters and no source given, Ca²⁺ activation is instantaneous, and
+there is no Na⁺ current and no leak. The paper's own recordings are of membrane potential from islets in current clamp,
+with no current injected, and of calcium with fura-2. So the voltage clamp works on this cell, and is useful for seeing
+what the model is made of, but the I–V and G–V curves it gives show what the model assumes, not what was measured in
+beta cells; the voltage-clamp view says so under its plots.</p>
 
 <h2 id="hh">1e. The squid giant axon (Hodgkin–Huxley)</h2>
 <p>The sixth model is where the subject began: Hodgkin &amp; Huxley's (1952) description of the action potential of the

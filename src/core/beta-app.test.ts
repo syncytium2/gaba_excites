@@ -61,4 +61,13 @@ describe("beta cell in the app", () => {
     expect(MODELS.betamouse.currentScale).toBe(0.9);
     expect(SCOPE_PULSE.betamouse.amp).toBeGreaterThan(0.9);
   });
+
+  it("voltage clamp says its curves are the model's assumptions, here and on the methods page", async () => {
+    // Bertram et al. (2004) took the currents from earlier models and checked the cell against islet bursting
+    // and calcium; nothing in it was fitted to voltage-clamp recordings (docs/process.md, 2026-11-02).
+    expect(MODELS.betamouse.vcNote).toMatch(/not fitted to voltage-clamp recordings/);
+    const { readFileSync } = await import("node:fs");
+    const methods = readFileSync(new URL("../../public/methods.html", import.meta.url), "utf8");
+    expect(methods).toMatch(/id="beta-vc"/);
+  });
 });

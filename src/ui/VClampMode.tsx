@@ -329,6 +329,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
           <figure className="card">
             <figcaption><span>Measured: {measures.map((m, j) => `M${j + 1} ${kindName(m.kind)}`).join(", ")}</span></figcaption>
             {ivSvg ? <div className="svgplot" dangerouslySetInnerHTML={{ __html: ivSvg }} /> : <p className="legendline">Run a protocol to see what it measures.</p>}
+            {MODELS[cell.model].vcNote && <p className="legendline" id="vc-model-note">{MODELS[cell.model].vcNote}</p>}
           </figure>
           <figure className="card">
             <figcaption>

@@ -1598,3 +1598,21 @@ opens as I/|I|max (a preset with two, or turning M2 on); G/Gmax stays one click 
 one measurement a preset keeps its own choice. The activation preset therefore opens on I/|I|max; its G–V fits quoted
 above are what the G/Gmax toggle shows. Where a measurement has no positive G there is no Gmax, and the caption says
 so instead of drawing it.
+
+## 2026-11-02 — the beta cell's channels were not fitted to voltage clamp, and the app says so
+
+The owner asked why steps are disabled on the beta cell, then whether the model was built from voltage-clamp and long
+whole-cell recordings without injection. Read on PubMed Central (PMC1304779), Bertram et al. (2004) never injects
+current and never voltage-clamps. Its voltage equation has no applied-current term. Its electrical part is "based on an
+earlier β-cell model" (Bertram & Sherman 2004), and K_ATP's nucleotide dependence is Magnus & Keizer (1998) "without
+modification". The Ca²⁺ and delayed-rectifier gates are Boltzmann curves with round-number parameters and no source
+given. The paper's own data are islet membrane potential in perforated-patch current clamp with no current injected
+(Fig. 4A), and fura-2 calcium (Figs. 4B, 11). Fig. 1 is a pathway diagram; every other figure is a simulation.
+
+So the step protocol staying off matches the paper, whose experiment is changing glucose. The voltage clamp, though, runs
+on this cell, and its I–V and G–V curves show the model's assumptions, not beta-cell measurements. The owner agreed that
+should be said. `ModelDef.vcNote` (new, optional) is shown under the voltage-clamp plots. The beta cell sets it.
+The methods page has a paragraph on it (`#beta-vc`), and the validation table's note points there.
+`beta-app.test.ts` requires both, and `scripts/screenshot.mjs` checks the note shows on the beta cell and not on the
+pyramidal cell. In parallel, a search for beta cell models whose currents were fitted to voltage-clamp data (mouse and
+human) was started at the owner's request.
