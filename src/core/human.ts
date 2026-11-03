@@ -127,50 +127,51 @@ export function humanBeta(over: Partial<HumanParams> = {}): ModelDef {
     cmRef: S,
     eLeak: base.VLeak,
     knobsTitle: "GLUCOSE & GABA",
+    // In pS/pF, so the papers' values are whole numbers (0.010 nS/pF is 10 pS/pF); the model converts (paramsFromKnobs).
     knobs: [
       {
         id: "gKATP",
         label: "gK(ATP)",
-        unit: "nS/pF",
+        unit: "pS/pF",
         min: 0,
-        max: 0.04,
-        step: 0.001,
-        value: base.gKATP,
-        note: "The K_ATP conductance, the model's stand-in for glucose: lower is more glucose. 0.010 nS/pF in Riz et al. 2014 (Table 1); 0.015 at 6 mM glucose in Pedersen 2010, from Misler et al. 1992.",
+        max: 40,
+        step: 1,
+        value: base.gKATP * 1000,
+        note: "The K_ATP conductance, the model's stand-in for glucose: lower is more glucose. 10 pS/pF (0.010 nS/pF) in Riz et al. 2014 (Table 1); 15 at 6 mM glucose in Pedersen 2010, from Misler et al. 1992.",
       },
       {
         id: "gGABAR",
-        label: "GABA (bath)",
-        unit: "nS/pF",
+        label: "GABA",
+        unit: "pS/pF",
         min: 0,
-        max: 0.4,
-        step: 0.01,
-        value: base.gGABAR,
-        note: "The GABA_A conductance of GABA in the bath, reversing at E_Cl = −40 mV, so it depolarizes. Riz et al. 2014: about 0.3 nS/pF for 1 mM GABA (9.4 pA/pF at −70 mV, Braun et al. 2010), 0.10 for 100 µM, 0.02 for 10 µM.",
+        max: 400,
+        step: 5,
+        value: base.gGABAR * 1000,
+        note: "The GABA_A conductance of GABA in the bath, reversing at E_Cl = −40 mV, so it depolarizes. Riz et al. 2014: about 300 pS/pF for 1 mM GABA (9.4 pA/pF at −70 mV, Braun et al. 2010), 100 for 100 µM, 20 for 10 µM.",
       },
       {
         id: "gSK",
         label: "gSK",
-        unit: "nS/pF",
+        unit: "pS/pF",
         min: 0,
-        max: 0.2,
-        step: 0.005,
-        value: base.gSK,
-        note: "The Ca²⁺-activated SK conductance: 0.1 nS/pF in Riz et al. 2014, from a ~10 pA current at −60 mV; absent (0) in Pedersen 2010.",
+        max: 200,
+        step: 5,
+        value: base.gSK * 1000,
+        note: "The Ca²⁺-activated SK conductance: 100 pS/pF in Riz et al. 2014, from a ~10 pA current at −60 mV; absent (0) in Pedersen 2010.",
       },
       {
         id: "gHERG",
         label: "gHERG",
-        unit: "nS/pF",
+        unit: "pS/pF",
         min: 0,
-        max: 0.5,
-        step: 0.01,
-        value: base.gHERG,
-        note: "The HERG K⁺ conductance: 0 in Riz et al. 2014, which tested whether SK could stand in for it; 0.2 nS/pF in Pedersen 2010, lowered from Rosati et al. 2000's ~0.5 measured in 40 mM K⁺.",
+        max: 500,
+        step: 10,
+        value: base.gHERG * 1000,
+        note: "The HERG K⁺ conductance: 0 in Riz et al. 2014, which tested whether SK could stand in for it; 200 pS/pF in Pedersen 2010, lowered from Rosati et al. 2000's ~500 measured in 40 mM K⁺.",
       },
     ],
     channels: (k) => {
-      const p: HumanParams = { ...base, ...pick(k) };
+      const p: HumanParams = { ...base, ...paramsFromKnobs(k) };
       return [
         // Eqs. 20, 29: m instantaneous (from Braun 2008's peak I–V), h from Braun's fit, τ 2 ms
         {
@@ -234,9 +235,11 @@ export function humanBeta(over: Partial<HumanParams> = {}): ModelDef {
       ihold: { min: -20, max: 20, step: 0.5 },
       memNoise: { min: 0, max: 5, step: 0.1 },
     },
+    // Rheobase is not defined for a cell that fires on its own at the published settings. The current scale is
+    // instead the rheobase of the silent cell of Riz's Fig. 5A (g_K(ATP) 0.021 nS/pF), 1.0 pA by an 800 ms step:
+    // its input resistance is about 4.4 GΩ (human-app.test.ts).
     rheobase: 0,
     rheobaseTol: 0.1,
-    // placeholder until measured
     currentScale: 1,
     start: {
       v: -63,
@@ -255,15 +258,24 @@ export function humanBeta(over: Partial<HumanParams> = {}): ModelDef {
       source: "the authors' PLoSCompBiol_Fig1.ode (Riz et al. 2014, Software S1): the initial values of its Fig. 1A",
     },
     settleMs: 2000,
+    // its spikes peak near −10 mV at the published settings, from −7 mV with less K_ATP, and at −20 to −28 mV with GABA,
+    // TTX or less L-type current
+    // (human.test.ts), below the app's −20 mV
+    spikeLevel: -30,
+    // and they never overshoot 0 mV, so the siren's spike-failure check does not apply (extremes.ts)
+    spikesOvershoot: false,
     validation:
       "Transcribed from the papers. Checked against Pedersen 2010's reported spike rates and intervals and Riz et al. 2014's responses to TTX and GABA, and against the authors' equations run by a separate stiff solver.",
+    vcNote:
+      "Pedersen (2010) built these currents from voltage-clamp recordings of human beta cells (Braun et al. 2008), with two simplifications that show here: the Na⁺ and Ca²⁺ currents activate instantly, so they have no rising phase after a step, and E_Na and E_Ca are the values used for firing, not those of the voltage-clamp experiments.",
   };
 }
 
-function pick(k: Record<string, number> | undefined): Partial<HumanParams> {
+/** The knobs (pS/pF) as the model's parameters (nS/pF, as the papers state them). */
+export function paramsFromKnobs(k: Record<string, number> | undefined): Partial<HumanParams> {
   if (!k) return {};
   const out: Partial<HumanParams> = {};
-  for (const id of ["gKATP", "gGABAR", "gSK", "gHERG"] as const) if (k[id] !== undefined) out[id] = k[id];
+  for (const id of ["gKATP", "gGABAR", "gSK", "gHERG"] as const) if (k[id] !== undefined) out[id] = k[id] / 1000;
   return out;
 }
 

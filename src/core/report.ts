@@ -132,7 +132,7 @@ export function recordRun(inp: RecordInput): RunRecord {
   let latency = NaN;
   if (rheoSweep) {
     const dt = rheoSweep.sampleMs;
-    const first = detectSpikes(rheoSweep.vm, dt).find((x) => x.t >= p.stepStart);
+    const first = detectSpikes(rheoSweep.vm, dt, rheoSweep.spikeLevel).find((x) => x.t >= p.stepStart);
     if (first) {
       const floor = Math.round(p.stepStart / dt);
       const ic = Math.ceil(first.t / dt);

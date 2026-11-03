@@ -128,8 +128,9 @@ export const SCOPE_PULSE: Record<ModelId, Pulse> = {
   // (R_GK = 0; beta-app.test.ts). It bursts on its own in glucose, so the
   // pulse is not its lesson; off until ticked.
   betamouse: { enabled: false, amp: 1, width: 500, period: 1500 },
-  // Human beta cell: placeholder until measured
-  betahuman: { enabled: false, amp: 1, width: 500, period: 1500 },
+  // Human beta cell: 2 pA, twice the 1 pA rheobase of the silent cell (g_K(ATP) 21 pS/pF; human-app.test.ts).
+  // It spikes on its own at the published settings, so the pulse is not its lesson; off until ticked.
+  betahuman: { enabled: false, amp: 2, width: 500, period: 1500 },
   // Squid axon: 1000 pA (10 µA/cm²), above the 700 pA where it starts to fire
   // repetitively at 6.3 °C (tools/neuron_oracle_hh.py; hh.test.ts).
   hh: { enabled: false, amp: 1000, width: 500, period: 1500 },
@@ -311,6 +312,19 @@ export const PRESETS: Preset[] = [
     gaba: DEFAULT_GABA,
     ihold: 0,
   },
+  // The human beta cell (human.ts) spikes on its own, so its step preset asks what a small current does to a
+  // cell already firing. Numbers measured by human-app.test.ts at the published settings.
+  {
+    id: "human-steps",
+    model: "betahuman",
+    label: "Picoamps steer its firing",
+    note: "This cell spikes on its own, about 6 times a second, and its input resistance is in the gigaohms, so a picoamp matters: over the 2 s step it fires 12 spikes with no current, 9 at −1 pA, none at −2 pA, and 18 at +4 pA.",
+    protocol: { mode: "list", first: 0, delta: 1, count: 6, list: "-2, -1, 0, 1, 2, 4", sweepMs: 3000, stepStart: 500, stepDur: 2000 },
+    glu: DEFAULT_GLU,
+    gaba: { ...DEFAULT_GABA, erev: -40 },
+    ihold: 0,
+    knobs: { gKATP: 10, gGABAR: 0, gSK: 100, gHERG: 0 },
+  },
 ];
 
 export function presetsFor(model: ModelId): Preset[] {
@@ -371,6 +385,35 @@ export const SCOPE_PATTERNS: ScopePattern[] = [
     knobs: { rGK: 0.2, gKATP: 27, gKCa: 0.1 },
     msPerDiv: 60000,
     speed: 30,
+  },
+  // The human beta cell (Riz, Braun & Pedersen 2014): GABA excites it. Numbers measured by human.test.ts and
+  // human-app.test.ts.
+  {
+    id: "human-spiking",
+    model: "betahuman",
+    label: "Spiking in glucose (Riz 2014)",
+    note: "The published cell: about 5.7 spikes a second, from troughs near −69 mV to peaks near −10 mV. Lower gK(ATP) is more glucose and faster firing; raise it toward 20 pS/pF and the cell falls silent.",
+    knobs: { gKATP: 10, gGABAR: 0, gSK: 100, gHERG: 0 },
+    msPerDiv: 500,
+    speed: 1,
+  },
+  {
+    id: "human-gaba-silent",
+    model: "betahuman",
+    label: "GABA on a silent cell (Fig. 5A)",
+    note: "More K_ATP (21 pS/pF, less glucose) and the cell sits silent at −54 mV. Now raise GABA to 100 pS/pF, about 100 µM: it fires a single spike and settles near −44 mV (the paper: ~−45), because chloride reverses at −40 mV here, above rest. GABA excites this cell.",
+    knobs: { gKATP: 21, gGABAR: 0, gSK: 100, gHERG: 0 },
+    msPerDiv: 500,
+    speed: 1,
+  },
+  {
+    id: "human-gaba-active",
+    model: "betahuman",
+    label: "GABA on a spiking cell (Fig. 5B)",
+    note: "The published cell, spiking about 5.7 times a second. Raise GABA to 20 pS/pF, about 10 µM: the troughs rise a few millivolts and it fires faster, about 7.7 times a second.",
+    knobs: { gKATP: 10, gGABAR: 0, gSK: 100, gHERG: 0 },
+    msPerDiv: 500,
+    speed: 1,
   },
 ];
 

@@ -60,6 +60,31 @@ if (modelIds.includes("betamouse")) {
   await page.screenshot({ path: `${out}/beta-scope.png`, fullPage: true });
   if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) problems.push("beta: horizontal overflow");
 }
+// The human beta cell (Riz et al. 2014): its GABA pattern on the scope, its step preset with no siren, and the
+// voltage-clamp note on how far its currents rest on voltage-clamp data (2026-11-02).
+if (modelIds.includes("betahuman")) {
+  await page.selectOption("#model-select", "betahuman");
+  await page.waitForTimeout(1500);
+  if (!(await page.locator("#pattern-select").count())) problems.push("human: no pattern selector");
+  await page.selectOption("#pattern-select", "human-gaba-silent");
+  await page.waitForTimeout(4000);
+  await page.screenshot({ path: `${out}/human-scope.png`, fullPage: true });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) problems.push("human: horizontal overflow");
+  await page.click("#mode-steps");
+  // the pattern moved K_ATP off the step preset's value, so the preset no longer holds and the menu says Custom
+  if ((await page.locator("#preset-select").inputValue()) !== "custom") problems.push("human: a step preset still shows after its knobs moved");
+  await page.selectOption("#preset-select", "human-steps");
+  await page.waitForTimeout(300);
+  await page.waitForFunction(() => /6 sweeps simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 60000 });
+  if ((await page.locator("#preset-select").inputValue()) !== "human-steps") problems.push("human: choosing the step preset did not hold");
+  if (await page.locator(".siren").count()) problems.push("human: the siren shows on its own preset");
+  await page.screenshot({ path: `${out}/human-steps.png`, fullPage: true });
+  await page.click("#mode-vc");
+  await page.waitForFunction(() => /sweeps simulated/.test(document.querySelector(".vc-traces .status")?.textContent ?? ""), null, { timeout: 60000 }).catch(() => problems.push("human: voltage clamp never finished"));
+  if (!(await page.locator("#vc-model-note").isVisible())) problems.push("human: the voltage-clamp note is missing");
+  await page.screenshot({ path: `${out}/human-vc.png`, fullPage: true });
+  await page.click("#mode-scope");
+}
 await page.selectOption("#model-select", "gnrh");
 await page.waitForTimeout(1500);
 // It opens in Old school, and Old school dresses the step protocol too, so a mode switch keeps the theme

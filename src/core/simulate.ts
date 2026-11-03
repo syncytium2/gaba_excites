@@ -74,6 +74,8 @@ export interface Inputs {
 
 export interface Sweep {
   amp: number;
+  /** the level the cell's spikes are counted at, mV (ModelDef.spikeLevel; absent: analysis.ts SPIKE_LEVEL) */
+  spikeLevel?: number;
   /** sample interval, ms */
   sampleMs: number;
   /** recorded voltage at the pipette, after bridge balance — what the amplifier shows */
@@ -343,7 +345,7 @@ export function runSweep(
     if (i % every === 0) record(i / every, iCmd, v);
   }
 
-  return { amp, sampleMs: dt * every, vRec, vm, iCmd: iOut, gGlu: gGluOut, gGaba: gGabaOut, gluTimes, gabaTimes };
+  return { amp, spikeLevel: cell.model.spikeLevel, sampleMs: dt * every, vRec, vm, iCmd: iOut, gGlu: gGluOut, gGaba: gGabaOut, gluTimes, gabaTimes };
 }
 
 /** Settle once, then run every sweep of the protocol from the same settled state. */

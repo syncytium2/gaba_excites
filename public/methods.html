@@ -5,7 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>gaba_excites — methods and models</title>
-<meta name="description" content="The models behind gaba_excites — the Pospischil et al. (2008) cortical cells, the Adams et al. (2018) GnRH neuron, the Bertram et al. (2004) mouse beta cell and the Hodgkin–Huxley (1952) squid axon — how Rin, Cm, Rs and Ihold map onto them, the electrode, synapse and noise models, the measurements, how each model was checked, and what the simulator leaves out." />
+<meta name="description" content="The models behind gaba_excites — the Pospischil et al. (2008) cortical cells, the Adams et al. (2018) GnRH neuron, the Bertram et al. (2004) mouse beta cell, the Riz, Braun &amp; Pedersen (2014) human beta cell and the Hodgkin–Huxley (1952) squid axon — how Rin, Cm, Rs and Ihold map onto them, the electrode, synapse and noise models, the measurements, how each model was checked, and what the simulator leaves out." />
 <link rel="canonical" href="https://gaba.tonydefazio.com/methods" />
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <style>
@@ -48,6 +48,7 @@ it reached this site. Details are in each model's section and in <a href="#valid
 <tr><td>LTS cell</td><td>the same</td><td>12 sweeps, bursts and rebounds, counts exact; every spike within 0.010 ms</td><td><code>oracle.test.ts</code></td></tr>
 <tr><td>GnRH neuron</td><td>the paper's reported numbers (no public code exists)</td><td>rest −70 mV at −6 pA; the spike counts of its Fig. 7F</td><td><code>gnrh.test.ts</code></td></tr>
 <tr><td>Mouse beta cell</td><td>the paper's reported behavior, and the authors' equations run by a separate stiff solver</td><td>burst period 32.4 s (paper ≈ 30 s); the patterns of Figs. 3 and 5–8; 340 spikes in 6 min against 345</td><td><code>beta*.test.ts</code></td></tr>
+<tr><td>Human beta cell</td><td>the papers' reported numbers, and the authors' equations run by a separate stiff solver</td><td>Pedersen 2010's 4.6 Hz, 7 Hz with HERG blocked and its TTX intervals, to 1%; Riz et al. 2014's TTX and GABA responses; intervals within 0.5% of the authors' equations</td><td><code>human*.test.ts</code></td></tr>
 <tr><td>Squid giant axon</td><td>NEURON's built-in <code>hh</code>, <em>and</em> the 1952 paper</td><td>21 steps, counts exact, every spike within 0.01 ms; the paper's equations exactly, and every number in its Table 4 (<a href="#hh-paper">below</a>)</td><td><code>hh.test.ts</code></td></tr>
 <tr><td>Voltage clamp</td><td>NEURON's SEClamp on the pyramidal cell; on the squid axon, the paper's clamped-step solution</td><td>within 10 pA, peaks within 0.05%; on the squid axon within 0.5% (K⁺) and 1% (Na⁺)</td><td><code>vclamp.test.ts</code>, <code>hh.test.ts</code></td></tr>
 </tbody>
@@ -65,6 +66,7 @@ beta cell's checks are of its bursting, not its channels, which were not fitted 
   <li><a href="#gnrh">The GnRH neuron</a></li>
   <li><a href="#beta">The mouse pancreatic beta cell</a></li>
   <li><a href="#hh">The squid giant axon (Hodgkin–Huxley)</a></li>
+  <li><a href="#betahuman">The human pancreatic beta cell: GABA excites it</a></li>
   <li><a href="#passive">Leak, Cm, Ihold, and the measured Rin</a></li>
   <li><a href="#electrode">The electrode: Rs, bridge balance, pipette capacitance</a></li>
   <li><a href="#synapses">PSCs</a></li>
@@ -345,6 +347,61 @@ fires faster and its spikes are shorter. Presets cover each of these, and two vo
 experiments of the paper's Figs. 3 and 6, the K⁺ and Na⁺ conductance families its equations were fitted to. E<sub>GABA</sub> for
 this cell defaults to rest, a placeholder: the squid giant axon has no GABA synapse.</p>
 
+<h2 id="betahuman">1f. The human pancreatic beta cell: GABA excites it</h2>
+<p>The seventh model is the human pancreatic beta cell of Riz, Braun &amp; Pedersen (2014), built on Pedersen (2010).
+It belongs in an app named for GABA because <strong>GABA excites human beta cells</strong>: they make GABA, and their
+chloride reverses at about −40 mV, above the cell's resting potential, so opening GABA<sub>A</sub> channels depolarizes
+them and makes them fire (Braun et al. 2010). One compartment of 10 pF, with currents in pA/pF as the papers give them
+(here × 10 pF):</p>
+<span class="eq">dV/dt = −(I_SK + I_BK + I_Kv + I_HERG + I_Na + I_CaL + I_CaPQ + I_CaT + I_K(ATP) + I_leak + I_GABA)
+
+I_Na   = 0.4 nS/pF · m∞(V) h (V − 70)           m∞: V½ −18, slope 5 mV, instantaneous;  h: V½ −42, slope 6, τ 2 ms
+I_CaL  = 0.14 · m∞(V) h (V − 65)                m∞: −25, 6, instantaneous;  h∞ = max(0, min(1, 1 + m∞(V)(V − 65)/57)), τ 20 ms
+I_CaPQ = 0.17 · m∞(V) (V − 65)                  m∞: −10, 6, instantaneous
+I_CaT  = 0.05 · m∞(V) h (V − 65)                m∞: −40, 4, instantaneous;  h: −64, 8, τ 7 ms
+I_Kv   = 1.0 · m (V + 75)                       m: 0, 10;  τ = 2 + 10 exp((−20 − V)/6) ms above −26.6 mV, 32 ms below
+I_BK   = 0.02 nS/pA · m (−I_Ca + 20 pA/pF)(V + 75)   m: 0, 10, τ 2 ms
+I_SK   = 0.1 · Ca_m^5.2/(0.57^5.2 + Ca_m^5.2) (V + 75)
+I_HERG = 0 (0.2 in Pedersen 2010) · m h (V + 75)
+I_K(ATP) = 0.010 (V + 75)    I_leak = 0.015 (V + 30)    I_GABA = g_GABA (V + 40)
+
+Calcium: dCa_m/dt = f α Cm (−I_Ca)/Vol_m − f (Vol_c/Vol_m)[B (Ca_m − Ca_c) + J_PMCA + J_NCX]
+         dCa_c/dt = f [B (Ca_m − Ca_c) − J_SERCA + J_leak]</span>
+<p>Pedersen chose the voltage-gated currents "directly from published, high-quality electrophysiological data", the
+whole-cell voltage-clamp recordings of human beta cells by Braun et al. (2008): each activation curve from the peak
+I–V, the inactivation curves as Braun fitted them. Two simplifications follow from those data: the Na⁺ and Ca²⁺
+currents activate instantly (the Ca²⁺ current rose in under 1 ms), and L-type inactivation is taken to follow the
+L-type current itself. The BK channels sit beside the Ca²⁺ channels, so their calcium is taken to be proportional to
+the Ca²⁺ current; the solver hands that current to them each step. Riz et al. added SK channels, read by the calcium
+just under the membrane, and the GABA<sub>A</sub> current: about 0.3 nS/pF for 1 mM GABA (from Braun's 9.4 pA/pF at
+−70 mV), 0.10 for 100 µM and 0.02 for 10 µM. Their calcium handling is taken from mouse data (Chen, Koh &amp; Hille
+2003). Their glycolytic oscillator, used for one figure, is not ported.</p>
+<p><strong>How it was checked.</strong> The equations and Table 1 were transcribed from both papers, and every sign
+checked against the authors' published code. The authors' equations were also integrated separately by a stiff solver
+(LSODA, tolerance 10⁻⁹): the port's interspike intervals agree within 0.5% in nine configurations, and its first spikes
+within 0.1 ms. Against the papers: with Pedersen's settings the cell fires at 4.62 Hz (he reports 4.6) between −8.5
+and −67.9 mV (−8 and −68); blocking HERG raises it to 7.06 Hz (7 Hz, +52%); TTX lengthens the interval from 216 to
+313 ms (217 to 312), and at lower K<sub>ATP</sub> from 162 to 178 ms (163 to 178). With Riz's settings the cell rests
+between spikes at −69 mV ("~−70"); with less L-type current at −63 mV ("~−61"), where TTX silences it unless
+K<sub>ATP</sub> is small; and 100 µM GABA turns a silent cell into one spike and a plateau at −44 mV ("a single
+action potential whereafter the membrane potential settles at ~−45 mV"), while 10 µM speeds an active cell from 5.7
+to 7.7 spikes a second. The tests are <code>src/core/human.test.ts</code> and <code>human-app.test.ts</code>; the
+transcription and both sets of numbers are in <code>lit/notes/riz2014.md</code>.</p>
+<p><strong>In the app</strong> a <strong>Glucose &amp; GABA</strong> row sets g<sub>K(ATP)</sub> (lower is more
+glucose), the GABA in the bath, and the SK and HERG conductances, in pS/pF so that the papers' values are whole
+numbers (0.010 nS/pF is 10 pS/pF); a pattern menu on the oscilloscope sets up Riz's
+GABA experiments. The cell fires on its own, so rheobase is not defined; 1.0 pA, the rheobase of the silent cell of
+Riz's Fig. 5A (input resistance 4.4 GΩ), sets the siren's current scale. Its spikes peak between −7 and −28 mV across
+the papers' conditions, below the app's usual −20 mV, so for this cell a spike is counted when Vm rises through
+−30 mV, and the siren does not treat a spike that stays below 0 mV as a failure, since this cell's never overshoot.
+E<sub>GABA</sub> for the PSC controls opens at −40 mV, the paper's E<sub>Cl</sub>.</p>
+<p id="human-vc"><strong>Voltage clamp on this cell</strong> rests on data in a way the mouse cell's does not: its I–V
+curves are Pedersen's fits to Braun's recordings. Two things differ from a real recording, and the voltage-clamp view
+says so under its plots. The Na⁺ and Ca²⁺ currents have no rising phase after a step, because their activation is
+instantaneous. And E<sub>Na</sub> and E<sub>Ca</sub> are the values Pedersen used for firing (+70 and +65 mV); he
+notes the voltage-clamp experiments implied different ones (E<sub>Ca</sub> ≈ +50 mV in the data he fitted L-type
+inactivation to), so the reversal of these currents here is not that of the recordings they were fitted to.</p>
+
 <h2 id="passive">2. Leak, Cm, Ihold, and the measured Rin</h2>
 <p>A model file specifies densities per unit area. An experimenter reads whole-cell quantities off the amplifier. The
 simulator takes the whole-cell quantities and maps them onto the model:</p>
@@ -524,7 +581,8 @@ while the cell is being driven past what a real cell would do; hover over it, fo
 criterion comes from the cell itself, and they are the owner's choice of three:</p>
 <ul>
   <li><strong>Spike failure:</strong> a spike that no longer overshoots 0 mV, or depolarization block, Vm held above
-  −30 mV for 50 ms or more. A normal spike spends about a millisecond above −30 mV.</li>
+  −30 mV for 50 ms or more. A normal spike spends about a millisecond above −30 mV. The human beta cell's spikes never
+  overshoot (they peak near −10 mV), so for it only depolarization block counts.</li>
   <li><strong>Vm beyond the reversal potentials:</strong> Vm outside the span of the reversal potentials in play, those of
   the channels, the leak and any PSCs that are on. No conductance can take Vm there; only injected current can.</li>
   <li><strong>Current:</strong> injected current more than 10 times the published cell's rheobase (800 ms step) away from
@@ -724,6 +782,17 @@ node scripts/fi.ts --gaba 200,3,0.5,10,-60 --regular --rheobase</span>
   dynamic-clamp-simulated GABAergic conductances across development and after prenatal androgenization.
   <i>J Neuroendocrinol</i> 38:e70144. <a href="https://doi.org/10.1111/jne.70144">doi:10.1111/jne.70144</a>.
   (GABA PSC kinetics in GnRH neurons.)</li>
+  <li>Riz M, Braun M, Pedersen MG (2014). Mathematical modeling of heterogeneous electrophysiological responses in
+  human β-cells. <i>PLoS Comput Biol</i> 10:e1003389.
+  <a href="https://doi.org/10.1371/journal.pcbi.1003389">doi:10.1371/journal.pcbi.1003389</a>. (The human beta cell.)</li>
+  <li>Pedersen MG (2010). A biophysical model of electrical activity in human β-cells. <i>Biophys J</i> 99:3200–3207.
+  <a href="https://doi.org/10.1016/j.bpj.2010.09.004">doi:10.1016/j.bpj.2010.09.004</a>. (Its voltage-gated currents.)</li>
+  <li>Braun M, Ramracheya R, Bengtsson M, Zhang Q, Karanauskaite J, Partridge C, Johnson PR, Rorsman P (2008).
+  Voltage-gated ion channels in human pancreatic β-cells. <i>Diabetes</i> 57:1618–1628.
+  <a href="https://doi.org/10.2337/db07-0991">doi:10.2337/db07-0991</a>. (The voltage-clamp data.)</li>
+  <li>Braun M, Ramracheya R, Bengtsson M, Clark A, Walker JN, Johnson PR, Rorsman P (2010). γ-Aminobutyric acid (GABA)
+  is an autocrine excitatory transmitter in human pancreatic β-cells. <i>Diabetes</i> 59:1694–1701.
+  <a href="https://doi.org/10.2337/db09-0797">doi:10.2337/db09-0797</a>. (GABA excites human beta cells.)</li>
   <li>Hines ML, Carnevale NT (1997). The NEURON simulation environment. <i>Neural Comput</i> 9:1179–1209.
   <a href="https://doi.org/10.1162/neco.1997.9.6.1179">doi:10.1162/neco.1997.9.6.1179</a>.</li>
 </ol>

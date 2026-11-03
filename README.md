@@ -59,6 +59,15 @@ Five cell models, chosen from a menu:
   compound, accordion and slow glycolytic bursting. Transcribed from the paper
   (the PFK rate law from the authors' code) and checked against what it
   reports.
+- **Pancreatic beta cell (human):** Riz, Braun & Pedersen (2014, PLoS Comput
+  Biol 10:e1003389), on Pedersen (2010, Biophys J 99:3200). Na⁺, three Ca²⁺
+  currents, Kv, BK, SK, HERG and K_ATP, built from voltage-clamp recordings of
+  human beta cells (Braun et al. 2008), with submembrane and cytosolic calcium.
+  GABA excites it: chloride reverses at −40 mV, above rest, so 100 µM GABA on a
+  silent cell fires one spike and holds it near −44 mV (the paper: ~−45), and
+  10 µM speeds a spiking cell from 5.7 to 7.7 Hz. Checked against both papers'
+  numbers (Pedersen's 4.6 Hz, 7 Hz with HERG blocked, the TTX intervals) and
+  against the authors' equations run by a stiff solver (intervals within 0.5%).
 - **Squid giant axon:** Hodgkin & Huxley (1952, J Physiol 117:500). The first
   model of the action potential, only Na⁺, K⁺ and a leak, on a space-clamped
   10 000 µm² patch (no propagation), with a temperature control (Q₁₀ = 3, from

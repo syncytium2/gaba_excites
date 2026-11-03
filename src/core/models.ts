@@ -162,6 +162,17 @@ export interface ModelDef {
   /** how far to trust it, in one sentence, shown in the UI */
   validation: string;
   /**
+   * The Vm a spike must rise through to be counted, mV, where this cell's spikes do not reach the app's −20 mV
+   * (analysis.ts SPIKE_LEVEL); the detector re-arms 20 mV below it. The human beta cell's action potentials peak
+   * between about −7 and −28 mV across the papers' conditions.
+   */
+  spikeLevel?: number;
+  /**
+   * false for a cell whose published action potentials do not overshoot 0 mV (the human beta cell's peak at −8 mV
+   * in Pedersen 2010), so the siren does not call every one of them a failed spike (extremes.ts). Absent: true.
+   */
+  spikesOvershoot?: boolean;
+  /**
    * What voltage clamp on this model can and cannot show, where that differs
    * from the rest: shown under the voltage-clamp plots. Set it when the
    * model's currents were not fitted to voltage-clamp recordings.
@@ -503,4 +514,4 @@ export const HH: ModelDef = {
 
 export const MODELS: Record<ModelId, ModelDef> = { rs: RS, fs: FS, lts: LTS, gnrh: GNRH, betamouse: BETA_MOUSE, betahuman: BETA_HUMAN, hh: HH };
 /** The models the app offers, in the selector's order. */
-export const MODEL_LIST: ModelDef[] = [RS, FS, LTS, GNRH, BETA_MOUSE, HH];
+export const MODEL_LIST: ModelDef[] = [RS, FS, LTS, GNRH, BETA_MOUSE, BETA_HUMAN, HH];

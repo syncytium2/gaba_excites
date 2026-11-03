@@ -6,7 +6,7 @@ import { DEFAULT_NOISE, type NoiseParams } from "./core/noise.ts";
 import { FILTER_KHZ } from "./core/filter.ts";
 import { DEFAULT_ELECTRODE, type Electrode, type Sweep } from "./core/simulate.ts";
 import type { FamilySummary } from "./core/analysis.ts";
-import { PRESETS, presetsFor, patternsFor, toProtocol, MAX_SWEEPS, SCOPE_PULSE, INC_DIAL, INC_RANGES, incRangeFor, type IncRange, type ProtocolForm } from "./core/protocol.ts";
+import { PRESETS, presetsFor, patternsFor, toProtocol, MAX_SWEEPS, SCOPE_PULSE, INC_DIAL, INC_RANGES, incRangeFor, type IncRange, type Preset, type ProtocolForm } from "./core/protocol.ts";
 import type { SynInput } from "./core/synapses.ts";
 import type { Pulse } from "./core/stream.ts";
 import type { CellInfo, Request, Response } from "./worker.ts";
@@ -56,6 +56,13 @@ interface Pin {
 }
 
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
+
+/** A preset measured at set knob values (Preset.knobs) holds only while the cell is still at them. */
+function presetHolds(p: Preset, cell: CellParams): boolean {
+  if (!p.knobs) return true;
+  const now = knobValues(MODELS[cell.model], cell.knobs);
+  return Object.entries(p.knobs).every(([k, v]) => Math.abs((now[k] ?? NaN) - v) < 1e-9);
+}
 
 export function App() {
   const [cell, setCell] = useState<CellParams>(opening.cell);
@@ -177,7 +184,7 @@ export function App() {
     const h = setTimeout(() => {
       const id = ++lastId.current;
       pendingProto.current = protocol;
-      pendingSettings.current = { cell, ihold, electrode, protocol, glu, gaba, noise, seed, preset: PRESETS.find((p) => p.id === presetId)?.label };
+      pendingSettings.current = { cell, ihold, electrode, protocol, glu, gaba, noise, seed, preset: PRESETS.find((p) => p.id === presetId && presetHolds(p, cell))?.label };
       const msg: Request = { kind: "run", id, cell, inputs: { ihold, electrode, glu, gaba, noise }, protocol, seed };
       worker.current?.postMessage(msg);
     }, 90);
@@ -240,8 +247,11 @@ export function App() {
   };
 
   const applyPreset = (id: string) => {
-    const p = PRESETS.find((x) => x.id === id)!;
+    const p = PRESETS.find((x) => x.id === id);
+    if (!p) return; // "Custom" is not a preset
     setPresetId(id);
+    // a preset that sets knobs leaves the scope pattern behind unless it is the same setting
+    if (p.knobs) setPatternId(patternsFor(cell.model).find((x) => Object.entries(p.knobs!).every(([k, v]) => x.knobs[k] === v))?.id ?? "custom");
     setForm(p.protocol);
     setGlu(p.glu);
     setGaba(p.gaba);
@@ -366,7 +376,9 @@ export function App() {
   }, []);
   const rinRest = built.rinRest;
   const tauM = (rinRest * cell.cm) / 1000;
-  const preset = presets.find((p) => p.id === presetId);
+  // A preset measured at set knob values (Preset.knobs) holds only while the cell is still at them: turning a knob
+  // or choosing a scope pattern leaves the protocol as it was, but the preset's numbers no longer apply (2026-11-02).
+  const preset = presets.find((p) => p.id === presetId && presetHolds(p, cell));
   const refinedValid = refined && refined.key === runKey ? refined : null;
 
   const pinCurrent = () => {
@@ -487,7 +499,7 @@ export function App() {
               {model.knobs.map((k) => {
                 const vals = knobValues(model, cell.knobs);
                 return (
-                  <AmpDial key={k.id} label={k.label} unit={k.unit} value={vals[k.id]} min={k.min} max={k.max} step={k.step} digits={k.step < 0.1 ? 2 : 1} hint={k.note}
+                  <AmpDial key={k.id} label={k.label} unit={k.unit} value={vals[k.id]} min={k.min} max={k.max} step={k.step} digits={digitsFor(k.step)} hint={k.note}
                     onChange={(v) => { setCell({ ...cell, knobs: { ...vals, [k.id]: v } }); setPatternId("custom"); }} />
                 );
               })}
@@ -578,9 +590,9 @@ export function App() {
         {mode === "steps" ? (
         <AmpSection name="STEPS">
           <AmpSlot label="Protocol">
-            <select id="preset-select" aria-label="Step protocol preset" value={presetId} onChange={(e) => applyPreset(e.target.value)}>
+            <select id="preset-select" aria-label="Step protocol preset" value={preset ? presetId : "custom"} onChange={(e) => applyPreset(e.target.value)}>
               {presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-              {!preset && <option value={presetId}>Custom</option>}
+              {!preset && <option value="custom">Custom</option>}
             </select>
           </AmpSlot>
           <AmpChoice label="Steps as" value={form.mode} options={[["family", "Family"], ["list", "List"]] as const} onChange={(m) => putForm({ mode: m })} />
@@ -603,7 +615,7 @@ export function App() {
         </AmpSection>
         ) : (
         <AmpSection name="PULSES" power={{ on: pulse.enabled, onChange: (on) => setPulse({ ...pulse, enabled: on }) }}>
-          <CurrentDial label="Amplitude" value={pulse.amp} min={-3 * limits.iBound} max={3 * limits.iBound} step={cell.model === "gnrh" ? 1 : cell.model === "betamouse" ? 0.1 : 10} digits={cell.model === "betamouse" ? 1 : 0} disabled={!pulse.enabled} onChange={(amp) => setPulse({ ...pulse, amp })} />
+          <CurrentDial label="Amplitude" value={pulse.amp} min={-3 * limits.iBound} max={3 * limits.iBound} step={cell.model === "gnrh" ? 1 : cell.model === "betamouse" ? 0.1 : cell.model === "betahuman" ? 0.5 : 10} digits={cell.model === "betamouse" || cell.model === "betahuman" ? 1 : 0} disabled={!pulse.enabled} onChange={(amp) => setPulse({ ...pulse, amp })} />
           <AmpDial label="Width" unit="ms" value={pulse.width} min={1} max={2000} step={10} digits={0} disabled={!pulse.enabled} onChange={(width) => setPulse({ ...pulse, width })} />
           <AmpDial label="Period" unit="ms" value={pulse.period} min={10} max={10000} step={50} digits={0} disabled={!pulse.enabled} onChange={(period) => setPulse({ ...pulse, period })} />
         </AmpSection>

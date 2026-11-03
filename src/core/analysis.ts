@@ -27,19 +27,24 @@ export interface Spike {
   halfWidth: number;
 }
 
-export function detectSpikes(vm: Float32Array, dtMs: number): Spike[] {
+/** The re-arm level for a spike level: 20 mV below it (−40 mV for the app's −20). */
+export const rearmFor = (level: number) => level - (SPIKE_LEVEL - REARM_LEVEL);
+
+/** Spikes on Vm: upward crossings of `level` (SPIKE_LEVEL, or the model's own: ModelDef.spikeLevel), re-armed 20 mV below it. */
+export function detectSpikes(vm: Float32Array, dtMs: number, level = SPIKE_LEVEL): Spike[] {
   const out: Spike[] = [];
-  let armed = vm[0] < SPIKE_LEVEL;
+  const rearm = rearmFor(level);
+  let armed = vm[0] < level;
   let lastEnd = 0;
   for (let i = 1; i < vm.length; i++) {
     if (!armed) {
-      if (vm[i] < REARM_LEVEL) {
+      if (vm[i] < rearm) {
         armed = true;
         lastEnd = i;
       }
       continue;
     }
-    if (vm[i - 1] < SPIKE_LEVEL && vm[i] >= SPIKE_LEVEL) {
+    if (vm[i - 1] < level && vm[i] >= level) {
       armed = false;
       // walk back to where the upstroke began exceeding the dV/dt criterion
       let j = i;
@@ -58,13 +63,19 @@ export function detectSpikes(vm: Float32Array, dtMs: number): Spike[] {
       // linear interpolation at both half crossings
       const ta = a > 0 ? a - 1 + (half - vm[a - 1]) / (vm[a] - vm[a - 1]) : a;
       const tb = b + 1 < vm.length ? b + (vm[b] - half) / (vm[b] - vm[b + 1]) : b;
-      const tc = i - 1 + (SPIKE_LEVEL - vm[i - 1]) / (vm[i] - vm[i - 1]);
+      const tc = i - 1 + (level - vm[i - 1]) / (vm[i] - vm[i - 1]);
+      // A spike whose upstroke never reaches THRESH_DVDT has no threshold by that criterion, and so no half-width
+      // measured from it: the walk back above would otherwise return the counting level itself (the human beta
+      // cell's slow Ca²⁺ spikes rise at about 7 V/s).
+      let fastest = -Infinity;
+      for (let u = Math.max(thrIdx, 1); u <= k; u++) fastest = Math.max(fastest, (vm[u] - vm[u - 1]) / dtMs);
+      const defined = fastest >= THRESH_DVDT;
       out.push({
         t: tc * dtMs,
-        threshold,
-        tThreshold: thrIdx * dtMs,
+        threshold: defined ? threshold : NaN,
+        tThreshold: defined ? thrIdx * dtMs : NaN,
         peak,
-        halfWidth: (tb - ta) * dtMs,
+        halfWidth: defined ? (tb - ta) * dtMs : NaN,
       });
     }
   }
@@ -108,7 +119,7 @@ function mean(a: Float32Array, i0: number, i1: number): number {
 
 export function sweepStats(sw: Sweep, proto: StepProtocol): SweepStats {
   const dt = sw.sampleMs;
-  const spikes = detectSpikes(sw.vm, dt);
+  const spikes = detectSpikes(sw.vm, dt, sw.spikeLevel);
   const on = proto.stepStart;
   const off = proto.stepStart + proto.stepDur;
   const inStep = spikes.filter((s) => s.t >= on && s.t < off);

@@ -1616,3 +1616,56 @@ The methods page has a paragraph on it (`#beta-vc`), and the validation table's 
 `beta-app.test.ts` requires both, and `scripts/screenshot.mjs` checks the note shows on the beta cell and not on the
 pyramidal cell. In parallel, a search for beta cell models whose currents were fitted to voltage-clamp data (mouse and
 human) was started at the owner's request.
+
+## 2026-11-02 — the human beta cell, built overnight on a branch
+
+The owner, having emailed Morten Pedersen for permission: "lets assume the response is positive. build the model. i am
+going to sleep now so proceed autonomously. Any issues that you cannot resolve safely, I will review in the morning.
+Do not deploy until i review your update in the morning." Built on branch `human-beta`; not merged, not deployed.
+
+**The model.** A survey of beta-cell models (the 2026-11-02 entry above) ranked Riz, Braun & Pedersen 2014, on
+Pedersen 2010, first: its voltage-gated currents come from Braun et al. 2008's voltage-clamp recordings of human beta
+cells, and it has an explicit GABA_A current. Transcribed from both papers' PDFs (`lit/notes/riz2014.md`), with every
+sign checked against the authors' XPP files, since the PDF text layer drops some minus signs. Pedersen 2010 is the
+same model with SK off, HERG at 0.2 nS/pF, g_K(ATP) 0.015 nS/pF and a P/Q slope of −10 mV, so one port
+(`src/core/human.ts`) covers both papers. Not ported: Riz's glycolytic oscillator (one figure) and its K_ATP noise.
+
+**How it was checked.** The authors' equations, transcribed literally into a scratch Python script and integrated by
+LSODA at 1e-9, reproduce Pedersen's reported numbers (4.63 Hz, −8.4 and −67.9 mV, 7.06 Hz with HERG blocked, the TTX
+intervals), which confirmed the transcription before the port. The port matches LSODA's interspike intervals within
+0.5% in nine configurations and its first spikes within 0.1 ms, and matches every number the papers report:
+`human.test.ts` (16 tests). The app's numbers (presets, patterns, current scale) are in `human-app.test.ts`.
+
+**Decisions taken overnight, each for the owner to confirm or undo:**
+
+- **The solver passes the Ca²⁺ current to channels that ask for it** (`Channel.readsICa`). BK in this model is
+  driven by the Ca²⁺ current itself (Pedersen Eq. 9); the owner had been asked and not yet answered. The input is
+  computed only for a model with such a channel, so every other model's step is the same arithmetic in the same
+  order; the NEURON oracles and every other test pass unchanged.
+- **A model may count its spikes at its own level** (`ModelDef.spikeLevel`). This cell's spikes peak at −7 to
+  −10 mV, and at −20 to −28 mV with GABA, TTX or less L-type current, so the app's −20 mV missed the papers' own
+  conditions. It counts at −30 mV, re-arming at −50; every other model stays at −20/−40. Sweeps carry the level, so
+  the F–I analysis, the report and the oscilloscope all use it.
+- **The siren's "spike fails to overshoot 0 mV" is not applied to this cell** (`ModelDef.spikesOvershoot: false`):
+  its published spikes never overshoot, so every one of them would have tripped it. Block, range and current still
+  apply. The siren's criteria are the owner's (2026-10-16), so this is flagged.
+- **A spike whose upstroke never reaches 20 V/s has no threshold or half-width** (analysis.ts). This cell's spikes
+  rise at about 7 V/s, and the readout showed −30.0 mV, the counting level, as "threshold". It now shows "—". General,
+  but no neuron's spike is that slow, and every test passes.
+- **A step preset measured at set knob values shows as Custom once the knobs move** (`presetHolds`, App.tsx). Found
+  in the screenshot check: choosing a scope pattern, then the step protocol, left "Picoamps steer its firing" on the
+  menu with K_ATP the pattern had changed, so its note's numbers no longer applied. This also applies to the squid
+  axon's "Warmed to 18.5 °C". A preset that sets knobs now also moves the pattern menu to the matching pattern.
+- **Knobs in pS/pF** (10, 21, 100, 300…) rather than the papers' nS/pF, so the published values are whole numbers
+  and fit the readout; the model converts. Knob readouts now take their decimals from the knob's step, which leaves
+  the other models' knobs as they were.
+- **Step protocol is enabled** for this cell (it spikes at ~6 Hz, so a 3 s sweep shows it), with one preset: picoamp
+  steps on the spiking cell (12, 9, 0 and 18 spikes in 2 s at 0, −1, −2 and +4 pA). Rheobase is undefined; the
+  siren's current scale is the silent cell's 1.0 pA (g_K(ATP) 21 pS/pF, Riz Fig. 5A; Rin 4.4 GΩ).
+- **E_GABA for the PSC controls opens at −40 mV**, Riz's E_Cl. The PSC size and kinetics are the app's generic ones
+  (3 nS peak), unsourced for beta cells, and large for a 10 pF cell; the bath GABA knob is the papers' experiment.
+
+**Left for the owner.** Pedersen's reply. No voltage-clamp preset reproduces Braun 2008's figures yet: that needs
+Pedersen's supplement (Figs. S1–S3, on the want-list) and Braun's own figures, and a decision on whether such presets
+use Pedersen's firing reversals (+70, +65 mV) or the voltage-clamp ones. Rin and "rest" in the header are taken at the
+unstable fixed point (−44 mV, 667 MΩ) of a cell that never rests there, as for the mouse cell.

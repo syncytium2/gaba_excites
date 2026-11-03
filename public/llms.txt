@@ -37,6 +37,14 @@ background, is at https://gaba.tonydefazio.com/explainer (a first draft).
     calcium-slowed ATP production. It fires on its own in glucose, so it runs
     on the oscilloscope only, with a glucose control (the glucokinase rate) and
     the paper's patterns;
+  - the human pancreatic beta cell of Riz, Braun & Pedersen 2014 (PLoS Comput
+    Biol 10:e1003389, doi:10.1371/journal.pcbi.1003389), on Pedersen 2010
+    (Biophys J 99:3200, doi:10.1016/j.bpj.2010.09.004): INa, L-, P/Q- and
+    T-type ICa, IKv, IBK (driven by the Ca2+ current), ISK, IHERG, IK(ATP), and
+    a bath GABA_A conductance reversing at -40 mV, with submembrane and
+    cytosolic calcium. Its voltage-gated currents come from voltage-clamp
+    recordings of human beta cells (Braun et al. 2008). It spikes on its own
+    at about 6 Hz; GABA excites it;
   - the squid giant axon of Hodgkin & Huxley 1952 (J Physiol 117:500,
     doi:10.1113/jphysiol.1952.sp004764): INa and IK only, on a space-clamped
     10 000 um^2 patch (100 pF, so 100 pA = 1 uA/cm^2), with a temperature
@@ -119,6 +127,16 @@ It reproduces what the paper reports: glycolysis alone oscillates at R_GK 0.2
 every 32.4 s at R_GK 0.4 (the paper: about 30 s) and gives the compound,
 accordion, glycolytic and subthreshold patterns of its Figs. 5-8. The authors'
 equations integrated by a stiff solver give 30.3-31.6 s from the same start.
+
+Human beta cell: transcribed from both papers. With Pedersen 2010's settings
+it fires at 4.62 Hz between -8.5 and -67.9 mV (the paper: 4.6 Hz, -8 and
+-68 mV), at 7.06 Hz with HERG blocked (7 Hz), and TTX lengthens the interval
+from 216 to 313 ms (217 to 312). With Riz et al. 2014's settings, 100 uM GABA
+on a silent cell gives a single spike and a plateau at -44 mV (the paper:
+~-45 mV), and 10 uM speeds a spiking cell from 5.7 to 7.7 Hz. The authors'
+equations integrated by a stiff solver give interspike intervals within 0.5%
+of the port in nine configurations. Spikes are counted at -30 mV for this cell
+(they peak between -7 and -28 mV), -20 mV for the others.
 
 ## The result it is named for
 

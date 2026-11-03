@@ -56,7 +56,7 @@ describe("the siren trips for the right reason", () => {
   });
 
   it("spikes that fail to overshoot trip it", () => {
-    const w = new ExtremeWatch({ vMin: -120, vMax: 60, iCenter: 0, iBound: 1e9 });
+    const w = new ExtremeWatch({ vMin: -120, vMax: 60, iCenter: 0, iBound: 1e9, spikeUp: -20, overshoot: 0 });
     // three small spikes, peaking at −5 mV, between troughs at −60 mV
     const v: number[] = [];
     for (let s = 0; s < 3; s++) for (let k = 0; k < 40; k++) v.push(-60 + 55 * Math.exp(-(((k - 20) / 4) ** 2)));
