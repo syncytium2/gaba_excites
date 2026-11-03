@@ -37,6 +37,10 @@ one CI step. It merges that framework to main first, so the other sessions can n
   [`2026-10-30-workstation-windows.md`](2026-10-30-workstation-windows.md): the workstation is Windows (line endings,
   Git Bash, `bash scripts/deploy.sh` in place of `npm run deploy`).
 
+- [`2026-11-03-human-beta.md`](2026-11-03-human-beta.md): the human beta cell (Riz, Braun & Pedersen 2014), built
+  on branch `human-beta`, **not merged or deployed until the owner reviews it**. Lists the overnight decisions he must
+  confirm, Pedersen's permission (granted; correspondence to be pasted) and every open concern.
+
 ## Superseded
 
 - [`2026-10-18-adrs-addendum.md`](2026-10-18-adrs-addendum.md): superseded the same day by
