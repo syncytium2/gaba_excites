@@ -126,6 +126,8 @@ describe("human beta cell in the app", () => {
   it("voltage clamp and the methods page say how far its currents rest on voltage-clamp data", () => {
     expect(MODELS.betahuman.vcNote).toMatch(/voltage-clamp recordings of human beta cells/);
     expect(MODELS.betahuman.vcNote).toMatch(/activate instantly/);
+    // Pedersen 2010 Supporting Material, Figs. S1B and S2B: the fits used E_Ca +40 and E_Na +100 mV
+    expect(MODELS.betahuman.vcNote).toMatch(/\+100 and \+40 mV/);
     const methods = readFileSync(new URL("../../public/methods.html", import.meta.url), "utf8");
     expect(methods).toMatch(/id="betahuman"/);
     expect(methods).toMatch(/id="human-vc"/);

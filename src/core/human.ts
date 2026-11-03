@@ -267,7 +267,7 @@ export function humanBeta(over: Partial<HumanParams> = {}): ModelDef {
     validation:
       "Transcribed from the papers. Checked against Pedersen 2010's reported spike rates and intervals and Riz et al. 2014's responses to TTX and GABA, and against the authors' equations run by a separate stiff solver.",
     vcNote:
-      "Pedersen (2010) built these currents from voltage-clamp recordings of human beta cells (Braun et al. 2008), with two simplifications that show here: the Na⁺ and Ca²⁺ currents activate instantly, so they have no rising phase after a step, and E_Na and E_Ca are the values used for firing, not those of the voltage-clamp experiments.",
+      "Pedersen (2010) built these currents from voltage-clamp recordings of human beta cells (Braun et al. 2008), with two simplifications that show here: the Na⁺ and Ca²⁺ currents activate instantly, so they have no rising phase after a step, and E_Na and E_Ca are the values used for firing (+70, +65 mV), not the +100 and +40 mV he fitted the recordings with.",
   };
 }
 

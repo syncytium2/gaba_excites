@@ -147,7 +147,7 @@ Pedersen MG (2010). A biophysical model of electrical activity in human β-cells
 
 [doi:10.1016/j.bpj.2010.09.004](https://doi.org/10.1016/j.bpj.2010.09.004) · [PMID 21081067](https://pubmed.ncbi.nlm.nih.gov/21081067/) · [PMC2980734](https://pmc.ncbi.nlm.nih.gov/articles/PMC2980734/) · *open (PubMed Central)* · models: human β-cell
 
-**Took:** The voltage-gated currents of the human beta cell, Equations 1–9 and Table 1, which Riz et al. 2014 keep; how each was taken from Braun et al. 2008's voltage-clamp data; his parameter set (no SK, HERG 0.2 nS/pF, g_K(ATP) 0.015 nS/pF, P/Q slope −10 mV); and the numbers the port is checked against: spikes at 4.6 Hz peaking at −8 mV with troughs at −68 mV, 7 Hz with HERG blocked, 4.0 Hz with τ_mHERG = 500 ms, interspike intervals 217 → 312 ms with TTX, and 163 → 178 ms at g_K(ATP) 0.008 nS/pF.
+**Took:** The voltage-gated currents of the human beta cell, Equations 1–9 and Table 1, which Riz et al. 2014 keep; how each was taken from Braun et al. 2008's voltage-clamp data; his parameter set (no SK, HERG 0.2 nS/pF, g_K(ATP) 0.015 nS/pF, P/Q slope −10 mV); and the numbers the port is checked against: spikes at 4.6 Hz peaking at −8 mV with troughs at −68 mV, 7 Hz with HERG blocked, 4.0 Hz with τ_mHERG = 500 ms, interspike intervals 217 → 312 ms with TTX, and 163 → 178 ms at g_K(ATP) 0.008 nS/pF. From its Supporting Material (Figs. S1–S3): the reversal potentials the currents were fitted to Braun's recordings with, E_Ca = +40 mV and E_Na = +100 mV, against the +65 and +70 mV every firing simulation uses.
 
 > Special attention has been given to choose model parameters directly from published, high-quality electrophysiological data, mainly from Braun et al. (3) ... Using published parameters reduced parameter tweaking to a minimum.
 > — Introduction
@@ -160,6 +160,12 @@ Pedersen MG (2010). A biophysical model of electrical activity in human β-cells
 
 > setting gNa = 0 nS/pF increases the interspike interval dramatically (by 44% from 217 ms to 312 ms), but with lower K(ATP) conductance the interspike interval is increased much less, e.g., by 9% from 163 ms to 178 ms with gK(ATP) = 0.008 nS/pF
 > — Results, Spiking electrical activity
+
+> Assuming a reversal potential of VNa = 100 mV allowed decent fitting to the Na+-currents measured by Braun et al. (3) (full, black). However, all simulations of electrical activity were done with VNa = 70 mV, which yields smaller Na+-currents
+> — Supporting Material, Fig. S2 legend
+
+> Assuming a reversal potential of VCa = 40 mV (3) allowed decent fitting to the Ca2+-currents measured by Braun et al. (3).
+> — Supporting Material, Fig. S1 legend
 
 **Used in:** [`src/core/human.ts`](../src/core/human.ts), [`src/core/human.test.ts`](../src/core/human.test.ts)
 
