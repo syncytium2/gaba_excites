@@ -128,6 +128,8 @@ export const SCOPE_PULSE: Record<ModelId, Pulse> = {
   // (R_GK = 0; beta-app.test.ts). It bursts on its own in glucose, so the
   // pulse is not its lesson; off until ticked.
   betamouse: { enabled: false, amp: 1, width: 500, period: 1500 },
+  // Human beta cell: placeholder until measured
+  betahuman: { enabled: false, amp: 1, width: 500, period: 1500 },
   // Squid axon: 1000 pA (10 µA/cm²), above the 700 pA where it starts to fire
   // repetitively at 6.3 °C (tools/neuron_oracle_hh.py; hh.test.ts).
   hh: { enabled: false, amp: 1000, width: 500, period: 1500 },

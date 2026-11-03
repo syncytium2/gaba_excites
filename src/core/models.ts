@@ -23,13 +23,14 @@ import {
   type Channel,
 } from "./channels.ts";
 import { BETA_MOUSE } from "./beta.ts";
+import { BETA_HUMAN } from "./human.ts";
 import { adamsPool, destexheDecay, type CaPool } from "./pools.ts";
 
 export type { CaPool } from "./pools.ts";
-export type ModelId = "rs" | "fs" | "lts" | "gnrh" | "betamouse" | "hh";
+export type ModelId = "rs" | "fs" | "lts" | "gnrh" | "betamouse" | "betahuman" | "hh";
 
-export type Ion = "na" | "k" | "ca" | "cation";
-export const ION_NAME: Record<Ion, string> = { na: "Na⁺", k: "K⁺", ca: "Ca²⁺", cation: "cation" };
+export type Ion = "na" | "k" | "ca" | "cl" | "cation";
+export const ION_NAME: Record<Ion, string> = { na: "Na⁺", k: "K⁺", ca: "Ca²⁺", cl: "Cl⁻", cation: "cation" };
 
 /**
  * The model's reversal for an ion, from its own channel data: the first channel that carries it (where a model
@@ -500,6 +501,6 @@ export const HH: ModelDef = {
     "Spike counts match NEURON's built-in hh mechanism exactly, at 6.3 and 18.5 °C, spike times within 0.01 ms; the equations match the 1952 paper's exactly, and its computed action potentials (Table 4) are reproduced.",
 };
 
-export const MODELS: Record<ModelId, ModelDef> = { rs: RS, fs: FS, lts: LTS, gnrh: GNRH, betamouse: BETA_MOUSE, hh: HH };
+export const MODELS: Record<ModelId, ModelDef> = { rs: RS, fs: FS, lts: LTS, gnrh: GNRH, betamouse: BETA_MOUSE, betahuman: BETA_HUMAN, hh: HH };
 /** The models the app offers, in the selector's order. */
 export const MODEL_LIST: ModelDef[] = [RS, FS, LTS, GNRH, BETA_MOUSE, HH];

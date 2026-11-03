@@ -37,7 +37,7 @@ const KIND_HINT =
   "In the window: Peak + is the most positive current, Peak − the most negative; Max |I| is the value largest in " +
   "size whichever its sign (the sign is kept); Mean is the average, and Cursor the value at the window's start. " +
   "Peak − is not a peak when the current is outward throughout: it is then the smallest outward value.";
-const erevSub = (ion: Ion) => ({ na: "_Na", k: "_K", ca: "_Ca", cation: "_rev" })[ion];
+const erevSub = (ion: Ion) => ({ na: "_Na", k: "_K", ca: "_Ca", cl: "_Cl", cation: "_rev" })[ion];
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 
 /**

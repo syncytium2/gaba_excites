@@ -933,6 +933,181 @@
         "src/core/beta-run.ts"
       ],
       "notes": "notes/bertram2004.md"
+    },
+    {
+      "key": "riz2014",
+      "type": "article",
+      "authors": [
+        "Riz M",
+        "Braun M",
+        "Pedersen MG"
+      ],
+      "year": 2014,
+      "title": "Mathematical modeling of heterogeneous electrophysiological responses in human β-cells",
+      "journal": "PLoS Comput Biol",
+      "volume": "10",
+      "issue": "1",
+      "pages": "e1003389",
+      "doi": "10.1371/journal.pcbi.1003389",
+      "pmid": "24391482",
+      "pmcid": "PMC3879095",
+      "access": "open (PubMed Central; CC BY)",
+      "role": "model",
+      "models": [
+        "betahuman"
+      ],
+      "took": "The human beta cell: Equations 13–34 and Table 1 (every current, the submembrane and cytosolic calcium, the SK and GABA_A currents, Cm = 10 pF), the GABA_A conductances for 10 µM, 100 µM and 1 mM GABA, and the reported behavior the port is checked against: the interspike potential of about −70 mV (Fig. 3B), TTX silencing a cell with less L-type current (Fig. 3D), and GABA's single spike and ~−45 mV plateau in a silent cell and faster firing in an active one (Fig. 5). The glycolytic oscillator (Eqs. 35–47, Fig. 6) is not ported.",
+      "usedIn": [
+        "src/core/human.ts",
+        "src/core/pools.ts",
+        "src/core/human-run.ts",
+        "src/core/human.test.ts"
+      ],
+      "quotes": [
+        {
+          "text": "In a silent model cell with a rather large K(ATP)-conductance, simulated GABA application leads to a single action potential whereafter the membrane potential settles at ∼−45 mV (Fig. 5A), in close correspondence with the experimental results",
+          "where": "Results, Paracrine effects on electrical activity"
+        },
+        {
+          "text": "In an active cell, the simulation of activation of GABAA receptors leads to a minor depolarization and increased action potential firing (Fig. 5B), as found experimentally",
+          "where": "Results, Paracrine effects on electrical activity"
+        },
+        {
+          "text": "We estimate gGABAR from the findings that 1 mM GABA evokes a current of 9.4 pA/pF (but with substantial cell-to-cell variation) at a holding potential of −70 mV [12], which yields a conductance of ∼0.3 nS/pF.",
+          "where": "Methods, Modeling"
+        }
+      ],
+      "notes": "notes/riz2014.md"
+    },
+    {
+      "key": "pedersen2010",
+      "type": "article",
+      "authors": [
+        "Pedersen MG"
+      ],
+      "year": 2010,
+      "title": "A biophysical model of electrical activity in human β-cells",
+      "journal": "Biophys J",
+      "volume": "99",
+      "issue": "10",
+      "pages": "3200–3207",
+      "doi": "10.1016/j.bpj.2010.09.004",
+      "pmid": "21081067",
+      "pmcid": "PMC2980734",
+      "access": "open (PubMed Central)",
+      "role": "model",
+      "models": [
+        "betahuman"
+      ],
+      "took": "The voltage-gated currents of the human beta cell, Equations 1–9 and Table 1, which Riz et al. 2014 keep; how each was taken from Braun et al. 2008's voltage-clamp data; his parameter set (no SK, HERG 0.2 nS/pF, g_K(ATP) 0.015 nS/pF, P/Q slope −10 mV); and the numbers the port is checked against: spikes at 4.6 Hz peaking at −8 mV with troughs at −68 mV, 7 Hz with HERG blocked, 4.0 Hz with τ_mHERG = 500 ms, interspike intervals 217 → 312 ms with TTX, and 163 → 178 ms at g_K(ATP) 0.008 nS/pF.",
+      "usedIn": [
+        "src/core/human.ts",
+        "src/core/human.test.ts"
+      ],
+      "quotes": [
+        {
+          "text": "Special attention has been given to choose model parameters directly from published, high-quality electrophysiological data, mainly from Braun et al. (3) ... Using published parameters reduced parameter tweaking to a minimum.",
+          "where": "Introduction"
+        },
+        {
+          "text": "the model produces action potentials peaking at −8 mV with troughs at −68 mV (Fig. 2). The spike frequency is 4.6 Hz",
+          "where": "Results, Spiking electrical activity"
+        },
+        {
+          "text": "blocking the HERG current increases the spike frequency by 52% from 4.6 Hz to 7 Hz (Fig. 2 D)",
+          "where": "Results, Spiking electrical activity"
+        },
+        {
+          "text": "setting gNa = 0 nS/pF increases the interspike interval dramatically (by 44% from 217 ms to 312 ms), but with lower K(ATP) conductance the interspike interval is increased much less, e.g., by 9% from 163 ms to 178 ms with gK(ATP) = 0.008 nS/pF",
+          "where": "Results, Spiking electrical activity"
+        }
+      ],
+      "notes": "notes/riz2014.md"
+    },
+    {
+      "key": "braun2008",
+      "type": "article",
+      "authors": [
+        "Braun M",
+        "Ramracheya R",
+        "Bengtsson M",
+        "Zhang Q",
+        "Karanauskaite J",
+        "Partridge C",
+        "Johnson PR",
+        "Rorsman P"
+      ],
+      "year": 2008,
+      "title": "Voltage-gated ion channels in human pancreatic β-cells: electrophysiological characterization and role in insulin secretion",
+      "journal": "Diabetes",
+      "volume": "57",
+      "issue": "6",
+      "pages": "1618–1628",
+      "doi": "10.2337/db07-0991",
+      "pmid": "18390794",
+      "access": "publisher",
+      "role": "parameter",
+      "models": [
+        "betahuman"
+      ],
+      "took": "The voltage-clamp recordings of human beta cells that Pedersen 2010 built the Na⁺, Ca²⁺, Kv and BK currents from, and Cm ≈ 10 pF. Cited through Pedersen 2010; no number here is read from it directly.",
+      "usedIn": [
+        "src/core/human.ts"
+      ]
+    },
+    {
+      "key": "braun2010",
+      "type": "article",
+      "authors": [
+        "Braun M",
+        "Ramracheya R",
+        "Bengtsson M",
+        "Clark A",
+        "Walker JN",
+        "Johnson PR",
+        "Rorsman P"
+      ],
+      "year": 2010,
+      "title": "γ-Aminobutyric acid (GABA) is an autocrine excitatory transmitter in human pancreatic β-cells",
+      "journal": "Diabetes",
+      "volume": "59",
+      "issue": "7",
+      "pages": "1694–1701",
+      "doi": "10.2337/db09-0797",
+      "pmid": "20413510",
+      "pmcid": "PMC2889769",
+      "access": "open (PubMed Central)",
+      "role": "parameter",
+      "models": [
+        "betahuman"
+      ],
+      "took": "The GABA_A current of human beta cells (9.4 pA/pF for 1 mM GABA at −70 mV) and the firing responses to GABA that Riz et al. 2014 reproduce (its Fig. 7). Cited through Riz et al. 2014.",
+      "usedIn": [
+        "src/core/human.ts"
+      ]
+    },
+    {
+      "key": "riz14code",
+      "type": "code",
+      "authors": [
+        "Riz M",
+        "Pedersen MG"
+      ],
+      "year": 2014,
+      "title": "XPP files for Riz, Braun & Pedersen 2014 and Pedersen 2010 (PLoSCompBiol_Fig1.ode, human-BJ2010.ode)",
+      "url": "https://www.dei.unipd.it/~pedersen/",
+      "access": "open (code; no license in the files; Software S1 of a CC BY article)",
+      "role": "model",
+      "models": [
+        "betahuman"
+      ],
+      "took": "The initial values of Riz et al. 2014's Fig. 1A, which the cell starts from. The equations were also integrated literally, outside this repository, as a check on the port (lit/notes/riz2014.md). No file of the authors' is in this repository.",
+      "usedIn": [
+        "src/core/human.ts",
+        "src/core/human-run.ts",
+        "src/core/human.test.ts"
+      ],
+      "notes": "notes/riz2014.md"
     }
   ]
 }

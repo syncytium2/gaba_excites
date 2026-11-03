@@ -42,9 +42,17 @@ export interface Channel {
    * `ca` is the cytosolic calcium in µM, for channels that sense it (0 in
    * models without a calcium pool).
    */
-  open(s: Float64Array, o: number, ca: number): number;
+  open(s: Float64Array, o: number, ca: number, iCa?: number): number;
   /** steady-state open fraction at v (and at the steady-state calcium) — used to find rest and Rin */
-  openInf(v: number, ca: number): number;
+  openInf(v: number, ca: number, iCa?: number): number;
+  /**
+   * Set on a channel whose open fraction follows the cell's Ca²⁺ current itself, not the calcium it
+   * leaves behind (the human beta cell's BK channels sit in the Ca²⁺ channels' microdomain: Pedersen 2010
+   * Eq. 9). The solver then passes `iCa` to every channel's `open` and `openInf`: the summed current of the
+   * channels that carry Ca²⁺, as a density in pA/pF (inward negative), at the step's starting V and gates.
+   * Other channels ignore it, and for a model without such a channel nothing is computed.
+   */
+  readonly readsICa?: boolean;
 }
 
 /** x / (exp(x/y) - 1), with the removable singularity at x = 0 handled. */

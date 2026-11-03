@@ -140,8 +140,9 @@ export function step(cell: BuiltCell, e: Electrode, s: Float64Array, iCmd: numbe
   let G = cell.gLeak + syn.gGlu + syn.gGaba;
   let GE = cell.gLeak * cell.eLeak + syn.gGlu * syn.eGlu + syn.gGaba * syn.eGaba + iMem;
   let iCa0 = 0; // calcium current at the start of the step, for a pool that reads it there
+  const iCaD = cell.readsICa ? iCaDensity(cell, s, v0, ca) : undefined;
   for (let k = 0; k < cell.channels.length; k++) {
-    const g = cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca);
+    const g = cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca, iCaD);
     const f = cell.erevCa[k];
     const er = f ? f(ca) : cell.erev[k];
     G += g;
@@ -198,8 +199,9 @@ export function stepVC(cell: BuiltCell, s: Float64Array, vCmd: number, rs: numbe
   let G = cell.gLeak + syn.gGlu + syn.gGaba;
   let GE = cell.gLeak * cell.eLeak + syn.gGlu * syn.eGlu + syn.gGaba * syn.eGaba + iMem;
   let iCa0 = 0;
+  const iCaD = cell.readsICa ? iCaDensity(cell, s, v0, ca) : undefined;
   for (let k = 0; k < cell.channels.length; k++) {
-    const g = cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca);
+    const g = cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca, iCaD);
     const f = cell.erevCa[k];
     const er = f ? f(ca) : cell.erev[k];
     G += g;
@@ -221,6 +223,21 @@ export function stepVC(cell: BuiltCell, s: Float64Array, vCmd: number, rs: numbe
   s[iv + 1] = vCmd;
   advanceGates(cell, s, v1, dt, iCa0);
   return iIn;
+}
+
+/**
+ * The Ca²⁺ current density, pA/pF (inward negative), at the step's starting V and gates: the summed current of
+ * the channels that carry Ca²⁺, divided by Cm. Computed only for a model with a channel that reads it
+ * (Channel.readsICa), so every other model's step is unchanged.
+ */
+function iCaDensity(cell: BuiltCell, s: Float64Array, v: number, ca: number): number {
+  let i = 0;
+  for (let k = 0; k < cell.channels.length; k++) {
+    if (!cell.carriesCa[k]) continue;
+    const f = cell.erevCa[k];
+    i += cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca) * (v - (f ? f(ca) : cell.erev[k]));
+  }
+  return i / cell.params.cm;
 }
 
 /**

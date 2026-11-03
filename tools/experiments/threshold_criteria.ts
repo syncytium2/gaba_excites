@@ -76,8 +76,8 @@ export interface Condition {
   edits: Edits;
 }
 
-/** The cells this experiment asks about: each has a Na⁺ channel to shift. The beta cell has none; the squid axon arrived after the experiment was run. */
-type NaCell = Exclude<ModelId, "betamouse" | "hh">;
+/** The cells this experiment asks about: each has a Na⁺ channel to shift. The mouse beta cell has none; the squid axon and the human beta cell arrived after the experiment was run. */
+type NaCell = Exclude<ModelId, "betamouse" | "betahuman" | "hh">;
 const NA: Record<NaCell, string> = { rs: "na", fs: "na", lts: "na", gnrh: "naf" };
 
 /** The conditions run on each cell: control, three Na⁺ edits, and the K⁺ edits that cell has channels for. */
