@@ -1774,3 +1774,8 @@ Two limits, recorded in `docs/adr/README.md`. Claude Code reads hooks from the m
 once this branch reaches `main`. And it checks the tree of the session's working directory, which in this setup is
 the main checkout, so a `cd <worktree> && git commit` is checked against `main`, not the worktree. Reported to
 armory.
+
+Later the same day armory fixed both limits (armory `2ded5cd3`). `tools/adr/adr.py` is re-vendored at that commit,
+and the hook command in `.claude/settings.json` now runs only when the file exists. Checked from the main checkout:
+`cd <scratch clone with a bad citation> && git commit` is refused, `cd <this worktree> && git commit` passes, and with
+no `adr.py` present an ordinary command passes.

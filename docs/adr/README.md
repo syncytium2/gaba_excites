@@ -31,9 +31,10 @@ excludes `docs/handoffs/` from the citation scan, because handoffs are dated rec
 however the command is chained. It is the only layer that sees unpushed work in sibling worktrees. Asked by the
 armory session "should gaba_excites turn on the hook that blocks git commit, merge and push while an ADR check
 fails?", the owner answered "Yes" (2026-11-04), and in this repository's session, "Yes wire it". Claude Code reads
-the hook from the main checkout's `.claude/settings.json`, so it fires once this reaches `main`. It checks the
-tree of the command's working directory, so a `cd <worktree> && git commit` sent from the main checkout is checked
-against the main checkout.
+the hook from the main checkout's `.claude/settings.json`, so it fires once this reaches `main`. It follows
+`cd X &&`, `cd X;` and `git -C X` to the tree each git command acts on, so a commit in a worktree is checked against
+that worktree; a directory it cannot open is reported as unchecked and let through. If the main checkout has no
+`tools/adr/adr.py`, the hook does nothing rather than blocking every command.
 
 **Not enforced by anything:** that a decision gets an ADR at all; that an ADR and AGENTS.md or `docs/process.md` agree
 in substance; that an ADR's reasons are the ones the history shows; that a Proposed ADR is ever decided.

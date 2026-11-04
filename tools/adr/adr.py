@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# vendored from syncytium2/armory @ 1649990b — tools/adr/adr.py
+# vendored from syncytium2/armory @ 2ded5cd3 — tools/adr/adr.py
 # instrument: verification
 """adr — write ADRs that cannot collide, and check the rules that keep them honest.
 
@@ -76,6 +76,9 @@ TRAILING_DATE = re.compile(r"[,;:]?\s*\(?\d{4}-\d{2}-\d{2}\)?\.?\s*$")
 STATES = re.compile(r"^(Proposed|Accepted|Deprecated|Superseded by\b(?P<by>.*))", re.I)
 AMEND_HEAD = re.compile(r"^#{1,6}\s*Amendments?\b", re.I)
 GITCMD = re.compile(r"\bgit\b(?:\s+-\S+(?:\s+\S+)?)*\s+(commit|merge|push|pull|rebase)\b")
+ARG = r"(\"[^\"]+\"|'[^']+'|\S+)"
+CD = re.compile(r"(?:^|[;&|]\s*)cd\s+" + ARG + r"\s*(?:&&|;)")
+GIT_C = re.compile(r"\s-C\s+" + ARG)
 
 
 class Error(Exception):
@@ -487,6 +490,40 @@ def report(findings, out=sys.stdout):
     return 1 if fails else 0
 
 
+def native(arg):
+    """A cd or -C argument as a path. Quotes are stripped by hand, never by shlex, which eats
+    the backslashes of an unquoted C:\\Users\\... (deploy_gate.py learned this on 2026-10-30).
+    Git Bash's /c/Users/... becomes C:/Users/... on Windows."""
+    a = arg.strip()
+    if len(a) >= 2 and a[0] == a[-1] and a[0] in "\"'":
+        a = a[1:-1]
+    if os.name == "nt":
+        m = re.match(r"^/([a-zA-Z])(/|$)", a)
+        if m:
+            a = "%s:/%s" % (m.group(1).upper(), a[m.end():])
+    return os.path.expanduser(a)
+
+
+def targets(cmd, cwd):
+    """The directory each git commit/merge/push/... in a command runs in.
+
+    The session's cwd is not enough. In the worktree pattern a session's shell resets to the
+    main checkout, so `cd ../wt && git commit` would be checked against main's tree, not the
+    tree being committed (gaba_excites, 2026-11-04). Follow every `cd X &&` / `cd X;` before
+    the git command, then its own `-C X`."""
+    out = []
+    for m in GITCMD.finditer(cmd):
+        d = cwd
+        for c in CD.finditer(cmd, 0, m.start()):
+            d = os.path.join(d, native(c.group(1)))
+        for c in GIT_C.finditer(m.group(0)):
+            d = os.path.join(d, native(c.group(1)))
+        d = os.path.normpath(d)
+        if d not in out:
+            out.append(d)
+    return out
+
+
 def hook():
     """PreToolUse on Bash: block git commit/merge/push/pull/rebase while ADR checks fail."""
     try:
@@ -494,20 +531,20 @@ def hook():
     except ValueError:
         return 0
     cmd = (data.get("tool_input") or {}).get("command", "")
-    if not GITCMD.search(cmd):
-        return 0
-    try:
-        repo = Repo(data.get("cwd") or os.getcwd())
-    except Error as e:
-        if "no ADR folder" in str(e):
-            return 0
-        print(f"adr hook: {e}", file=sys.stderr)
-        return 0
-    if report(repo.check(), out=sys.stderr):
-        print("adr hook: fix the failures above before this git command runs "
-              "(python3 tools/adr/adr.py check).", file=sys.stderr)
-        return 2
-    return 0
+    blocked = False
+    for d in targets(cmd, data.get("cwd") or os.getcwd()):
+        try:
+            repo = Repo(d)
+        except Error as e:
+            if "no ADR folder" not in str(e):
+                # fail open, never in silence: a git command the hook could not follow is unchecked
+                print(f"adr hook: {e}; this git command was NOT checked", file=sys.stderr)
+            continue
+        if report(repo.check(), out=sys.stderr):
+            print(f"adr hook: fix the failures above in {repo.root} before this git command runs "
+                  "(python3 tools/adr/adr.py check).", file=sys.stderr)
+            blocked = True
+    return 2 if blocked else 0
 
 
 # ---------------------------------------------------------------- selftest
@@ -672,6 +709,22 @@ def selftest():
         return p.returncode
     results.append((hook_exit("git commit -m x") == 2 and hook_exit("ls docs") == 0,
                     "the hook blocks a commit while a check fails", []))
+
+    # the hook checks the tree the command commits, not the session's cwd
+    clean = fixture("hook-clean")
+
+    def hook_from(cwd, cmd):
+        p = subprocess.run([sys.executable, os.path.realpath(__file__), "hook"], env=env,
+                           input=json.dumps({"tool_input": {"command": cmd}, "cwd": cwd}),
+                           capture_output=True, text=True)
+        return p.returncode
+    rel_bad = os.path.relpath(root, clean)
+    results.append((hook_from(clean, f"cd {rel_bad} && git commit -m x") == 2
+                    and hook_from(clean, f'cd "{root}" && git add -A && git commit -m x') == 2
+                    and hook_from(clean, f"git -C {root} commit -m x") == 2
+                    and hook_from(root, f"cd {clean} && git commit -m x") == 0
+                    and hook_from(clean, "git commit -m x") == 0,
+                    "the hook follows cd X && and git -C X to the tree being committed", []))
 
     shutil.rmtree(tmp, ignore_errors=True)
     bad = [r for r in results if not r[0]]
