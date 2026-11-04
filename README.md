@@ -108,7 +108,8 @@ a property of the simulated cell, not an amplifier's leak compensation.
 **Voltage-gated conductances**
 
 Each model's channels are fixed at their published values for now. You see
-them at work in threshold (dV/dt ≥ 20 V/s), action-potential peak and
+them at work in threshold (where dV/dt reaches each cell's own criterion,
+which a switch on the phase plot changes), action-potential peak and
 half-width, the phase plot, the F–I curve, and adaptation (initial against
 mean rate). An editor that lets you change each channel is next on the
 [roadmap](docs/roadmap.md).
@@ -146,7 +147,7 @@ initial rate, with up to four pinned curves for comparison, and CSV export), a
 phase plot, and a per-sweep table.
 
 A lab notebook under the results records runs (full settings, measurements, and
-threshold at 1, 2, 10 and 20 V/s, since the criterion changes the number), with a
+threshold at 0.5, 1, 2, 10 and 20 V/s, since the criterion changes the number), with a
 title and notes for each. It shows what changed from the first run, and downloads
 a report: one self-contained HTML file with comparison tables, overlaid F–I
 curves and phase plots, each run's traces, and a methods paragraph written from

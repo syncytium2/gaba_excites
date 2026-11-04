@@ -168,6 +168,13 @@ export interface ModelDef {
    */
   spikeLevel?: number;
   /**
+   * The dV/dt criterion this cell's spike threshold is measured at, mV/ms (= V/s): one of threshold.ts CRITERIA,
+   * which says where it comes from. Labs define threshold differently for different neurons, and the app teaches
+   * that: the phase plot's switch tries the others. null for a cell whose threshold the app never measures (the
+   * oscilloscope-only mouse beta cell). See docs/adr, "spike threshold's criterion belongs to the model".
+   */
+  thresholdDvdt: number | null;
+  /**
    * false for a cell whose published action potentials do not overshoot 0 mV (the human beta cell's peak at −8 mV
    * in Pedersen 2010), so the siren does not call every one of them a failed spike (extremes.ts). Absent: true.
    */
@@ -192,6 +199,7 @@ const RS_CM = (Math.PI * 96 * 96) / 100;
 
 export const RS: ModelDef = {
   id: "rs",
+  thresholdDvdt: 10,
   label: "Cortical pyramidal (regular spiking)",
   short: "pyramidal",
   blurb: "Pospischil et al. 2008: Traub INa and IKd, slow M-current for adaptation.",
@@ -234,6 +242,7 @@ const FS_CM = (Math.PI * 67 * 67) / 100;
 
 export const FS: ModelDef = {
   id: "fs",
+  thresholdDvdt: 10,
   label: "Cortical interneuron (fast spiking)",
   short: "fast-spiking",
   blurb: "Pospischil et al. 2008: the pyramidal cell's INa and IKd, with twice the K⁺ and no M current. Fast, and it does not adapt.",
@@ -282,6 +291,7 @@ const CELSIUS = 36;
 
 export const LTS: ModelDef = {
   id: "lts",
+  thresholdDvdt: 10,
   label: "Cortical pyramidal (low-threshold spike, rebound)",
   short: "LTS",
   blurb: "Pospischil et al. 2008: the pyramidal cell plus a T-type Ca²⁺ current. Bursts from its own rest; held near −65 mV, it fires on release from hyperpolarization.",
@@ -332,6 +342,7 @@ const ECA_G = 82.5;
 
 export const GNRH: ModelDef = {
   id: "gnrh",
+  thresholdDvdt: 1,
   label: "GnRH neuron (mouse, negative feedback)",
   short: "GnRH",
   blurb: "Adams et al. 2018: Markov INaF, INaP, IA, IK, T- and HVA-type ICa, IS, Ih, IKCa, with a calcium pool.",
@@ -467,6 +478,7 @@ const HH_CM = 100;
 
 export const HH: ModelDef = {
   id: "hh",
+  thresholdDvdt: 10,
   label: "Squid giant axon (Hodgkin–Huxley)",
   short: "squid axon",
   blurb:

@@ -121,6 +121,8 @@ button.linkish { border: none; background: none; padding: 0; color: #1f63b8; tex
 .phase .grid { stroke: var(--grid); }
 .phase .axis { stroke: var(--axis); }
 .phase .crit { stroke: var(--muted); stroke-dasharray: 4 3; }
+.phase .thr-dot { fill: var(--ink); }
+.crit-pick { font-size: 0.9em; white-space: nowrap; }
 .phase .tick { font-size: 11px; fill: var(--ink-2); font-variant-numeric: tabular-nums; }
 .phase .axlabel { font-size: 12px; fill: var(--ink-2); }
 

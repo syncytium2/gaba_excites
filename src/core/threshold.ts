@@ -2,8 +2,9 @@
  * Spike threshold at a chosen dV/dt criterion.
  *
  * Threshold is the Vm where dV/dt first reaches the criterion on the upstroke,
- * found by walking back from the −20 mV crossing. The app's readout uses 20 V/s
- * (analysis.ts). The criterion is a convention, and it matters: from 1 to 20 V/s
+ * found by walking back from the spike-level crossing. Each model measures at its
+ * own criterion (ModelDef.thresholdDvdt), one of CRITERIA below, and the phase
+ * plot's switch tries the others. The criterion is a convention, and it matters: from 1 to 20 V/s
  * the same spike's threshold moves about 7 mV in the cortical cells and 13.5 mV
  * in the GnRH cell (tools/experiments/threshold_criteria.ts). So every threshold
  * a report quotes carries its criterion.
@@ -17,14 +18,16 @@ export interface Criterion {
 }
 
 /**
- * The criteria a report tabulates. 1 V/s (GnRH) and 2 V/s (kisspeptin neurons)
- * are the owner's lab's conventions. The three taken from papers are in lit/sources.json.
+ * The criteria a report tabulates and the phase plot's switch offers; every model's own is one of them.
+ * 1 V/s (GnRH) and 2 V/s (kisspeptin neurons) are the owner's lab's conventions; 0.5 V/s is the owner's reading
+ * of the human beta cell's phase plot. The ones taken from papers are in lit/sources.json.
  */
 export const CRITERIA: readonly Criterion[] = [
+  { vps: 0.5, source: "human beta cells: read by the owner off this model's phase plot, 2026-11-03, as the point of no return" },
   { vps: 1, source: "GnRH neurons: DeFazio & Moenter 2002, Mol Endocrinol 16:2255" },
   { vps: 2, source: "AVPV kisspeptin neurons: Wang, DeFazio & Moenter 2016, eNeuro 3:ENEURO.0094-16.2016" },
-  { vps: 10, source: "Kress et al. 2010, Hippocampus 20:558" },
-  { vps: 20, source: "this app's readout" },
+  { vps: 10, source: "Kress et al. 2010, Hippocampus 20:558; used here for the cortical cells and the squid axon" },
+  { vps: 20, source: "a common default, and this app's readout for every cell until 2026-11-03" },
 ];
 
 export interface ThresholdAt {

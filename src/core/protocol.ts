@@ -204,7 +204,7 @@ export const PRESETS: Preset[] = [
     id: "fs-noadapt",
     model: "fs",
     label: "Same step, no adaptation",
-    note: "800 pA, the step that takes the pyramidal cell from 43 Hz at its start to 10 Hz by its end as the M current builds. Here the rate starts at 101 Hz and is still 101 Hz at the end. Same INa and IKd as the pyramidal cell, at twice the K⁺ density, which also narrows the spike (half-width 0.56 against 0.70 ms); no M current, so nothing adapts.",
+    note: "800 pA, the step that takes the pyramidal cell from 43 Hz at its start to 10 Hz by its end as the M current builds. Here the rate starts at 101 Hz and is still 101 Hz at the end. Same INa and IKd as the pyramidal cell, at twice the K⁺ density, which also narrows the spike (half-width 0.57 against 0.71 ms); no M current, so nothing adapts.",
     protocol: { ...FI, mode: "list", list: "800" },
     glu: DEFAULT_GLU,
     gaba: DEFAULT_GABA,

@@ -78,6 +78,16 @@ if (modelIds.includes("betahuman")) {
   await page.waitForFunction(() => /6 sweeps simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 60000 });
   if ((await page.locator("#preset-select").inputValue()) !== "human-steps") problems.push("human: choosing the step preset did not hold");
   if (await page.locator(".siren").count()) problems.push("human: the siren shows on its own preset");
+  // each cell measures threshold at its own dV/dt criterion, and the phase plot's switch changes it
+  // (docs/adr: "spike threshold's criterion belongs to the model")
+  const critSwitch = page.getByLabel("Threshold criterion, V/s");
+  // the bold value after the "Threshold" label (the label's tooltip text sits between them)
+  const readout = async () => (await page.locator(".readline > span").filter({ hasText: /^Threshold/ }).locator("b").textContent()) ?? "";
+  if ((await critSwitch.inputValue()) !== "0.5") problems.push("human: the threshold switch does not open on the cell's own 0.5 V/s");
+  if (!/^[−-]4\d\.\d$/.test(await readout())) problems.push(`human: at 0.5 V/s the threshold readout is not in the −40s (${await readout()})`);
+  await critSwitch.selectOption("20");
+  if ((await readout()) !== "—") problems.push(`human: at 20 V/s its ~7 V/s spikes should have no threshold (${await readout()})`);
+  await critSwitch.selectOption("0.5");
   await page.screenshot({ path: `${out}/human-steps.png`, fullPage: true });
   await page.click("#mode-vc");
   await page.waitForFunction(() => /sweeps simulated/.test(document.querySelector(".vc-traces .status")?.textContent ?? ""), null, { timeout: 60000 }).catch(() => problems.push("human: voltage clamp never finished"));

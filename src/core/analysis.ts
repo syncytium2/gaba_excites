@@ -13,13 +13,16 @@ import type { StepProtocol, Sweep } from "./simulate.ts";
 /** Upward crossing that counts as a spike, and the level it must fall below to re-arm. */
 export const SPIKE_LEVEL = -20;
 export const REARM_LEVEL = -40;
-/** dV/dt that defines spike threshold, mV/ms (= V/s). The usual 20 V/s criterion. */
+/**
+ * dV/dt that defines spike threshold, mV/ms (= V/s), for a trace that carries no criterion of its own. Every model
+ * sets its own (ModelDef.thresholdDvdt), and runSweep stamps it on the sweep.
+ */
 export const THRESH_DVDT = 20;
 
 export interface Spike {
   /** time of the upward SPIKE_LEVEL crossing, ms */
   t: number;
-  /** voltage where dV/dt first reaches THRESH_DVDT on the upstroke, mV */
+  /** voltage where dV/dt first reaches the criterion on the upstroke, mV */
   threshold: number;
   tThreshold: number;
   peak: number;
@@ -31,7 +34,7 @@ export interface Spike {
 export const rearmFor = (level: number) => level - (SPIKE_LEVEL - REARM_LEVEL);
 
 /** Spikes on Vm: upward crossings of `level` (SPIKE_LEVEL, or the model's own: ModelDef.spikeLevel), re-armed 20 mV below it. */
-export function detectSpikes(vm: Float32Array, dtMs: number, level = SPIKE_LEVEL): Spike[] {
+export function detectSpikes(vm: Float32Array, dtMs: number, level = SPIKE_LEVEL, crit = THRESH_DVDT): Spike[] {
   const out: Spike[] = [];
   const rearm = rearmFor(level);
   let armed = vm[0] < level;
@@ -48,7 +51,7 @@ export function detectSpikes(vm: Float32Array, dtMs: number, level = SPIKE_LEVEL
       armed = false;
       // walk back to where the upstroke began exceeding the dV/dt criterion
       let j = i;
-      while (j > lastEnd + 1 && (vm[j - 1] - vm[j - 2]) / dtMs >= THRESH_DVDT) j--;
+      while (j > lastEnd + 1 && (vm[j - 1] - vm[j - 2]) / dtMs >= crit) j--;
       const thrIdx = Math.max(j - 1, 0);
       // peak
       let k = i;
@@ -64,12 +67,12 @@ export function detectSpikes(vm: Float32Array, dtMs: number, level = SPIKE_LEVEL
       const ta = a > 0 ? a - 1 + (half - vm[a - 1]) / (vm[a] - vm[a - 1]) : a;
       const tb = b + 1 < vm.length ? b + (vm[b] - half) / (vm[b] - vm[b + 1]) : b;
       const tc = i - 1 + (level - vm[i - 1]) / (vm[i] - vm[i - 1]);
-      // A spike whose upstroke never reaches THRESH_DVDT has no threshold by that criterion, and so no half-width
-      // measured from it: the walk back above would otherwise return the counting level itself (the human beta
-      // cell's slow Ca²⁺ spikes rise at about 7 V/s).
+      // A spike whose upstroke never reaches the criterion has no threshold by it, and so no half-width measured
+      // from it: the walk back above would otherwise return the counting level itself (the human beta cell's slow
+      // Ca²⁺ spikes rise at about 7 V/s, so 10 or 20 V/s, chosen on the phase plot's switch, never comes).
       let fastest = -Infinity;
       for (let u = Math.max(thrIdx, 1); u <= k; u++) fastest = Math.max(fastest, (vm[u] - vm[u - 1]) / dtMs);
-      const defined = fastest >= THRESH_DVDT;
+      const defined = fastest >= crit;
       out.push({
         t: tc * dtMs,
         threshold: defined ? threshold : NaN,
@@ -117,9 +120,10 @@ function mean(a: Float32Array, i0: number, i1: number): number {
   return hi > lo ? s / (hi - lo) : NaN;
 }
 
-export function sweepStats(sw: Sweep, proto: StepProtocol): SweepStats {
+/** `crit`: the dV/dt threshold criterion, mV/ms; by default the sweep's own (its model's). */
+export function sweepStats(sw: Sweep, proto: StepProtocol, crit = sw.threshDvdt ?? THRESH_DVDT): SweepStats {
   const dt = sw.sampleMs;
-  const spikes = detectSpikes(sw.vm, dt, sw.spikeLevel);
+  const spikes = detectSpikes(sw.vm, dt, sw.spikeLevel, crit);
   const on = proto.stepStart;
   const off = proto.stepStart + proto.stepDur;
   const inStep = spikes.filter((s) => s.t >= on && s.t < off);
@@ -147,6 +151,8 @@ export interface FamilySummary {
   rheobase: number;
   /** threshold of the first spike at rheobase, mV */
   threshold: number;
+  /** the dV/dt criterion that threshold was measured at, mV/ms */
+  threshDvdt: number;
   /** that spike's peak and half-width */
   apPeak: number;
   apHalfWidth: number;
@@ -173,8 +179,9 @@ export function slope(xs: number[], ys: number[]): number {
   return sxx > 0 ? sxy / sxx : NaN;
 }
 
-export function summarize(sweeps: Sweep[], proto: StepProtocol): FamilySummary {
-  const stats = sweeps.map((s) => sweepStats(s, proto));
+/** `crit`: the dV/dt threshold criterion, mV/ms, for every sweep; by default each sweep's own (its model's). */
+export function summarize(sweeps: Sweep[], proto: StepProtocol, crit?: number): FamilySummary {
+  const stats = sweeps.map((s) => sweepStats(s, proto, crit ?? s.threshDvdt ?? THRESH_DVDT));
   const byAmp = [...stats].sort((a, b) => a.amp - b.amp);
   const first = byAmp.find((s) => s.amp > 0 && s.nInStep > 0);
   const firstSpike = first?.spikes.find((s) => s.t >= proto.stepStart);
@@ -196,6 +203,7 @@ export function summarize(sweeps: Sweep[], proto: StepProtocol): FamilySummary {
     stats,
     rheobase: first ? first.amp : NaN,
     threshold: firstSpike ? firstSpike.threshold : NaN,
+    threshDvdt: crit ?? sweeps[0]?.threshDvdt ?? THRESH_DVDT,
     apPeak: firstSpike ? firstSpike.peak : NaN,
     apHalfWidth: firstSpike ? firstSpike.halfWidth : NaN,
     rinMeasured,

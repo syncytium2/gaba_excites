@@ -5,7 +5,8 @@ import { MODELS, MODEL_LIST, type ModelId } from "./core/models.ts";
 import { DEFAULT_NOISE, type NoiseParams } from "./core/noise.ts";
 import { FILTER_KHZ } from "./core/filter.ts";
 import { DEFAULT_ELECTRODE, type Electrode, type Sweep } from "./core/simulate.ts";
-import type { FamilySummary } from "./core/analysis.ts";
+import { summarize, THRESH_DVDT, type FamilySummary } from "./core/analysis.ts";
+import { CRITERIA } from "./core/threshold.ts";
 import { PRESETS, presetsFor, patternsFor, toProtocol, MAX_SWEEPS, SCOPE_PULSE, INC_DIAL, INC_RANGES, incRangeFor, type IncRange, type Preset, type ProtocolForm } from "./core/protocol.ts";
 import type { SynInput } from "./core/synapses.ts";
 import type { Pulse } from "./core/stream.ts";
@@ -85,6 +86,8 @@ export function App() {
   const [noise, setNoise] = useState<NoiseParams>({ ...DEFAULT_NOISE, recSigma: 0.2, recFilter: 10 });
   const [showVm, setShowVm] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
+  // the threshold criterion picked on the phase plot's switch, for the model it was picked on (else the model's own)
+  const [critPick, setCritPick] = useState<{ model: ModelId; vps: number } | null>(null);
   const [pins, setPins] = useState<Pin[]>([]);
   const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
@@ -311,7 +314,14 @@ export function App() {
     return { v: pad(vLo, vHi), i: pad(iLo, iHi) };
   }, [result]);
   const sweeps = result?.sweeps ?? [];
-  const summary = result?.summary;
+  // threshold is measured at the run's model's own criterion unless the phase plot's switch picked another
+  const runModel = result ? MODELS[result.settings.cell.model] : null;
+  const ownCrit = runModel?.thresholdDvdt ?? THRESH_DVDT;
+  const crit = critPick && runModel && critPick.model === runModel.id ? critPick.vps : ownCrit;
+  const summary = useMemo(
+    () => (result && crit !== result.summary.threshDvdt ? summarize(result.sweeps, result.protocol, crit) : result?.summary),
+    [result, crit],
+  );
   // the controls convert by the cell as dialed; a result, by the cell it was run on
   const cu = useMemo(() => currentUnit(density, cell.cm), [density, cell.cm]);
   const ru = useMemo(() => (result ? currentUnit(density, result.settings.cell.cm) : cu), [density, result, cu]);
@@ -685,7 +695,7 @@ export function App() {
         <main className={"figures" + (mode === "scope" ? " pinned" : "")} style={{ "--screen-h": `${screenH}px` } as React.CSSProperties}>
           <div className="modebar">
             {mode === "scope" && <div className="readout-slot" ref={setReadoutSlot} />}
-            {mode === "steps" && <StepReadouts summary={playing ? undefined : summary} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} cu={ru} />}
+            {mode === "steps" && <StepReadouts summary={playing ? undefined : summary} crit={crit} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} cu={ru} />}
             <Siren reasons={mode === "scope" ? scopeReasons : stepReasons} />
             {error && <div className="warn" role="alert">Simulation failed: {error}</div>}
           </div>
@@ -775,8 +785,20 @@ export function App() {
                     </p>
                   </figure>
                   <figure className="card">
-                    <figcaption><span>Phase plot, {sweeps[sel] ? ru.text(sweeps[sel].amp) : "—"}</span></figcaption>
-                    <PhasePlot vm={sweeps[sel].vm} dt={sweeps[sel].sampleMs} color={pal.orange} />
+                    <figcaption>
+                      <span>Phase plot, {sweeps[sel] ? ru.text(sweeps[sel].amp) : "—"}</span>
+                      <label className="crit-pick">threshold at{" "}
+                        <select value={crit} aria-label="Threshold criterion, V/s" onChange={(e) => runModel && setCritPick({ model: runModel.id, vps: +e.target.value })}>
+                          {CRITERIA.map((c) => <option key={c.vps} value={c.vps}>{c.vps} V/s{c.vps === ownCrit ? " (this cell's)" : ""}</option>)}
+                        </select>
+                      </label>
+                    </figcaption>
+                    <PhasePlot vm={sweeps[sel].vm} dt={sweeps[sel].sampleMs} color={pal.orange} crit={crit} spikeLevel={runModel?.spikeLevel} />
+                    <p className="small">
+                      Threshold is where dV/dt first reaches a chosen rate, and labs choose differently for different neurons.
+                      This cell's is {ownCrit} V/s ({CRITERIA.find((c) => c.vps === ownCrit)?.source ?? "the app's default"}).
+                      Pick another and watch the dot, and the threshold readout, move.
+                    </p>
                   </figure>
                 </div>
 
@@ -1196,8 +1218,8 @@ function SweepTable({ summary, sel, onSelect, cu }: { summary: FamilySummary; se
  * Each name carries its explanation on hover and focus. Rheobase keeps its
  * "refine" link and the refined value, a result someone asked for.
  */
-function StepReadouts({ summary, rinRest, rinHold, refined, onRefine, tol, cu }: {
-  summary?: FamilySummary; rinRest: number; rinHold: number; refined: { value: number; tol: number } | null; onRefine: () => void; tol: number;
+function StepReadouts({ summary, crit, rinRest, rinHold, refined, onRefine, tol, cu }: {
+  summary?: FamilySummary; crit: number; rinRest: number; rinHold: number; refined: { value: number; tol: number } | null; onRefine: () => void; tol: number;
   cu: CurrentUnit;
 }) {
   const s = summary;
@@ -1216,7 +1238,7 @@ function StepReadouts({ summary, rinRest, rinHold, refined, onRefine, tol, cu }:
             : s && Number.isFinite(s.rheobase) ? <button className="linkish" onClick={onRefine}>refine to {cu.text(tol)}</button> : null}
         </small>
       </span>
-      {item("Threshold", "First spike, where dV/dt reaches 20 V/s.", s ? fmt(s.threshold, 1) : "—", "mV")}
+      {item("Threshold", `First spike, where dV/dt reaches ${crit} V/s: ${CRITERIA.find((c) => c.vps === crit)?.source ?? "the app's default"}. Try others on the phase plot.`, s ? fmt(s.threshold, 1) : "—", "mV")}
       {item("AP peak", "First spike at rheobase.", s ? fmt(s.apPeak, 0) : "—", "mV")}
       {item("Half-width", "At half the threshold-to-peak height.", s ? fmt(s.apHalfWidth, 2) : "—", "ms")}
       {item("Rin", s && Number.isFinite(s.rinMeasured)

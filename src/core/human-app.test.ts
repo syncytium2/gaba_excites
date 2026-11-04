@@ -98,14 +98,20 @@ describe("human beta cell in the app", () => {
     expect(k).toBeGreaterThanOrEqual(14);
   });
 
-  it("its slow spikes never reach 20 V/s, so they have no threshold or half-width by that criterion, not −30 mV", () => {
+  it("its spikes have a threshold at its own 0.5 V/s, the owner's reading of its phase plot; at 20 V/s they have none", () => {
     const cell = cellWith({});
     const st = settle(cell, INPUTS.electrode, 0, cell.model.settleMs, DEFAULT_SIM.dt);
     const proto = { sweepMs: 2000, stepStart: 0, stepDur: 2000, amps: [0] };
     const sw = runSweep(cell, INPUTS, proto, 0, st, DEFAULT_SIM, 0);
-    const sp = detectSpikes(sw.vm, sw.sampleMs, sw.spikeLevel);
-    expect(sp.length).toBeGreaterThan(10);
-    for (const x of sp) {
+    expect(sw.threshDvdt).toBe(0.5);
+    const own = detectSpikes(sw.vm, sw.sampleMs, sw.spikeLevel, sw.threshDvdt);
+    expect(own.length).toBeGreaterThan(10);
+    for (const x of own) {
+      expect(x.threshold).toBeCloseTo(-43.5, 0); // scripts/apview.ts --model betahuman --pin 0.5: −43.47 mV
+      expect(x.halfWidth).toBeCloseTo(6.1, 1);
+    }
+    // the slow spikes rise at about 7 V/s, so a 20 V/s criterion finds no threshold: "—", not the −30 mV counting level
+    for (const x of detectSpikes(sw.vm, sw.sampleMs, sw.spikeLevel, 20)) {
       expect(x.threshold).toBeNaN();
       expect(x.halfWidth).toBeNaN();
       expect(x.peak).toBeGreaterThan(-12);

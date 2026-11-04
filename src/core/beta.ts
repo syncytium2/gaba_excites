@@ -243,6 +243,7 @@ export function betaMouse(set: DomSet = DOM_SETS.fast): ModelDef {
   const knob = (k: Record<string, number> | undefined, id: keyof DomSet) => k?.[id] ?? set[id];
   return {
     id: "betamouse",
+    thresholdDvdt: null,
     label: "Pancreatic beta cell (mouse)",
     short: "β-cell (mouse)",
     blurb:

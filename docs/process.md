@@ -1702,3 +1702,43 @@ before. Same products, same order: every test, the NEURON oracles and `human.tes
 The owner also said, of recording this rule in AGENTS.md: "agents.md is unreliable. thses should be ADRs". The
 repository has no ADRs yet; building the enforcement for them was handed to armory
 (its `docs/handoffs/2026-11-03-adr-hygiene-has-no-kit.md`). This decision becomes an ADR once that kit exists.
+
+## 2026-11-03 — the owner's review of the overnight decisions: spike level, siren, and threshold per cell
+
+Reviewing the human beta cell's overnight decisions one at a time (the calcium current is the entry above):
+
+- **Spike level.** Asked to approve a model counting spikes at its own level (this cell at −30 mV, re-arming below
+  −50 mV; every other model at −20/−40), he chose "Approve".
+- **Siren.** Asked to approve skipping only the "fails to overshoot 0 mV" check for this cell, whose published spikes
+  peak at −7 to −10 mV, he chose "Approve".
+- **Threshold.** Asked to approve "—" for a spike that never reaches 20 V/s, he answered instead that labs define
+  threshold differently for different neurons and that this should be a teaching moment. Each model now carries its
+  own dV/dt criterion, and a switch on the phase plot tries the others. The decision, his words with the questions
+  they answered, the figure he measured on, and what enforces it are in
+  [`docs/adr/2026-11-03-d4b6-spike-thresholds-criterion-belongs-to-the-model.md`](adr/2026-11-03-d4b6-spike-thresholds-criterion-belongs-to-the-model.md).
+  In short: 10 V/s for the cortical cells and the squid axon (Kress 2010), 1 V/s for GnRH, 0.5 V/s for the human beta
+  cell (his reading of its phase plot, "the point of no return"), none for the oscilloscope-only mouse cell.
+
+**The first ADRs.** On being told the decision belongs in AGENTS.md, he said "agents.md is unreliable. thses should
+be ADRs", and of the threshold decision, "that's an adr!". armory owns the ADR kit (not built yet), and its format is
+taken: a date plus four random hex characters as the ID. `docs/adr/` starts with two records, the threshold criterion
+and, written after the fact, the mouse beta cell's oscilloscope-only decision of 2026-10-29. That one was written
+because he remembered steps as turned on for the mouse cell ("i thought we turned steps on? it was vc that was
+challenging"); the decision existed only in this log. He said: "this is why we need adrs". He asked that the figure he
+measured on be saved in the ADR (`docs/adr/figures/`).
+
+**The measuring page is kept.** He measured the criterion on a page drawn for him: one spike, V and dV/dt on one time
+axis, and the phase plot, with a hover readout and click-to-pin. He called it a "very hand display tool" and asked
+that it be preserved. It is `scripts/apview.ts` (any model, any step, `--pin` criteria, `--out` page, `--png`
+figure) with its template `scripts/apview.html`, tested in `src/apview.test.ts`.
+
+**What moved.**
+- The phase plot takes the criterion, marks the first spike's threshold with a dot, and scales its dV/dt axis to the
+  criterion instead of a 40 V/s floor, which had flattened the beta cell's 7 V/s spike onto the axis.
+- The fast-spiking and pyramidal half-widths quoted in the presets and methods page are 0.57 and 0.71 ms (were 0.56
+  and 0.70), measured from threshold at 10 V/s.
+- The report's threshold table read each run's thresholds by position in the criteria list; adding 0.5 V/s would have
+  shifted every saved notebook's columns by one. It now reads them by criterion, tested with an old-style record.
+- At each model's own criterion, the first rheobase spike's threshold falls 0.4–3.8 ms before its spike-level
+  crossing and well after step onset, so on the spike, not on the charging ramp.
+- `tools/experiments/threshold_criteria.ts` keeps its own 1, 2, 10, 20 V/s list; untouched.

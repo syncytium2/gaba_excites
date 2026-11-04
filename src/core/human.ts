@@ -118,6 +118,7 @@ export function humanBeta(over: Partial<HumanParams> = {}): ModelDef {
   const S = HUMAN_CM;
   return {
     id: "betahuman",
+    thresholdDvdt: 0.5,
     label: "Pancreatic beta cell (human)",
     short: "β-cell (human)",
     blurb:

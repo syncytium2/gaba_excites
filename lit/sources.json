@@ -586,11 +586,13 @@
       "models": [
         "gnrh"
       ],
-      "took": "The 1 V/s dV/dt criterion for GnRH action-potential threshold, which the owner defined in this paper. The notebook's report tabulates threshold at 1 V/s alongside 2, 10 and 20 V/s. Also the report that estradiol lowers GnRH threshold and latency through I_A, which motivated the K⁺-block experiments. Attributed on the owner's word (2026-10-18); the PDF has not been read here, so there is no quotation yet.",
+      "took": "The 1 V/s dV/dt criterion for GnRH action-potential threshold, which the owner defined in this paper. Since 2026-11-03 it is the GnRH cell's own threshold criterion (ModelDef.thresholdDvdt), and the report and the phase plot's switch offer it alongside 0.5, 2, 10 and 20 V/s. Also the report that estradiol lowers GnRH threshold and latency through I_A, which motivated the K⁺-block experiments. Attributed on the owner's word (2026-10-18); the PDF has not been read here, so there is no quotation yet.",
       "usedIn": [
         "src/core/threshold.ts",
         "src/core/report.ts",
-        "tools/experiments/threshold_criteria.ts"
+        "tools/experiments/threshold_criteria.ts",
+        "src/core/models.ts",
+        "src/App.tsx"
       ]
     },
     {
@@ -616,12 +618,14 @@
         "fs",
         "gnrh"
       ],
-      "took": "The 10 V/s threshold criterion, tabulated in the notebook's report. Also the comparison the threshold experiments reproduce: intracellular TEA, with a bias current restoring a negative rest, left voltage threshold unchanged and changed rheobase.",
+      "took": "The 10 V/s threshold criterion: since 2026-11-03 the cortical cells' and the squid axon's own (ModelDef.thresholdDvdt), and one the report and the phase plot's switch offer. Also the comparison the threshold experiments reproduce: intracellular TEA, with a bias current restoring a negative rest, left voltage threshold unchanged and changed rheobase.",
       "usedIn": [
         "src/core/threshold.ts",
         "src/core/report.ts",
         "tools/experiments/threshold_criteria.ts",
-        "tools/experiments/na_shift.ts"
+        "tools/experiments/na_shift.ts",
+        "src/core/models.ts",
+        "src/App.tsx"
       ],
       "quotes": [
         {

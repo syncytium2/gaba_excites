@@ -60,8 +60,10 @@ export interface RunRecord {
   cell: { vRest: number; rinRest: number; rinAtHold: number };
   measures: {
     rheobase: number;
-    /** threshold of the first spike at rheobase, at the app's 20 V/s */
+    /** threshold of the first spike at rheobase, at `threshDvdt` */
     threshold: number;
+    /** the criterion `threshold` was measured at, V/s; absent in records made before 2026-11-03, which used 20 */
+    threshDvdt?: number;
     apPeak: number;
     apHalfWidth: number;
     rinMeasured: number;
@@ -132,7 +134,7 @@ export function recordRun(inp: RecordInput): RunRecord {
   let latency = NaN;
   if (rheoSweep) {
     const dt = rheoSweep.sampleMs;
-    const first = detectSpikes(rheoSweep.vm, dt, rheoSweep.spikeLevel).find((x) => x.t >= p.stepStart);
+    const first = detectSpikes(rheoSweep.vm, dt, rheoSweep.spikeLevel, rheoSweep.threshDvdt).find((x) => x.t >= p.stepStart);
     if (first) {
       const floor = Math.round(p.stepStart / dt);
       const ic = Math.ceil(first.t / dt);
@@ -160,6 +162,7 @@ export function recordRun(inp: RecordInput): RunRecord {
     measures: {
       rheobase: r(s.rheobase),
       threshold: r(s.threshold, 2),
+      threshDvdt: s.threshDvdt,
       apPeak: r(s.apPeak, 2),
       apHalfWidth: r(s.apHalfWidth, 3),
       rinMeasured: r(s.rinMeasured),
@@ -278,7 +281,7 @@ function measuresTable(runs: RunRecord[]): string {
   const ref = runs[0];
   const cols: { label: string; get: (x: RunRecord) => number; d: number; unit: string }[] = [
     { label: "Rheobase", get: (x) => x.measures.rheobase, d: 1, unit: "pA" },
-    ...CRITERIA.map((c, i) => ({ label: `Threshold @${c.vps} V/s`, get: (x: RunRecord) => (x.thresholds[i]?.hitFloor ? NaN : x.thresholds[i]?.v ?? NaN), d: 1, unit: "mV" })),
+    ...CRITERIA.map((c) => ({ label: `Threshold @${c.vps} V/s`, get: (x: RunRecord) => { const t = x.thresholds.find((u) => u.vps === c.vps); return !t || t.hitFloor ? NaN : t.v; }, d: 1, unit: "mV" })),
     { label: "AP peak", get: (x) => x.measures.apPeak, d: 1, unit: "mV" },
     { label: "Half-width", get: (x) => x.measures.apHalfWidth, d: 2, unit: "ms" },
     { label: "Latency at rheobase", get: (x) => x.measures.latency, d: 1, unit: "ms" },

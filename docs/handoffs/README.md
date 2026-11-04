@@ -41,6 +41,10 @@ one CI step. It merges that framework to main first, so the other sessions can n
   on branch `human-beta`, **not merged or deployed until the owner reviews it**. Lists the overnight decisions he must
   confirm, Pedersen's permission (granted; correspondence to be pasted) and every open concern.
 
+- [`2026-11-03-human-beta-review.md`](2026-11-03-human-beta-review.md): the human beta cell, half reviewed by the
+  owner on 2026-11-03. Four overnight decisions still to put to him; do not merge or deploy until he says so. Read with
+  [`2026-11-03-human-beta.md`](2026-11-03-human-beta.md), whose review status it supersedes.
+
 ## Superseded
 
 - [`2026-10-18-adrs-addendum.md`](2026-10-18-adrs-addendum.md): superseded the same day by

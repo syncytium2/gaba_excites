@@ -124,7 +124,7 @@ export function Notebook({ run, model, app }: {
                 <div className="nb-run">
                   <input type="text" value={x.title} maxLength={120} aria-label={`Title of run ${i + 1}`} onChange={(e) => update(i, { title: e.target.value })} />
                   <div className="small">
-                    {x.model.short} · rheobase {fmt(x.measures.rheobase)} pA · threshold {fmt(x.measures.threshold)} mV at 20 V/s
+                    {x.model.short} · rheobase {fmt(x.measures.rheobase)} pA · threshold {fmt(x.measures.threshold)} mV at {x.measures.threshDvdt ?? 20} V/s
                     {t1 && !t1.hitFloor ? `, ${fmt(t1.v)} mV at 1 V/s` : ""} · Rin {fmt(x.measures.rinMeasured)} MΩ
                   </div>
                   {i > 0 && <div className="small">Changed from run 1: {diff.length ? diff.join("; ") : "nothing (a repeat)"}</div>}

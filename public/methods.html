@@ -135,7 +135,7 @@ membrane in a high-conductance state. The pyramidal cell starts from these publi
 It rests at −70.0 mV with Rin = <strong>47.3 MΩ</strong>; the template's comment gives 48.</p>
 <p>Those two differences are the lesson. With no slow current to build up, it does not adapt: on an 800 ms step of
 800 pA it fires at 101 Hz from start to finish, where the pyramidal cell starts at 43 Hz and falls to 10 Hz as its M
-current builds. The extra K⁺ repolarizes faster, so the spike is narrower (half-width 0.56 against 0.70 ms) at the
+current builds. The extra K⁺ repolarizes faster, so the spike is narrower (half-width 0.57 against 0.71 ms) at the
 same threshold. Rheobase is 385 pA, and the rate climbs steeply above it: 191 Hz at 1.6 nA, about 300 Hz at
 3.2 nA. Like the pyramidal cell, it is checked spike for spike against NEURON (see
 <a href="#validation">Checked against NEURON</a>).</p>
@@ -528,8 +528,8 @@ within 0.2 ms.</p>
 <div class="tablewrap"><table>
 <thead><tr><th>Quantity</th><th>Definition</th></tr></thead>
 <tbody>
-<tr><td>Spike</td><td>An upward crossing of −20 mV. The detector re-arms once Vm falls back below −40 mV.</td></tr>
-<tr><td>Threshold</td><td>Vm at the first sample of the upstroke where dV/dt ≥ 20 V/s (20 mV/ms), found by walking back from the −20 mV crossing. Reported for the first spike of the rheobase sweep.</td></tr>
+<tr><td>Spike</td><td>An upward crossing of −20 mV. The detector re-arms once Vm falls back below −40 mV. The human beta cell, whose spikes peak below −20 mV in some of its papers' conditions, counts at −30 mV and re-arms below −50 mV.</td></tr>
+<tr id="threshold"><td>Threshold</td><td>Vm at the first sample of the upstroke where dV/dt reaches the cell's criterion, found by walking back from the spike-level crossing. Reported for the first spike of the rheobase sweep. Labs define threshold differently for different neurons, so each cell carries its own criterion: 10 V/s (10 mV/ms) for the cortical cells and the squid axon (Kress et al. 2010), 1 V/s for the GnRH neuron (DeFazio &amp; Moenter 2002), and 0.5 V/s for the human beta cell, whose spikes rise at no more than about 7 V/s; that value is the owner's reading of the model's phase plot, where the upstroke leaves for good, not a published one. A switch on the phase plot measures at 0.5, 1, 2, 10 or 20 V/s instead, and the threshold readout follows it. A spike that never reaches the chosen rate has no threshold or half-width (shown as —). Until 2026-11-03 every cell was measured at 20 V/s.</td></tr>
 <tr><td>AP peak, half-width</td><td>Peak Vm of that spike, and its width at half the threshold-to-peak amplitude.</td></tr>
 <tr><td>Rheobase</td><td>The smallest step in the family that produced at least one spike during the step. Its resolution is your step increment. “Refine to 1 pA” bisects between the largest silent step below it and the rheobase step, using the same synaptic barrage for every probe.</td></tr>
 <tr><td>Mean rate</td><td>Spikes during the step ÷ step duration.</td></tr>

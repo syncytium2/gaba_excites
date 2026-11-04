@@ -75,6 +75,22 @@ describe("the lab notebook and its report", () => {
     expect(html.match(/<script\b[^>]*>/g)).toEqual(['<script type="application/json" id="gaba-excites-runs">']);
   });
 
+  it("reads each threshold by its criterion, so a record made before 0.5 V/s was added keeps its columns", () => {
+    const old = { ...a.rec, thresholds: a.rec.thresholds.filter((t) => t.vps !== 0.5), measures: { ...a.rec.measures, threshDvdt: undefined } };
+    const html = buildReport([old], { title: "t", author: "", generatedAt: new Date(), app: APP });
+    const table = html.slice(html.indexOf('<table class="m">'));
+    const heads = [...table.slice(0, table.indexOf("</tr>")).matchAll(/<th>([^<]*)/g)].map((m) => m[1]);
+    const row = table.slice(table.indexOf("</tr>") + 5);
+    const cells = [...row.slice(0, row.indexOf("</tr>")).matchAll(/<td>([^<]*)/g)].map((m) => m[1]);
+    const cell = (vps: number) => cells[heads.indexOf(`Threshold @${vps} V/s`)];
+    for (const c of CRITERIA) {
+      const t = old.thresholds.find((u) => u.vps === c.vps);
+      if (!t) expect(cell(c.vps)).toBe("—");
+      else if (!t.hitFloor) expect(cell(c.vps)).toBe(t.v.toFixed(1));
+    }
+    expect(a.rec.measures.threshDvdt).toBe(10);
+  });
+
   it("loads its runs back from the report or the notebook file, NaN included", () => {
     const html = buildReport([a.rec, b.rec], { title: "t", author: "", generatedAt: new Date(), app: APP });
     for (const text of [html, serializeRuns([a.rec, b.rec])]) {

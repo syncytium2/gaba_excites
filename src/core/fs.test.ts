@@ -48,9 +48,12 @@ describe("fast-spiking interneuron (Pospischil 2008 sIN_template)", () => {
     expect(p.finalRate).toBeCloseTo(10, 0);
   });
 
-  it("its spike is narrower than the pyramidal cell's: 0.56 against 0.70 ms", () => {
+  it("its spike is narrower than the pyramidal cell's: 0.57 against 0.71 ms (half-width from threshold at 10 V/s)", () => {
     const s = summarize(runFamily(fs, inputs, proto([380, 400])), proto([380, 400]));
-    expect(s.apHalfWidth).toBeCloseTo(0.56, 2);
+    expect(s.threshDvdt).toBe(10);
+    expect(s.apHalfWidth).toBeCloseTo(0.57, 2);
+    const rs = buildCell(publishedParams("rs"));
+    expect(summarize(runFamily(rs, inputs, proto([560, 580])), proto([560, 580])).apHalfWidth).toBeCloseTo(0.71, 2);
   });
 
   it("has presets of its own, and they belong to it", () => {
