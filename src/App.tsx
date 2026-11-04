@@ -65,6 +65,18 @@ function presetHolds(p: Preset, cell: CellParams): boolean {
   return Object.entries(p.knobs).every(([k, v]) => Math.abs((now[k] ?? NaN) - v) < 1e-9);
 }
 
+/** The knobs that have moved off a preset's values, as "Temperature 18.5 → 20 °C". */
+function presetMoved(p: Preset, cell: CellParams): string[] {
+  if (!p.knobs) return [];
+  const model = MODELS[cell.model];
+  const now = knobValues(model, cell.knobs);
+  return Object.entries(p.knobs).flatMap(([k, v]) => {
+    if (Math.abs((now[k] ?? NaN) - v) < 1e-9) return [];
+    const def = model.knobs?.find((d) => d.id === k);
+    return [`${def?.label ?? k} ${v} → ${+(now[k] ?? NaN).toFixed(6)}${def?.unit ? ` ${def.unit}` : ""}`];
+  });
+}
+
 export function App() {
   const [cell, setCell] = useState<CellParams>(opening.cell);
   const [ihold, setIhold] = useState(opening.ihold);
@@ -389,6 +401,12 @@ export function App() {
   // A preset measured at set knob values (Preset.knobs) holds only while the cell is still at them: turning a knob
   // or choosing a scope pattern leaves the protocol as it was, but the preset's numbers no longer apply (2026-11-02).
   const preset = presets.find((p) => p.id === presetId && presetHolds(p, cell));
+  // The preset last chosen, even if a knob has since moved off its values. The menu then says Custom, but its note
+  // stays in the menu's tooltip, marked as measured elsewhere (the owner, 2026-11-04).
+  const lastPreset = preset ?? presets.find((p) => p.id === presetId);
+  const presetTip = preset ? preset.note
+    : lastPreset ? <><b>Custom: you have moved {presetMoved(lastPreset, cell).join(", ")}.</b> “{lastPreset.label}” was measured at its own values; its note, for comparison: {lastPreset.note}</>
+    : "Your own protocol.";
   const refinedValid = refined && refined.key === runKey ? refined : null;
 
   const pinCurrent = () => {
@@ -600,10 +618,12 @@ export function App() {
         {mode === "steps" ? (
         <AmpSection name="STEPS">
           <AmpSlot label="Protocol">
-            <select id="preset-select" aria-label="Step protocol preset" value={preset ? presetId : "custom"} onChange={(e) => applyPreset(e.target.value)}>
-              {presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-              {!preset && <option value="custom">Custom</option>}
-            </select>
+            <Tip text={presetTip}>
+              <select id="preset-select" aria-label="Step protocol preset" value={preset ? presetId : "custom"} onChange={(e) => applyPreset(e.target.value)}>
+                {presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                {!preset && <option value="custom">Custom</option>}
+              </select>
+            </Tip>
           </AmpSlot>
           <AmpChoice label="Steps as" value={form.mode} options={[["family", "Family"], ["list", "List"]] as const} onChange={(m) => putForm({ mode: m })} />
           {form.mode === "family" ? <>

@@ -1779,3 +1779,9 @@ Later the same day armory fixed both limits (armory `2ded5cd3`). `tools/adr/adr.
 and the hook command in `.claude/settings.json` now runs only when the file exists. Checked from the main checkout:
 `cd <scratch clone with a bad citation> && git commit` is refused, `cd <this worktree> && git commit` passes, and with
 no `adr.py` present an ordinary command passes.
+
+## 2026-11-04 — the owner's review, continued: a moved preset keeps its note
+
+Recorded in [ADR 2026-11-04-f5f6](adr/2026-11-04-f5f6-a-moved-presets-menu-says-custom-and-keeps-its-note.md). Two findings on the way: the squid preset's note invites turning the very
+knob that hid it, and since 2026-10-19 (`7cabed8`) current-clamp step notes had no place on screen at all. They are
+back as a tooltip on the preset menu, as in voltage clamp.

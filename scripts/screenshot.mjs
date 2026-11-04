@@ -73,6 +73,9 @@ if (modelIds.includes("betahuman")) {
   await page.click("#mode-steps");
   // the pattern moved K_ATP off the step preset's value, so the preset no longer holds and the menu says Custom
   if ((await page.locator("#preset-select").inputValue()) !== "custom") problems.push("human: a step preset still shows after its knobs moved");
+  // ...but the preset's note stays in the menu's tooltip, saying which knob moved (the owner, 2026-11-04)
+  const movedTip = (await page.locator(".tip", { has: page.locator("#preset-select") }).locator(".tip-body").textContent()) ?? "";
+  if (!/you have moved .*→/.test(movedTip) || !movedTip.includes("Picoamps steer")) problems.push(`human: the moved preset's tooltip lost its note: "${movedTip.slice(0, 120)}"`);
   await page.selectOption("#preset-select", "human-steps");
   await page.waitForTimeout(300);
   await page.waitForFunction(() => /6 sweeps simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 60000 });
