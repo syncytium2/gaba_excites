@@ -269,6 +269,7 @@ export function humanBeta(over: Partial<HumanParams> = {}): ModelDef {
     spikesOvershoot: false,
     validation:
       "Transcribed from the papers. Checked against Pedersen 2010's reported spike rates and intervals and Riz et al. 2014's responses to TTX and GABA, and against the authors' equations run by a separate stiff solver.",
+    pscNote: "Beta cells receive no GABA synapses. In human islets the beta cells make GABA themselves and it acts on them and their neighbors (autocrine and paracrine: Braun et al. 2010), much of it leaking from the cytosol in pulses through VRAC anion channels rather than released from vesicles (Menegaz et al. 2019), at an ambient 100–1000 nM that their high-affinity GABA_A receptors detect (Korol et al. 2018). The bath GABA knob is that steady signal; these PSCs are the app's generic neuronal events, not measured in beta cells. A 3 nS event is also huge on a 10 pF cell: 300 pS/pF, the bath's 1 mM dose.",
     vcNote:
       "Pedersen (2010) built these currents from voltage-clamp recordings of human beta cells (Braun et al. 2008), with two simplifications that show here: the Na⁺ and Ca²⁺ currents activate instantly, so they have no rising phase after a step, and E_Na and E_Ca are the values used for firing (+70, +65 mV), not the +100 and +40 mV he fitted the recordings with.",
   };

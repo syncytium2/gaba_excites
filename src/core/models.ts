@@ -191,6 +191,12 @@ export interface ModelDef {
    * model's currents were not fitted to voltage-clamp recordings.
    */
   vcNote?: string;
+  /**
+   * Why the PSC inputs (the app's generic synaptic barrage) are not this cell's physiology, where they are not:
+   * the siren shows it whenever a GABA or glutamate PSC input is on (extremes.ts settingWarnings). The panel stays,
+   * so a student can try it and read why (the owner, 2026-11-04).
+   */
+  pscNote?: string;
 }
 
 // ---------------------------------------------------------------- RS pyramidal

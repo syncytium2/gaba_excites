@@ -246,11 +246,11 @@ Braun M, Ramracheya R, Bengtsson M, Zhang Q, Karanauskaite J, Partridge C, et al
 
 Braun M, Ramracheya R, Bengtsson M, Clark A, Walker JN, Johnson PR, et al. (2010). γ-Aminobutyric acid (GABA) is an autocrine excitatory transmitter in human pancreatic β-cells. Diabetes 59(7):1694–1701.
 
-[doi:10.2337/db09-0797](https://doi.org/10.2337/db09-0797) · [PMID 20413510](https://pubmed.ncbi.nlm.nih.gov/20413510/) · [PMC2889769](https://pmc.ncbi.nlm.nih.gov/articles/PMC2889769/) · *open (PubMed Central)* · models: human β-cell
+[doi:10.2337/db09-0797](https://doi.org/10.2337/db09-0797) · [PMID 20413510](https://pubmed.ncbi.nlm.nih.gov/20413510/) · [PMC2889769](https://pmc.ncbi.nlm.nih.gov/articles/PMC2889769/) · *open (PubMed Central)* · models: human β-cell, mouse β-cell
 
-**Took:** The GABA_A current of human beta cells (9.4 pA/pF for 1 mM GABA at −70 mV) and the firing responses to GABA that Riz et al. 2014 reproduce (its Fig. 7). Cited through Riz et al. 2014.
+**Took:** The GABA_A current of human beta cells (9.4 pA/pF for 1 mM GABA at −70 mV) and the firing responses to GABA that Riz et al. 2014 reproduce (its Fig. 7). Cited through Riz et al. 2014. Also, read from its abstract on 2026-11-04 for the siren's note on PSC inputs to the beta cells: beta cells secrete GABA themselves, by glucose-dependent exocytosis and a glucose-independent route, as an autocrine positive feedback loop.
 
-**Used in:** [`src/core/human.ts`](../src/core/human.ts)
+**Used in:** [`src/core/beta.ts`](../src/core/beta.ts), [`src/core/human.ts`](../src/core/human.ts)
 
 ## Methods
 
@@ -469,6 +469,26 @@ Moenter SM (2010). Identified GnRH neuron electrophysiology: a decade of study. 
 > — review text
 
 **Notes:** [`notes/gnrh-rest.md`](notes/gnrh-rest.md)
+
+### `menegaz2019`
+
+Menegaz D, Hagan DW, Almaça J, Cianciaruso C, Rodriguez-Diaz R, Molina J, et al. (2019). Mechanism and effects of pulsatile GABA secretion from cytosolic pools in the human beta cell. Nat Metab 1(11):1110–1126.
+
+[doi:10.1038/s42255-019-0135-7](https://doi.org/10.1038/s42255-019-0135-7) · [PMID 32432213](https://pubmed.ncbi.nlm.nih.gov/32432213/) · [PMC7236889](https://pmc.ncbi.nlm.nih.gov/articles/PMC7236889/) · *open (PubMed Central)* · models: human β-cell, mouse β-cell
+
+**Took:** Read from its abstract only, 2026-11-04, for the siren's note on PSC inputs to the beta cells: human beta cells lack a vesicular GABA transporter, GABA accumulates in the cytosol and leaves in pulses through the volume-regulated anion channel (VRAC, LRRC8A). No number is taken.
+
+**Used in:** [`src/core/human.ts`](../src/core/human.ts), [`src/core/beta.ts`](../src/core/beta.ts)
+
+### `korol2018`
+
+Korol SV, Jin Z, Jin Y, Bhandage AK, Tengholm A, Gandasi NR, et al. (2018). Functional characterization of native, high-affinity GABA_A receptors in human pancreatic β cells. EBioMedicine 30:273–282.
+
+[doi:10.1016/j.ebiom.2018.03.014](https://doi.org/10.1016/j.ebiom.2018.03.014) · [PMID 29606630](https://pubmed.ncbi.nlm.nih.gov/29606630/) · [PMC5952339](https://pmc.ncbi.nlm.nih.gov/articles/PMC5952339/) · *open (PubMed Central)* · models: human β-cell, mouse β-cell
+
+**Took:** Read from its abstract only, 2026-11-04, for the siren's note on PSC inputs to the beta cells: 100–1000 nM GABA gives the native GABA_A channels of human beta cells their maximal opening frequency, and saturating GABA desensitizes them.
+
+**Used in:** [`src/core/human.ts`](../src/core/human.ts), [`src/core/beta.ts`](../src/core/beta.ts)
 
 ## Further reading
 

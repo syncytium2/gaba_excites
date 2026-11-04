@@ -3,6 +3,46 @@
 What is deliberately NOT in v0.1, and the order it is likely to arrive in.
 The owner's words are quoted where the item came from them.
 
+## High priority
+
+- **GABA in the islet: what the beta cells' GABA inputs really are, and how the app should offer them.** The owner,
+  2026-11-04, on the human beta cell's GABA PSC panel: "Describe gaba inputs to beta cells. I don't know this
+  literature. Is it synaptic or paracrine like", then "Document your findings for more detailed follow up as a todo
+  with high priority. Keep the psc panel with a siren warning. This is exactly what we built the site for".
+
+  **Done now:** the PSC panel stays on both beta cells; turning on a GABA or glutamate PSC input lights the siren with
+  the reason (`ModelDef.pscNote`, `settingWarnings` in `src/core/extremes.ts`; [ADR 2026-11-04-8e7a](adr/2026-11-04-8e7a-beta-cells-keep-the-psc-panel-and-the-siren-says-why.md)).
+
+  **Found so far, from PubMed abstracts only (full texts not yet read):**
+  - Neither synaptic nor classic paracrine from another cell type: the beta cells make the GABA and it acts on
+    themselves and their neighbors. Braun et al. 2010, Diabetes 59:1694 (doi:10.2337/db09-0797): GABA_A currents in
+    52% of human beta cells (9 pA/pF), 91% of delta cells (148 pA/pF), 6% of alpha cells (2 pA/pF); beta cells secrete
+    GABA by glucose-dependent exocytosis of insulin granules and by a glucose-independent route; "an autocrine
+    positive feedback loop". Its release events were seen with GABA_A receptors added by adenovirus as sensors.
+  - Much of the release is not vesicular. Menegaz et al. 2019, Nat Metab 1:1110 (doi:10.1038/s42255-019-0135-7):
+    human beta cells lack a vesicular GABA transporter; GABA accumulates in the cytosol and leaves in pulses through
+    VRAC (LRRC8A/Swell1), imposing a rhythm on pulsatile insulin secretion; depleted in type 1 and type 2 diabetic
+    islets.
+  - The signal is ambient and low. Korol et al. 2018, EBioMedicine 30:273 (doi:10.1016/j.ebiom.2018.03.014): native
+    high-affinity GABA_A receptors on human beta cells open most often at 100–1000 nM GABA, and desensitize in
+    saturating GABA; diazepam, propofol and GLP-1 enhance them; higher affinity in type 2 diabetes.
+  - On alpha cells it inhibits: Rorsman et al. 1989, Nature 341:233 (doi:10.1038/341233a0), guinea pig: GABA
+    co-secreted with insulin activates GABA_A Cl⁻ channels in alpha cells, part of glucose's inhibition of glucagon.
+    The same transmitter excites the beta cell and inhibits the alpha cell: a GABA-excites lesson inside one islet.
+
+  **To follow up:**
+  - Read the full texts (fetch through murderboard's `fetch_paper.py`; never commit the PDFs): Braun 2010's release
+    events (amplitude, kinetics, frequency, whether any are seen without the sensor), Menegaz 2019's pulse period and
+    amplitude, Korol 2018's single-channel and whole-cell numbers, and the tonic-current literature from the Birnir
+    group.
+  - Decide what the app offers instead of, or beside, the generic PSC barrage: a pulsatile ambient GABA conductance
+    (Menegaz), a tonic conductance at Korol's concentrations, or autocrine events sized from Braun's sensor data. Each
+    needs its numbers cited through `lit/sources.json` and a test against the paper.
+  - Glutamate: the siren warns for glutamate PSCs on beta cells too, on the absence of any source here describing
+    synaptic glutamate input. Check the islet glutamate literature before saying more.
+  - Whether the mouse beta cell (Bertram 2004, no GABA conductance) should get one, and from which mouse data.
+  - Delta and alpha cells: if the app ever models them, GABA's opposite effects there are the lesson.
+
 ## Small fixes (to do)
 
 - **The first recorded sample dips when a step starts at 0 ms.** Fixed 2026-10-21 with the filter: sample 0 of

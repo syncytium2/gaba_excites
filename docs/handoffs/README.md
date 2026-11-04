@@ -44,6 +44,8 @@ one CI step. It merges that framework to main first, so the other sessions can n
 - [`2026-11-03-human-beta-review.md`](2026-11-03-human-beta-review.md): the human beta cell, half reviewed by the
   owner on 2026-11-03. Four overnight decisions still to put to him; do not merge or deploy until he says so. Read with
   [`2026-11-03-human-beta.md`](2026-11-03-human-beta.md), whose review status it supersedes.
+- [`2026-11-04-human-beta-reviewed.md`](2026-11-04-human-beta-reviewed.md): every overnight choice reviewed;
+  the branch waits only for the owner's go-ahead to merge and deploy. Supersedes the review status above.
 
 ## Superseded
 

@@ -130,6 +130,14 @@ export class ExtremeWatch {
   }
 }
 
+/**
+ * Settings, not trips: a PSC input on a cell that receives no such synapses (ModelDef.pscNote). Shown by the siren
+ * in every mode, from the moment the input is switched on.
+ */
+export function settingWarnings(model: ModelDef, syn: SynInput[]): string[] {
+  return model.pscNote && syn.some((s) => s.enabled && s.rate > 0 && s.gPeak > 0) ? [model.pscNote] : [];
+}
+
 /** One line per kind, for the siren's explanation. */
 export function describe(trip: Trip, lim: Limits): string {
   switch (trip.kind) {

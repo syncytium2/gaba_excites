@@ -21,7 +21,7 @@ import { ScopeMode } from "./ui/ScopeMode.tsx";
 import { VClampMode } from "./ui/VClampMode.tsx";
 import { Siren } from "./ui/Siren.tsx";
 import { KnobContext } from "./ui/Knob.tsx";
-import { describe as describeTrip, ExtremeWatch, limitsFor, type ExtremeKind } from "./core/extremes.ts";
+import { describe as describeTrip, ExtremeWatch, limitsFor, settingWarnings, type ExtremeKind } from "./core/extremes.ts";
 import { DARK_CHART, LIGHT_CHART, rampIn, type ChartColors } from "./ui/palette.ts";
 import { axisOpts } from "./ui/axis.ts";
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
@@ -406,6 +406,8 @@ export function App() {
     return [...seen.values()].map((e) => `${e.text} (step${e.amps.length > 1 ? "s" : ""} ${e.amps.map((a) => ru.fmt(a)).join(", ")} ${ru.label})`);
   }, [result, limits, ru]);
   const [scopeReasons, setScopeReasons] = useState<string[]>([]);
+  // PSC inputs on a cell that receives no such synapses (the beta cells): a warning from the settings, in every mode
+  const settingReasons = useMemo(() => settingWarnings(MODELS[cell.model], [glu, gaba]), [cell.model, glu, gaba]);
   const [readoutSlot, setReadoutSlot] = useState<HTMLElement | null>(null);
   // One screen height for both modes, so the amplifier below the screen stays in
   // place when the mode switches. It depends on the window alone, with a fixed
@@ -751,7 +753,7 @@ export function App() {
           <div className="modebar">
             {mode === "scope" && <div className="readout-slot" ref={setReadoutSlot} />}
             {mode === "steps" && <StepReadouts summary={playing ? undefined : summary} rheoFrom={playing ? undefined : result?.rheoFrom} crit={crit} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} cu={ru} />}
-            <Siren reasons={mode === "scope" ? scopeReasons : stepReasons} />
+            <Siren reasons={[...settingReasons, ...(mode === "scope" ? scopeReasons : stepReasons)]} />
             {error && <div className="warn" role="alert">Simulation failed: {error}</div>}
           </div>
 

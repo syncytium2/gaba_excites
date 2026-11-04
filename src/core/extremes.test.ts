@@ -9,7 +9,8 @@ import { sweepStats } from "./analysis.ts";
 import { DEFAULT_GABA, DEFAULT_GLU } from "./synapses.ts";
 import { PRESETS, toProtocol } from "./protocol.ts";
 import { MODELS, MODEL_LIST } from "./models.ts";
-import { ExtremeWatch, limitsFor, type ExtremeKind } from "./extremes.ts";
+import { ExtremeWatch, limitsFor, settingWarnings, type ExtremeKind } from "./extremes.ts";
+import { readFileSync } from "node:fs";
 
 const E = { rs: 15, cp: 0, bridge: 1 };
 
@@ -87,5 +88,23 @@ describe("each model's rheobase, which sets its current bound", () => {
     expect(MODELS.rs.rheobase).toBe(561);
     expect(MODELS.fs.rheobase).toBe(385);
     expect(MODELS.lts.rheobase).toBe(39);
+  });
+});
+
+describe("the siren's setting warnings", () => {
+  // the owner, 2026-11-04: "Keep the psc panel with a siren warning. This is exactly what we built the site for"
+  const on = { ...DEFAULT_GABA, enabled: true };
+  it("warns when a PSC input is on for a beta cell, which receives no such synapses, and only then", () => {
+    for (const id of ["betahuman", "betamouse"] as const) {
+      expect(settingWarnings(MODELS[id], [on])[0]).toMatch(/no GABA synapses.*Braun et al\. 2010.*Menegaz et al\. 2019.*Korol et al\. 2018/);
+      expect(settingWarnings(MODELS[id], [{ ...DEFAULT_GLU, enabled: true }])).toHaveLength(1);
+      expect(settingWarnings(MODELS[id], [{ ...on, enabled: false }, DEFAULT_GLU])).toEqual([]);
+      expect(settingWarnings(MODELS[id], [{ ...on, rate: 0 }])).toEqual([]);
+    }
+    for (const m of MODEL_LIST.filter((x) => !x.id.startsWith("beta"))) expect(settingWarnings(m, [on])).toEqual([]);
+  });
+  it("cites only papers in lit/sources.json", () => {
+    const keys = JSON.parse(readFileSync("lit/sources.json", "utf8")).sources.map((s: { key: string }) => s.key);
+    expect(keys).toEqual(expect.arrayContaining(["braun2010", "menegaz2019", "korol2018"]));
   });
 });

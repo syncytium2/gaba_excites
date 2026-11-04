@@ -1093,11 +1093,93 @@
       "access": "open (PubMed Central)",
       "role": "parameter",
       "models": [
-        "betahuman"
+        "betahuman",
+        "betamouse"
       ],
-      "took": "The GABA_A current of human beta cells (9.4 pA/pF for 1 mM GABA at −70 mV) and the firing responses to GABA that Riz et al. 2014 reproduce (its Fig. 7). Cited through Riz et al. 2014.",
+      "took": "The GABA_A current of human beta cells (9.4 pA/pF for 1 mM GABA at −70 mV) and the firing responses to GABA that Riz et al. 2014 reproduce (its Fig. 7). Cited through Riz et al. 2014. Also, read from its abstract on 2026-11-04 for the siren's note on PSC inputs to the beta cells: beta cells secrete GABA themselves, by glucose-dependent exocytosis and a glucose-independent route, as an autocrine positive feedback loop.",
       "usedIn": [
+        "src/core/beta.ts",
         "src/core/human.ts"
+      ]
+    },
+    {
+      "key": "menegaz2019",
+      "type": "article",
+      "authors": [
+        "Menegaz D",
+        "Hagan DW",
+        "Almaça J",
+        "Cianciaruso C",
+        "Rodriguez-Diaz R",
+        "Molina J",
+        "Dolan RM",
+        "Becker MW",
+        "Schwalie PC",
+        "Nano R",
+        "Lebreton F",
+        "Kang C",
+        "Sah R",
+        "Gaisano HY",
+        "Berggren PO",
+        "Baekkeskov S",
+        "Caicedo A",
+        "Phelps EA"
+      ],
+      "year": 2019,
+      "title": "Mechanism and effects of pulsatile GABA secretion from cytosolic pools in the human beta cell",
+      "journal": "Nat Metab",
+      "volume": "1",
+      "issue": "11",
+      "pages": "1110–1126",
+      "doi": "10.1038/s42255-019-0135-7",
+      "pmid": "32432213",
+      "pmcid": "PMC7236889",
+      "access": "open (PubMed Central)",
+      "role": "background",
+      "models": [
+        "betahuman",
+        "betamouse"
+      ],
+      "took": "Read from its abstract only, 2026-11-04, for the siren's note on PSC inputs to the beta cells: human beta cells lack a vesicular GABA transporter, GABA accumulates in the cytosol and leaves in pulses through the volume-regulated anion channel (VRAC, LRRC8A). No number is taken.",
+      "usedIn": [
+        "src/core/human.ts",
+        "src/core/beta.ts"
+      ]
+    },
+    {
+      "key": "korol2018",
+      "type": "article",
+      "authors": [
+        "Korol SV",
+        "Jin Z",
+        "Jin Y",
+        "Bhandage AK",
+        "Tengholm A",
+        "Gandasi NR",
+        "Barg S",
+        "Espes D",
+        "Carlsson PO",
+        "Laver D",
+        "Birnir B"
+      ],
+      "year": 2018,
+      "title": "Functional characterization of native, high-affinity GABA_A receptors in human pancreatic β cells",
+      "journal": "EBioMedicine",
+      "volume": "30",
+      "pages": "273–282",
+      "doi": "10.1016/j.ebiom.2018.03.014",
+      "pmid": "29606630",
+      "pmcid": "PMC5952339",
+      "access": "open (PubMed Central)",
+      "role": "background",
+      "models": [
+        "betahuman",
+        "betamouse"
+      ],
+      "took": "Read from its abstract only, 2026-11-04, for the siren's note on PSC inputs to the beta cells: 100–1000 nM GABA gives the native GABA_A channels of human beta cells their maximal opening frequency, and saturating GABA desensitizes them.",
+      "usedIn": [
+        "src/core/human.ts",
+        "src/core/beta.ts"
       ]
     },
     {

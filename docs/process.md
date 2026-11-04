@@ -1795,3 +1795,9 @@ The owner first chose −70 mV for every cell, then narrowed it to this cell wit
 (`docs/roadmap.md`). Recorded in [ADR 2026-11-04-3b16](adr/2026-11-04-3b16-rheobase-is-measured-from-a-stated-membrane-potential.md). On the way, a quick search for the
 holding current that puts each cell at −70 mV failed on the three cells with no stable rest; `cellHoldAt` now
 takes it from the steady-state I–V directly.
+
+The last overnight choice, GABA on the human beta cell. The owner asked what GABA inputs to beta cells are; from
+PubMed abstracts, autocrine and paracrine from the beta cells themselves, not synaptic. He kept the PSC panel with a
+siren warning ("This is exactly what we built the site for") and asked for the findings as a high-priority to-do,
+now at the top of `docs/roadmap.md`. Recorded in [ADR 2026-11-04-8e7a](adr/2026-11-04-8e7a-beta-cells-keep-the-psc-panel-and-the-siren-says-why.md). That ends the review of
+the overnight choices.

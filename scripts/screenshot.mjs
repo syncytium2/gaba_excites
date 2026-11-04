@@ -81,6 +81,14 @@ if (modelIds.includes("betahuman")) {
   await page.waitForFunction(() => /6 sweeps simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 60000 });
   if ((await page.locator("#preset-select").inputValue()) !== "human-steps") problems.push("human: choosing the step preset did not hold");
   if (await page.locator(".siren").count()) problems.push("human: the siren shows on its own preset");
+  // beta cells receive no GABA synapses: the PSC panel stays, and switching it on lights the siren with why (the owner, 2026-11-04)
+  await page.getByRole("switch", { name: "GABA PSC on" }).check();
+  await page.waitForTimeout(300);
+  const pscSiren = (await page.locator(".siren .tip-body").textContent().catch(() => "")) ?? "";
+  if (!/no GABA synapses/.test(pscSiren)) problems.push(`human: GABA PSCs on did not light the siren with the islet note: "${pscSiren.slice(0, 100)}"`);
+  await page.getByRole("switch", { name: "GABA PSC on" }).uncheck();
+  await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 60000 });
+  if (await page.locator(".siren").count()) problems.push("human: the siren stayed on after GABA PSCs went off");
   // it fires on its own, so its rheobase is measured held at −70 mV, and says so (the owner, 2026-11-04)
   const rheoLine = await page.locator(".readline > span").filter({ hasText: /^Rheobase/ }).innerText();
   if (!/Rheobase\s+3\.[5-7]\s+pA\s+from [−-]70\.0 mV/.test(rheoLine)) problems.push(`human: rheobase should read about 3.6 pA from −70 mV: "${rheoLine}"`);
