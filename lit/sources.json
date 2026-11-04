@@ -1176,7 +1176,7 @@
         "betahuman",
         "betamouse"
       ],
-      "took": "Read from its abstract only, 2026-11-04, for the siren's note on PSC inputs to the beta cells: 100–1000 nM GABA gives the native GABA_A channels of human beta cells their maximal opening frequency, and saturating GABA desensitizes them.",
+      "took": "Read from its abstract only, 2026-11-04, for the siren's note on PSC inputs to the beta cells: 100–1000 nM GABA gives the native GABA_A channels of human beta cells their maximal opening frequency, and saturating GABA desensitizes them. The abstract says the islet's own GABA concentration is unknown; the siren says so too (corrected 2026-11-04).",
       "usedIn": [
         "src/core/human.ts",
         "src/core/beta.ts"

@@ -23,14 +23,24 @@ The owner's words are quoted where the item came from them.
     human beta cells lack a vesicular GABA transporter; GABA accumulates in the cytosol and leaves in pulses through
     VRAC (LRRC8A/Swell1), imposing a rhythm on pulsatile insulin secretion; depleted in type 1 and type 2 diabetic
     islets.
-  - The signal is ambient and low. Korol et al. 2018, EBioMedicine 30:273 (doi:10.1016/j.ebiom.2018.03.014): native
-    high-affinity GABA_A receptors on human beta cells open most often at 100–1000 nM GABA, and desensitize in
+  - The receptors are high-affinity; the islet's GABA level is unknown. Korol et al. 2018, EBioMedicine 30:273
+    (doi:10.1016/j.ebiom.2018.03.014), whose abstract says "the effective, physiological GABA concentration range
+    within human islets is unknown": native GABA_A receptors on human beta cells open most often at 100–1000 nM GABA, and desensitize in
     saturating GABA; diazepam, propofol and GLP-1 enhance them; higher affinity in type 2 diabetes.
   - On alpha cells it inhibits: Rorsman et al. 1989, Nature 341:233 (doi:10.1038/341233a0), guinea pig: GABA
     co-secreted with insulin activates GABA_A Cl⁻ channels in alpha cells, part of glucose's inhibition of glucagon.
     The same transmitter excites the beta cell and inhibits the alpha cell: a GABA-excites lesson inside one islet.
 
   **To follow up:**
+  - Start with the review Weitz, Menegaz & Caicedo 2021, Diabetes 70:17 (doi:10.2337/dbi19-0033), which describes
+    "new developments that revise current notions about purinergic and GABA signaling in islets".
+  - Settle how GABA leaves the beta cell. Braun 2010 reports release by exocytosis of insulin granules; Menegaz 2019
+    says beta cells lack a vesicular GABA transporter, so the GABA is cytosolic. Brief events are worth offering only
+    if the granule route holds.
+  - The bath GABA knob is a dose, not the islet's signal: it is calibrated at 10 µM to 1 mM, its smallest step is
+    5 pS/pF, and the model has no desensitization. A tonic conductance at Korol's 100–1000 nM would need its own
+    control, well below that range, and a number from the full text (found 2026-11-04 in review).
+  - The Birnir group (Uppsala; Korol 2018 is theirs) for whole-cell tonic GABA currents in human beta cells.
   - Read the full texts (fetch through murderboard's `fetch_paper.py`; never commit the PDFs): Braun 2010's release
     events (amplitude, kinetics, frequency, whether any are seen without the sensor), Menegaz 2019's pulse period and
     amplitude, Korol 2018's single-channel and whole-cell numbers, and the tonic-current literature from the Birnir
@@ -39,7 +49,8 @@ The owner's words are quoted where the item came from them.
     (Menegaz), a tonic conductance at Korol's concentrations, or autocrine events sized from Braun's sensor data. Each
     needs its numbers cited through `lit/sources.json` and a test against the paper.
   - Glutamate: the siren warns for glutamate PSCs on beta cells too, on the absence of any source here describing
-    synaptic glutamate input. Check the islet glutamate literature before saying more.
+    synaptic glutamate input. Check the islet glutamate literature before saying more; from memory, not yet checked:
+    the Caicedo group on glutamate as an alpha-cell signal, and NMDA receptors on beta cells.
   - Whether the mouse beta cell (Bertram 2004, no GABA conductance) should get one, and from which mouse data.
   - Delta and alpha cells: if the app ever models them, GABA's opposite effects there are the lesson.
 

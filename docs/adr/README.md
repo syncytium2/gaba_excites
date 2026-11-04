@@ -23,7 +23,9 @@ The estate's, as armory's ADR kit defines it (armory `docs/handoffs/2026-11-03-a
 **Enforced by** `tools/adr/adr.py check`, vendored from armory's ADR kit (see armory's `tools/adr/README.md` for the
 rules: file and heading IDs, status, supersession both ways, this index, links, bare citations, accepted ADRs left
 unchanged, ID collisions across refs). It runs in CI (`.github/workflows/test.yml`, with full history). `.adr-kit.json`
-excludes `docs/handoffs/` from the citation scan, because handoffs are dated records whose bodies are not edited.
+excludes `docs/handoffs/` from the citation scan, because handoffs are dated records whose bodies are not edited. It also
+excludes `tools/adr/adr.py`, whose self-test fixtures cite IDs on purpose: the checker skips only its own running
+copy, so the main checkout's hook, checking a worktree, otherwise flagged the worktree's copy (2026-11-04).
 `.gitattributes` merges this index by union, so two branches that each add a row do not conflict.
 
 **And by the kit's Claude Code hook** (`.claude/settings.json`, `adr.py hook`): before every `git commit`, `merge`,
@@ -48,4 +50,5 @@ in substance; that an ADR's reasons are the ones the history shows; that a Propo
 | [2026-11-04-f5f6](2026-11-04-f5f6-a-moved-presets-menu-says-custom-and-keeps-its-note.md) | A step preset whose knobs have moved shows as Custom and keeps its note, marked | Accepted, 2026-11-04 |
 | [2026-11-04-f9aa](2026-11-04-f9aa-conductance-knobs-switch-between-ps-and-ns-per-pf.md) | The human beta cell's conductance knobs switch between pS/pF and nS/pF | Accepted, 2026-11-04 |
 | [2026-11-04-3b16](2026-11-04-3b16-rheobase-is-measured-from-a-stated-membrane-potential.md) | Rheobase states the Vm it was measured from; the human beta cell's is measured from −70 mV | Accepted, 2026-11-04 |
-| [2026-11-04-8e7a](2026-11-04-8e7a-beta-cells-keep-the-psc-panel-and-the-siren-says-why.md) | The beta cells keep E_GABA −40 mV, their GABA patterns and the PSC panel; PSCs light the siren | Accepted, 2026-11-04 |
+| [2026-11-04-8e7a](2026-11-04-8e7a-beta-cells-keep-the-psc-panel-and-the-siren-says-why.md) | The beta cells keep E_GABA −40 mV, their GABA patterns and the PSC panel; PSCs light the siren | Superseded by [2026-11-04-48f9](2026-11-04-48f9-the-islet-siren-says-the-gaba-level-is-unknown-and-the-bath-knob-is-a-dose.md), 2026-11-04 |
+| [2026-11-04-48f9](2026-11-04-48f9-the-islet-siren-says-the-gaba-level-is-unknown-and-the-bath-knob-is-a-dose.md) | The islet siren says the GABA level is unknown and the bath knob is a dose | Accepted, 2026-11-04 |

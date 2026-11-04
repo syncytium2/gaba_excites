@@ -96,12 +96,20 @@ describe("the siren's setting warnings", () => {
   const on = { ...DEFAULT_GABA, enabled: true };
   it("warns when a PSC input is on for a beta cell, which receives no such synapses, and only then", () => {
     for (const id of ["betahuman", "betamouse"] as const) {
-      expect(settingWarnings(MODELS[id], [on])[0]).toMatch(/no GABA synapses.*Braun et al\. 2010.*Menegaz et al\. 2019.*Korol et al\. 2018/);
+      expect(settingWarnings(MODELS[id], [on])[0]).toMatch(/No GABA synapses onto beta cells are described.*Braun et al\. 2010.*Menegaz et al\. 2019.*Korol et al\. 2018/);
+      // Korol 2018's abstract: the islet's GABA concentration is unknown; 100–1000 nM is where the receptors open most
+      const note = settingWarnings(MODELS[id], [on])[0];
+      expect(note).toMatch(/islet holds is unknown/);
+      expect(note).not.toMatch(/ambient 100|receive no GABA synapses|that steady signal/);
       expect(settingWarnings(MODELS[id], [{ ...DEFAULT_GLU, enabled: true }])).toHaveLength(1);
       expect(settingWarnings(MODELS[id], [{ ...on, enabled: false }, DEFAULT_GLU])).toEqual([]);
       expect(settingWarnings(MODELS[id], [{ ...on, rate: 0 }])).toEqual([]);
     }
     for (const m of MODEL_LIST.filter((x) => !x.id.startsWith("beta"))) expect(settingWarnings(m, [on])).toEqual([]);
+  });
+  it("on the human cell, calls the bath GABA knob a drug dose, not the islet's own signal", () => {
+    const on = { ...DEFAULT_GABA, enabled: true };
+    expect(settingWarnings(MODELS.betahuman, [on])[0]).toMatch(/not the islet's own signal.*10 µM to 1 mM/);
   });
   it("cites only papers in lit/sources.json", () => {
     const keys = JSON.parse(readFileSync("lit/sources.json", "utf8")).sources.map((s: { key: string }) => s.key);

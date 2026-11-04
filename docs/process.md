@@ -1810,3 +1810,12 @@ as a production deploy; its dry run passed every gate. The owner then wrote "dep
 v0.2.13 (`5049fce`, bundle `assets/index-DBdxHz70.js`) to both domains, the classroom version at `/fall-2026/`
 unchanged. Recorded in `DEPLOYED.md`. v0.2.12 had been live before it.
 
+## 2026-11-04 — the islet siren's note, corrected
+
+Asked to "review the islet gaba followup", the session re-read the four abstracts on PubMed. The siren's note on
+beta-cell PSCs claimed an ambient islet GABA level of 100–1000 nM, which Korol 2018's abstract says is unknown; it
+called the bath GABA knob the islet's steady signal, though the knob is a 10 µM to 1 mM dose; and it said beta cells
+receive no GABA synapses, which no source says. Offered the rewording, a to-do update and an ADR, the owner answered
+"go". Recorded in [ADR 2026-11-04-48f9](adr/2026-11-04-48f9-the-islet-siren-says-the-gaba-level-is-unknown-and-the-bath-knob-is-a-dose.md), which supersedes the PSC-siren ADR; the to-do gains the
+Braun–Menegaz disagreement over release, the knob's range and a review to start from.
+

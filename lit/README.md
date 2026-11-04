@@ -486,7 +486,7 @@ Korol SV, Jin Z, Jin Y, Bhandage AK, Tengholm A, Gandasi NR, et al. (2018). Func
 
 [doi:10.1016/j.ebiom.2018.03.014](https://doi.org/10.1016/j.ebiom.2018.03.014) · [PMID 29606630](https://pubmed.ncbi.nlm.nih.gov/29606630/) · [PMC5952339](https://pmc.ncbi.nlm.nih.gov/articles/PMC5952339/) · *open (PubMed Central)* · models: human β-cell, mouse β-cell
 
-**Took:** Read from its abstract only, 2026-11-04, for the siren's note on PSC inputs to the beta cells: 100–1000 nM GABA gives the native GABA_A channels of human beta cells their maximal opening frequency, and saturating GABA desensitizes them.
+**Took:** Read from its abstract only, 2026-11-04, for the siren's note on PSC inputs to the beta cells: 100–1000 nM GABA gives the native GABA_A channels of human beta cells their maximal opening frequency, and saturating GABA desensitizes them. The abstract says the islet's own GABA concentration is unknown; the siren says so too (corrected 2026-11-04).
 
 **Used in:** [`src/core/human.ts`](../src/core/human.ts), [`src/core/beta.ts`](../src/core/beta.ts)
 

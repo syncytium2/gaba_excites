@@ -1,6 +1,6 @@
 # ADR 2026-11-04-8e7a: The beta cells keep E_GABA −40 mV, their GABA patterns and the PSC panel; PSCs light the siren
 
-Status: Accepted, 2026-11-04
+Status: Superseded by [ADR 2026-11-04-48f9](2026-11-04-48f9-the-islet-siren-says-the-gaba-level-is-unknown-and-the-bath-knob-is-a-dose.md), 2026-11-04
 
 ## Context
 

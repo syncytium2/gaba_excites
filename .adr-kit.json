@@ -1,4 +1,7 @@
 {
   "dir": "docs/adr",
-  "exclude": ["docs/handoffs/"]
+  "exclude": [
+    "docs/handoffs/",
+    "tools/adr/adr.py"
+  ]
 }
