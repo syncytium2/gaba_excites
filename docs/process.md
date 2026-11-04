@@ -1683,3 +1683,22 @@ adds no condition beyond the attribution the request offered.
 
 Recorded in `lit/sources.json` on `pedersen2010`, `riz2014` and `riz14code`, in a new optional field, `permission`,
 which `scripts/lit.ts` renders on `public/lit.html` and `lit/README.md`.
+
+## 2026-11-03 — the owner approves the Ca²⁺ current as a solver input
+
+Reviewing the overnight decisions one at a time, the owner was asked: "The human beta cell's BK channel needs the
+calcium current, so the branch lets any channel ask the solver for it (NEURON's pattern; other models unchanged).
+Approve this?" He chose "Approve, merge the sums": keep `Channel.readsICa`, and compute the Ca²⁺ current once per
+step instead of twice.
+
+The design is NEURON's: a mechanism there declares `USEION ca READ ica` and is handed the summed calcium current of
+the mechanisms that write it. Here the sum is taken before any channel reads it, so the answer does not depend on the
+order the channels are listed in, which in NEURON it can. The solver still learns about no particular channel.
+
+`simulate.ts` now has one helper, `caCurrent`, for the pools and for a channel that reads the current. A model with
+such a channel sums the current once before the conductance loop, and every other model sums it along the way, as
+before. Same products, same order: every test, the NEURON oracles and `human.test.ts` included, passes unchanged.
+
+The owner also said, of recording this rule in AGENTS.md: "agents.md is unreliable. thses should be ADRs". The
+repository has no ADRs yet; building the enforcement for them was handed to armory
+(its `docs/handoffs/2026-11-03-adr-hygiene-has-no-kit.md`). This decision becomes an ADR once that kit exists.

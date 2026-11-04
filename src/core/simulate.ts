@@ -141,15 +141,18 @@ export function step(cell: BuiltCell, e: Electrode, s: Float64Array, iCmd: numbe
 
   let G = cell.gLeak + syn.gGlu + syn.gGaba;
   let GE = cell.gLeak * cell.eLeak + syn.gGlu * syn.eGlu + syn.gGaba * syn.eGaba + iMem;
-  let iCa0 = 0; // calcium current at the start of the step, for a pool that reads it there
-  const iCaD = cell.readsICa ? iCaDensity(cell, s, v0, ca) : undefined;
+  // Ca²⁺ current at the start of the step (pA), for a pool that reads it there and for a channel that asks for it
+  // (Channel.readsICa). Summed once: up front when a channel reads it, otherwise along the way.
+  const pre = cell.readsICa;
+  let iCa0 = pre ? caCurrent(cell, s, v0, ca) : 0;
+  const iCaD = pre ? iCa0 / cell.params.cm : undefined;
   for (let k = 0; k < cell.channels.length; k++) {
     const g = cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca, iCaD);
     const f = cell.erevCa[k];
     const er = f ? f(ca) : cell.erev[k];
     G += g;
     GE += g * er;
-    if (cell.carriesCa[k]) iCa0 += g * (v0 - er);
+    if (!pre && cell.carriesCa[k]) iCa0 += g * (v0 - er);
   }
 
   const cdt = cell.params.cm / dt;
@@ -200,15 +203,17 @@ export function stepVC(cell: BuiltCell, s: Float64Array, vCmd: number, rs: numbe
   const ca = s[cell.iCa];
   let G = cell.gLeak + syn.gGlu + syn.gGaba;
   let GE = cell.gLeak * cell.eLeak + syn.gGlu * syn.eGlu + syn.gGaba * syn.eGaba + iMem;
-  let iCa0 = 0;
-  const iCaD = cell.readsICa ? iCaDensity(cell, s, v0, ca) : undefined;
+  // as in step(): the Ca²⁺ current at the start of the step, summed once
+  const pre = cell.readsICa;
+  let iCa0 = pre ? caCurrent(cell, s, v0, ca) : 0;
+  const iCaD = pre ? iCa0 / cell.params.cm : undefined;
   for (let k = 0; k < cell.channels.length; k++) {
     const g = cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca, iCaD);
     const f = cell.erevCa[k];
     const er = f ? f(ca) : cell.erev[k];
     G += g;
     GE += g * er;
-    if (cell.carriesCa[k]) iCa0 += g * (v0 - er);
+    if (!pre && cell.carriesCa[k]) iCa0 += g * (v0 - er);
   }
   const cdt = cell.params.cm / dt;
   let v1: number;
@@ -228,18 +233,17 @@ export function stepVC(cell: BuiltCell, s: Float64Array, vCmd: number, rs: numbe
 }
 
 /**
- * The Ca²⁺ current density, pA/pF (inward negative), at the step's starting V and gates: the summed current of
- * the channels that carry Ca²⁺, divided by Cm. Computed only for a model with a channel that reads it
- * (Channel.readsICa), so every other model's step is unchanged.
+ * The Ca²⁺ current, pA (inward negative): the summed current of the channels that carry Ca²⁺, at the given V and
+ * the gates in `s`. Read by the pools and, as a density, by a channel that asks for it (Channel.readsICa).
  */
-function iCaDensity(cell: BuiltCell, s: Float64Array, v: number, ca: number): number {
+function caCurrent(cell: BuiltCell, s: Float64Array, v: number, ca: number): number {
   let i = 0;
   for (let k = 0; k < cell.channels.length; k++) {
     if (!cell.carriesCa[k]) continue;
     const f = cell.erevCa[k];
     i += cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca) * (v - (f ? f(ca) : cell.erev[k]));
   }
-  return i / cell.params.cm;
+  return i;
 }
 
 /**
@@ -253,15 +257,7 @@ function advanceGates(cell: BuiltCell, s: Float64Array, v: number, dt: number, i
   for (let k = 0; k < cell.channels.length; k++) cell.channels[k].advance(v, dt, s, cell.offsets[k], ca);
   const pool = cell.pool;
   if (!pool) return;
-  let iCa = iCa0;
-  if (pool.reads === "after") {
-    iCa = 0;
-    for (let k = 0; k < cell.channels.length; k++) {
-      if (!cell.carriesCa[k]) continue;
-      const f = cell.erevCa[k];
-      iCa += cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca) * (v - (f ? f(ca) : cell.erev[k]));
-    }
-  }
+  const iCa = pool.reads === "after" ? caCurrent(cell, s, v, ca) : iCa0;
   s[cell.iCa] = pool.advance(ca, iCa, cell.params.cm, dt, s, cell.ix);
 }
 
