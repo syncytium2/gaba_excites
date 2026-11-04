@@ -1819,3 +1819,9 @@ receive no GABA synapses, which no source says. Offered the rewording, a to-do u
 "go". Recorded in [ADR 2026-11-04-48f9](adr/2026-11-04-48f9-the-islet-siren-says-the-gaba-level-is-unknown-and-the-bath-knob-is-a-dose.md), which supersedes the PSC-siren ADR; the to-do gains the
 Braun–Menegaz disagreement over release, the knob's range and a review to start from.
 
+
+## 2026-11-04 — deployed v0.2.14: the islet siren's note corrected
+
+After the corrected note and the re-vendored ADR kit reached `main`, the owner, asked whether to merge and deploy,
+answered "deploy". `npm run deploy` shipped v0.2.14 (`1a43ec7`, bundle `assets/index-DHgAImOP.js`) to both domains, the
+classroom version at `/fall-2026/` unchanged. Recorded in `DEPLOYED.md`.
