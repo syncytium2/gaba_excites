@@ -1785,3 +1785,6 @@ no `adr.py` present an ordinary command passes.
 Recorded in [ADR 2026-11-04-f5f6](adr/2026-11-04-f5f6-a-moved-presets-menu-says-custom-and-keeps-its-note.md). Two findings on the way: the squid preset's note invites turning the very
 knob that hid it, and since 2026-10-19 (`7cabed8`) current-clamp step notes had no place on screen at all. They are
 back as a tooltip on the preset menu, as in voltage clamp.
+
+The owner answered "Toggle" to keeping the human cell's knobs in pS/pF: a units switch, display only. Recorded in
+[ADR 2026-11-04-f9aa](adr/2026-11-04-f9aa-conductance-knobs-switch-between-ps-and-ns-per-pf.md).

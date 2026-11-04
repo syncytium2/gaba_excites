@@ -36,6 +36,15 @@ import { CurrentContext, CurrentDial, CurrentList, currentUnit, digitsFor, niceS
 const OPENING = TOUR[0].settings;
 const OLD_SCHOOL_KEY = "gaba_excites.oldschool.v2";
 const DENSITY_KEY = "gaba_excites.density.v1";
+const NS_KNOBS_KEY = "gaba_excites.nsknobs.v1";
+
+/** A knob in pS/pF shown in pS/pF or, at the student's choice, in the papers' nS/pF: display only (the owner, 2026-11-04). */
+interface KnobShow { unit: string; value: number; min: number; max: number; step: number }
+function knobShow(k: { unit: string; min: number; max: number; step: number }, v: number, ns: boolean): KnobShow & { toModel: (x: number) => number } {
+  if (!ns || k.unit !== "pS/pF") return { unit: k.unit, value: v, min: k.min, max: k.max, step: k.step, toModel: (x) => x };
+  const f = (x: number) => +(x / 1000).toFixed(9);
+  return { unit: "nS/pF", value: f(v), min: f(k.min), max: f(k.max), step: f(k.step), toModel: (x) => +(x * 1000).toFixed(6) };
+}
 const opening = tourInputs(OPENING);
 import type { RunSettings } from "./core/report.ts";
 
@@ -65,15 +74,17 @@ function presetHolds(p: Preset, cell: CellParams): boolean {
   return Object.entries(p.knobs).every(([k, v]) => Math.abs((now[k] ?? NaN) - v) < 1e-9);
 }
 
-/** The knobs that have moved off a preset's values, as "Temperature 18.5 → 20 °C". */
-function presetMoved(p: Preset, cell: CellParams): string[] {
+/** The knobs that have moved off a preset's values, as "Temperature 18.5 → 20 °C", in the units the knobs show. */
+function presetMoved(p: Preset, cell: CellParams, ns = false): string[] {
   if (!p.knobs) return [];
   const model = MODELS[cell.model];
   const now = knobValues(model, cell.knobs);
   return Object.entries(p.knobs).flatMap(([k, v]) => {
     if (Math.abs((now[k] ?? NaN) - v) < 1e-9) return [];
     const def = model.knobs?.find((d) => d.id === k);
-    return [`${def?.label ?? k} ${v} → ${+(now[k] ?? NaN).toFixed(6)}${def?.unit ? ` ${def.unit}` : ""}`];
+    const show = (x: number) => (def ? knobShow(def, x, ns).value : x);
+    const unit = def ? knobShow(def, v, ns).unit : "";
+    return [`${def?.label ?? k} ${show(v)} → ${+show(now[k] ?? NaN).toFixed(6)}${unit ? ` ${unit}` : ""}`];
   });
 }
 
@@ -145,6 +156,22 @@ export function App() {
       return false;
     }
   });
+  // Conductance knobs in pS/pF or nS/pF: display only, remembered as a convenience, every access guarded.
+  const [nsKnobs, setNsKnobsPref] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(NS_KNOBS_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const setNsKnobs = (on: boolean) => {
+    setNsKnobsPref(on);
+    try {
+      localStorage.setItem(NS_KNOBS_KEY, on ? "1" : "0");
+    } catch {
+      /* storage unavailable: still works for this visit */
+    }
+  };
   const setDensity = (on: boolean) => {
     setDensityPref(on);
     setZoom(NO_ZOOM); // a zoomed current axis was in the other unit
@@ -405,7 +432,7 @@ export function App() {
   // stays in the menu's tooltip, marked as measured elsewhere (the owner, 2026-11-04).
   const lastPreset = preset ?? presets.find((p) => p.id === presetId);
   const presetTip = preset ? preset.note
-    : lastPreset ? <><b>Custom: you have moved {presetMoved(lastPreset, cell).join(", ")}.</b> “{lastPreset.label}” was measured at its own values; its note, for comparison: {lastPreset.note}</>
+    : lastPreset ? <><b>Custom: you have moved {presetMoved(lastPreset, cell, nsKnobs).join(", ")}.</b> “{lastPreset.label}” was measured at its own values; its note, for comparison: {lastPreset.note}</>
     : "Your own protocol.";
   const refinedValid = refined && refined.key === runKey ? refined : null;
 
@@ -524,11 +551,16 @@ export function App() {
                   </Tip>
                 </AmpSlot>
               )}
+              {model.knobs.some((k) => k.unit === "pS/pF") && (
+                <AmpChoice label="Units" value={nsKnobs ? "ns" : "ps"} options={[["ps", "pS/pF"], ["ns", "nS/pF"]] as const} onChange={(u) => setNsKnobs(u === "ns")}
+                  hint="The same conductances either way. pS/pF makes the published values whole numbers (10, 100, 300); nS/pF is how Riz et al. 2014 and Pedersen 2010 write them (0.010, 0.1, 0.3)." />
+              )}
               {model.knobs.map((k) => {
                 const vals = knobValues(model, cell.knobs);
+                const d = knobShow(k, vals[k.id], nsKnobs);
                 return (
-                  <AmpDial key={k.id} label={k.label} unit={k.unit} value={vals[k.id]} min={k.min} max={k.max} step={k.step} digits={digitsFor(k.step)} hint={k.note}
-                    onChange={(v) => { setCell({ ...cell, knobs: { ...vals, [k.id]: v } }); setPatternId("custom"); }} />
+                  <AmpDial key={k.id} label={k.label} unit={d.unit} value={d.value} min={d.min} max={d.max} step={d.step} digits={digitsFor(d.step)} hint={k.note}
+                    onChange={(v) => { setCell({ ...cell, knobs: { ...vals, [k.id]: d.toModel(v) } }); setPatternId("custom"); }} />
                 );
               })}
         </AmpSection>

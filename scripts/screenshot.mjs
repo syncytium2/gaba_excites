@@ -81,6 +81,13 @@ if (modelIds.includes("betahuman")) {
   await page.waitForFunction(() => /6 sweeps simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 60000 });
   if ((await page.locator("#preset-select").inputValue()) !== "human-steps") problems.push("human: choosing the step preset did not hold");
   if (await page.locator(".siren").count()) problems.push("human: the siren shows on its own preset");
+  // the conductance knobs read in pS/pF or, switched, in the papers' nS/pF; the cell is the same (the owner, 2026-11-04)
+  await page.getByRole("radio", { name: "nS/pF" }).click();
+  const gK = () => page.getByRole("slider", { name: "gK(ATP)" }).first().getAttribute("aria-valuetext");
+  const gNs = await gK();
+  await page.getByRole("radio", { name: "pS/pF" }).click();
+  const gPs = await gK();
+  if (gNs !== "0.010 nS/pF" || gPs !== "10 pS/pF") problems.push(`human: the knob units switch reads gK(ATP) as "${gNs}" and "${gPs}", not "0.010 nS/pF" and "10 pS/pF"`);
   // each cell measures threshold at its own dV/dt criterion, and the phase plot's switch changes it
   // (docs/adr: "spike threshold's criterion belongs to the model")
   const critSwitch = page.getByLabel("Threshold criterion, V/s");
