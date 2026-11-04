@@ -1801,3 +1801,12 @@ PubMed abstracts, autocrine and paracrine from the beta cells themselves, not sy
 siren warning ("This is exactly what we built the site for") and asked for the findings as a high-priority to-do,
 now at the top of `docs/roadmap.md`. Recorded in [ADR 2026-11-04-8e7a](adr/2026-11-04-8e7a-beta-cells-keep-the-psc-panel-and-the-siren-says-why.md). That ends the review of
 the overnight choices.
+
+## 2026-11-04 — deployed v0.2.13: the human beta cell
+
+Asked whether to merge and deploy the reviewed `human-beta` branch, the owner answered "Yep go". `main` was
+fast-forwarded to it (`ea64dc6`) and pushed. The first `npm run deploy` was refused by Claude Code's permission check
+as a production deploy; its dry run passed every gate. The owner then wrote "deploy", and `npm run deploy` shipped
+v0.2.13 (`5049fce`, bundle `assets/index-DBdxHz70.js`) to both domains, the classroom version at `/fall-2026/`
+unchanged. Recorded in `DEPLOYED.md`. v0.2.12 had been live before it.
+

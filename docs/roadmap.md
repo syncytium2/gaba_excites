@@ -168,8 +168,8 @@ The owner's words are quoted where the item came from them.
     Oscillator Model was not named, so ask before relying on it. Check its .ode files for the
     conventions beta_max found in the same authors' Chen 2008 files (an initial value that is a typo for the
     steady state, per-file time units).
-  - **Human, second. Built 2026-11-02 on branch `human-beta`** (not merged or deployed; waiting for the owner's
-    review and Pedersen's reply; see `docs/process.md`). Riz, Braun & Pedersen 2014 (PLoS Comput Biol, doi:10.1371/journal.pcbi.1003389), which adds
+  - **Human, second. Built 2026-11-02, reviewed by the owner and deployed 2026-11-04 in v0.2.13** (Pedersen's
+    permission granted; see `docs/process.md`). Riz, Braun & Pedersen 2014 (PLoS Comput Biol, doi:10.1371/journal.pcbi.1003389), which adds
     SK channels and Ca²⁺ dynamics to Pedersen 2010 (Biophys J, doi:10.1016/j.bpj.2010.09.004). It belongs here
     because GABA depolarizes human beta cells and drives their firing (Braun et al. 2010, Diabetes,
     doi:10.2337/db09-0797), so the E_GABA slider applies outside the brain. The mouse/human difference in Na⁺

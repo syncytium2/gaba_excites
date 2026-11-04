@@ -46,6 +46,8 @@ one CI step. It merges that framework to main first, so the other sessions can n
   [`2026-11-03-human-beta.md`](2026-11-03-human-beta.md), whose review status it supersedes.
 - [`2026-11-04-human-beta-reviewed.md`](2026-11-04-human-beta-reviewed.md): every overnight choice reviewed;
   the branch waits only for the owner's go-ahead to merge and deploy. Supersedes the review status above.
+  **Done 2026-11-04:** the owner said "Yep go", then "deploy"; merged to `main` and deployed as v0.2.13. These three
+  human-beta handoffs are closed.
 
 ## Superseded
 
