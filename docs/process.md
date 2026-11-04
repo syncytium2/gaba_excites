@@ -1747,7 +1747,7 @@ figure) with its template `scripts/apview.html`, tested in `src/apview.test.ts`.
 
 The session "mac armory adr" built the kit the owner handed to armory (armory `tools/adr/adr.py`, commit 1649990b)
 and reported that this repository's two ADRs passed every rule. Its check failed on three bare citations of other
-repositories' ADRs: two to beta_max's ADR-0006 in this log and the roadmap, now named by file
+repositories' ADRs: two to one of beta_max's in this log and the roadmap, now named by its file
 (`docs/adr/0006-electrical-activity-is-averaged.md` in beta_max), and one in a dated handoff, which is excluded instead.
 
 Vendored as `tools/adr/adr.py` with its source stamped on line two, unedited. `.adr-kit.json` names `docs/adr` and
