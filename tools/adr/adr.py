@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# vendored from syncytium2/armory @ 2ded5cd3 — tools/adr/adr.py
+# vendored from syncytium2/armory @ 305696e9 — tools/adr/adr.py
 # instrument: verification
 """adr — write ADRs that cannot collide, and check the rules that keep them honest.
 
@@ -60,6 +60,10 @@ RULES = ["filename", "heading", "status", "supersession", "index", "links",
 DIR_CANDIDATES = ["docs/adr", "docs/decisions", "decisions", "doc/adr", "adr"]
 INDEX_NAMES = ["README.md", "index.md"]
 CONFIG = ".adr-kit.json"
+# The kit names itself in its docstring. Any copy of it, not just the one running, is skipped by the
+# scans: its selftest fixtures are full of bare IDs by design. Matching the running path alone missed
+# a worktree's own copy when the main checkout's hook checked it (gaba_excites, 2026-11-04).
+KIT_MARK = "adr \u2014 write ADRs that cannot collide"
 TEXT_EXT = {".md", ".py", ".ts", ".tsx", ".js", ".mjs", ".sh", ".m", ".r", ".jl", ".rs",
             ".go", ".txt", ".rst", ".toml", ".yml", ".yaml"}
 
@@ -96,6 +100,15 @@ def adr_id(name):
     """The ID a filename carries, or None. Legacy IDs keep their four digits."""
     m = NEW_FILE.match(name) or OLD_FILE.match(name)
     return m.group(1) if m else None
+
+
+def is_kit(path):
+    """True for any copy of this tool, wherever it is vendored."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return KIT_MARK in f.read(600)
+    except OSError:
+        return False
 
 
 def blank_fences(text):
@@ -291,6 +304,8 @@ class Repo:
             if p in skip or any(p.startswith(s.rstrip("/") + "/") for s in skip):
                 continue
             if os.path.realpath(full) == me or not os.path.isfile(full):
+                continue
+            if is_kit(full):
                 continue
             yield p, full
 
@@ -709,6 +724,14 @@ def selftest():
         return p.returncode
     results.append((hook_exit("git commit -m x") == 2 and hook_exit("ls docs") == 0,
                     "the hook blocks a commit while a check fails", []))
+
+    # a vendored copy of the kit in the checked repo is skipped, not only the copy that is running
+    root2 = fixture("vendored")
+    shutil.copy(os.path.realpath(__file__), os.path.join(root2, "kit.py"))
+    write(root2, "tools/adr/adr.py", "#!/usr/bin/env python3\n# vendored from x @ abc\n"
+          + open(os.path.realpath(__file__)).read().split("\n", 1)[1])
+    _, f = run(root2)
+    results.append((not f, "a vendored copy of the kit is not scanned for citations", f))
 
     # the hook checks the tree the command commits, not the session's cwd
     clean = fixture("hook-clean")

@@ -25,7 +25,8 @@ rules: file and heading IDs, status, supersession both ways, this index, links, 
 unchanged, ID collisions across refs). It runs in CI (`.github/workflows/test.yml`, with full history). `.adr-kit.json`
 excludes `docs/handoffs/` from the citation scan, because handoffs are dated records whose bodies are not edited. It also
 excludes `tools/adr/adr.py`, whose self-test fixtures cite IDs on purpose: the checker skips only its own running
-copy, so the main checkout's hook, checking a worktree, otherwise flagged the worktree's copy (2026-11-04).
+copy, so the main checkout's hook, checking a worktree, otherwise flagged the worktree's copy (2026-11-04). Armory fixed the kit at
+`305696e9`, vendored here; the exclusion comes out once that copy is on `main`, where the hook runs from.
 `.gitattributes` merges this index by union, so two branches that each add a row do not conflict.
 
 **And by the kit's Claude Code hook** (`.claude/settings.json`, `adr.py hook`): before every `git commit`, `merge`,
