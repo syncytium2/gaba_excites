@@ -3,7 +3,7 @@ name: tests
 # Green means: the unit tests pass, the port still matches the committed NEURON
 # reference (src/core/oracle/neuron_rs.json — committed, so this check runs
 # here, unlike no_peak's), the GABA crossover numbers hold, and
-# `tsc -b && vite build` is clean. It does not re-run NEURON; that is
+# `tsc -b && vite build` is clean, and the ADRs in docs/adr pass armory's kit. It does not re-run NEURON; that is
 # tools/neuron_oracle.py, by hand, when the model changes.
 
 on:
@@ -30,3 +30,5 @@ jobs:
       - run: npm run build
       - name: CLI runs under plain node
         run: node scripts/fi.ts --steps 0,600 | tail -2
+      - name: ADR hygiene (tools/adr/adr.py, vendored from armory; needs the full history above)
+        run: python3 tools/adr/adr.py check

@@ -20,8 +20,17 @@ The estate's, as armory's ADR kit defines it (armory `docs/handoffs/2026-11-03-a
 - **Quote the owner with the question he was answering**, so a short reply never reads as a broader ruling.
 - Figures live in `docs/adr/figures/`, named with their ADR's ID.
 
-**Not yet enforced.** The checks above come with armory's kit, which is not built yet. Until it is vendored here,
-nothing fails when an ADR breaks this convention. What each ADR's "Enforced by" names is enforced today.
+**Enforced by** `tools/adr/adr.py check`, vendored from armory's ADR kit (see armory's `tools/adr/README.md` for the
+rules: file and heading IDs, status, supersession both ways, this index, links, bare citations, accepted ADRs left
+unchanged, ID collisions across refs). It runs in CI (`.github/workflows/test.yml`, with full history). `.adr-kit.json`
+excludes `docs/handoffs/` from the citation scan, because handoffs are dated records whose bodies are not edited.
+`.gitattributes` merges this index by union, so two branches that each add a row do not conflict.
+
+**Not yet wired:** the kit's Claude Code hook, which would run the check before every commit, merge and push in every
+session, and is the only layer that sees unpushed work in sibling worktrees. It waits for the owner's go-ahead.
+
+**Not enforced by anything:** that a decision gets an ADR at all; that an ADR and AGENTS.md or `docs/process.md` agree
+in substance; that an ADR's reasons are the ones the history shows; that a Proposed ADR is ever decided.
 
 ## Index
 

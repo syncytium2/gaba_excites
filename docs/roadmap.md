@@ -130,7 +130,7 @@ The owner's words are quoted where the item came from them.
     `Channel` objects; the solver should not need to change. The Integrated Oscillator Model's slow metabolic
     variables may not be channels at all; decide where they live before porting.
   - **Neighbor project:** beta_max (github.com/syncytium2/beta_max, private) ports Chen, Wang & Sherman 2008,
-    granule secretion fitted to mouse and rat islets. It builds no membrane model (its ADR-0006: an averaged
+    granule secretion fitted to mouse and rat islets. It builds no membrane model (its `docs/adr/0006-electrical-activity-is-averaged.md`: an averaged
     glucose → K_ATP → plateau voltage). Its engine takes voltage as input, `Drive = { Vmd, Vi, G }` in
     `src/core/chen08.ts` (the voltage the L-type and R-type channels see, and a glucose factor); a mouse V(t) from
     here can feed both voltages later. That is why mouse comes first: it can drive that engine without mixing
