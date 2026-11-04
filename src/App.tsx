@@ -29,6 +29,7 @@ import { AmpChoice, AmpDial, AmpRow, AmpSection, AmpSlot, RigPanels } from "./ui
 import { TOUR, tourInputs, type TourControl, type TourSettings } from "./core/tour.ts";
 import { applyZoom, ZOOM_MENU, type Range, type ZoomOp } from "./ui/zoom.ts";
 import { CurrentContext, CurrentDial, CurrentList, currentUnit, digitsFor, niceStep, type CurrentUnit } from "./ui/current.tsx";
+import { ampsKey, stepDirection, stepTo } from "./ui/step.ts";
 
 // The app opens on the tour's first part: the GnRH cell in the oscilloscope,
 // held near −61 mV, with GABA PSCs on (the owner, 2026-10-19).
@@ -87,6 +88,12 @@ export function App() {
   // null when not playing; otherwise how many are shown so far.
   const [play, setPlay] = useState<number | null>(null);
   const playAfterRun = useRef(false);
+  // Step: the same view, moved by hand (buttons, arrow keys, a presentation clicker) instead of every 0.5 s.
+  // A re-run of the same amplitudes (a slider moved) keeps its place; a new family starts again at its first sweep.
+  const [stepping, setStepping] = useState(false);
+  const steppingRef = useRef(false);
+  steppingRef.current = stepping;
+  const steppedAmps = useRef("");
   // bumped to re-run an unchanged protocol, so a tour part can always play it
   const [runNonce, setRunNonce] = useState(0);
   // Step protocol, or the oscilloscope: the cell running continuously, every control live
@@ -154,10 +161,15 @@ export function App() {
       if (r.kind === "run") {
         setResult({ sweeps: r.sweeps, summary: r.summary, cell: r.cell, ms: r.ms, protocol: pendingProto.current, settings: pendingSettings.current! });
         setBusy(false);
+        const amps = ampsKey(r.sweeps.map((s) => s.amp));
         if (playAfterRun.current) {
           playAfterRun.current = false;
+          setStepping(false);
           setPlay(1);
+        } else if (steppingRef.current) {
+          if (amps !== steppedAmps.current) setPlay(1);
         } else setPlay(null);
+        steppedAmps.current = amps;
         setError(null);
       } else if (r.kind === "rheobase") {
         setRefined((prev) => (prev ? { ...prev, value: r.rheobase, tol: r.tolerance } : prev));
@@ -274,22 +286,51 @@ export function App() {
   };
 
   useEffect(() => {
-    if (play === null || !result) return;
+    if (play === null || !result || stepping) return;
     if (play >= result.sweeps.length) {
       const h = setTimeout(() => setPlay(null), 500);
       return () => clearTimeout(h);
     }
     const h = setTimeout(() => setPlay(play + 1), 500);
     return () => clearTimeout(h);
-  }, [play, result]);
+  }, [play, result, stepping]);
+
+  const nSweeps = result?.sweeps.length ?? 0;
+  const startStepping = () => {
+    setStepping(true);
+    setPlay(1);
+  };
+  const showAll = () => {
+    setStepping(false);
+    setPlay(null);
+  };
+  const step = (dir: -1 | 1) => setPlay((p) => stepTo(p ?? 1, dir, nSweeps));
+  // the arrow keys and Page Up/Down step, which is what a presentation clicker sends
+  useEffect(() => {
+    if (!stepping || mode !== "steps" || nSweeps === 0) return;
+    const key = (e: KeyboardEvent) => {
+      const dir = stepDirection(e.key, { alt: e.altKey, ctrl: e.ctrlKey, meta: e.metaKey, shift: e.shiftKey }, e.target);
+      if (dir === 0) return;
+      e.preventDefault();
+      setPlay((p) => stepTo(p ?? 1, dir, nSweeps));
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [stepping, mode, nSweeps]);
 
   // ------------------------------------------------------------ derived
   const playing = play !== null && result !== null;
   const shown = useMemo(() => {
     if (!result || play === null) return result;
     const order = [...result.sweeps].sort((a, b) => a.amp - b.amp);
-    return { ...result, sweeps: order.slice(0, Math.max(1, play)) };
+    return { ...result, sweeps: order.slice(0, Math.min(Math.max(1, play), order.length)) };
   }, [result, play]);
+  // the newest sweep shown while playing or stepping, and what it did
+  const newest = playing && shown ? shown.sweeps[shown.sweeps.length - 1] : undefined;
+  const newestStats = newest ? result?.summary.stats.find((s) => s.amp === newest.amp) : undefined;
+  const newestNote = newest && newestStats
+    ? `${newestStats.nInStep === 0 ? "no spikes" : newestStats.nInStep === 1 ? "1 spike" : `${newestStats.nInStep} spikes`}${newest.amp === result?.summary.rheobase ? ", the first to fire" : ""}`
+    : "";
   const playRanges = useMemo(() => {
     if (!result) return undefined;
     let vLo = Infinity, vHi = -Infinity, iLo = Infinity, iHi = -Infinity;
@@ -700,7 +741,7 @@ export function App() {
                       <span className="status" aria-live="polite" hidden={cursorMode === "measure" && !busy}>{busy ? "simulating…" : `${sweeps.length} sweeps simulated in ${Math.round(result.ms)} ms`}</span>
                     </span>
                     <span className="play-status" aria-live="polite">
-                      {playing && shown ? `Sweep ${shown.sweeps.length} of ${sweeps.length}: ${ru.text(shown.sweeps[shown.sweeps.length - 1].amp)}` : ""}
+                      {playing && shown && newest ? `Sweep ${shown.sweeps.length} of ${sweeps.length}: ${ru.text(newest.amp)}${stepping && newestNote ? ` · ${newestNote}` : ""}` : ""}
                     </span>
                     {cursorMode === "measure" && <span className="readout" ref={readoutRef}>{READOUT_HINT}</span>}
                     <span className="seg small cursor-mode" role="radiogroup" aria-label="Cursor">
@@ -710,7 +751,18 @@ export function App() {
                           onClick={() => setCursorMode(m)}>{m === "zoom" ? "Zoom" : "Measure"}</button>
                       ))}
                     </span>
-                    <button type="button" onClick={() => (playing ? setPlay(null) : setPlay(1))}>{playing ? "Show all" : "Play sweeps"}</button>
+                    {stepping && playing ? (
+                      <span className="stepper" role="group" aria-label="Step through the sweeps">
+                        <button id="step-back" type="button" aria-label="previous sweep" title="Previous sweep (← or Page Up)" disabled={(shown?.sweeps.length ?? 1) <= 1} onClick={() => step(-1)}>◀</button>
+                        <button id="step-next" type="button" aria-label="next sweep" title="Next sweep (→ or Page Down; a presentation clicker works too)" disabled={(shown?.sweeps.length ?? 0) >= sweeps.length} onClick={() => step(1)}>▶</button>
+                        <button id="step-done" type="button" onClick={showAll}>Show all</button>
+                      </span>
+                    ) : (
+                      <span className="btns">
+                        <button id="play-sweeps" type="button" onClick={() => { if (playing) showAll(); else { setStepping(false); setPlay(1); } }}>{playing ? "Show all" : "Play sweeps"}</button>
+                        <button id="step-sweeps" type="button" title="Show one sweep, then step with ◀ ▶, the arrow keys or a presentation clicker" onClick={startStepping}>Step</button>
+                      </span>
+                    )}
                     <span className="check">
                       <input id="show-vm" type="checkbox" checked={showVm} onChange={(e) => setShowVm(e.target.checked)} />
                       <label htmlFor="show-vm">show</label>
@@ -729,7 +781,7 @@ export function App() {
                   )}
                   <p className="legendline">
                     Sweeps shade {pal.name === "dark" ? "dim → bright" : "light → dark"} with step amplitude; {playing && shown
-                      ? <><span style={{ color: pal.orange }}>■</span> the newest sweep ({ru.text(shown.sweeps[shown.sweeps.length - 1].amp)}).</>
+                      ? <><span style={{ color: pal.orange }}>■</span> the newest sweep ({ru.text(shown.sweeps[shown.sweeps.length - 1].amp)}).{stepping && <> Step with ◀ ▶, the arrow keys, or a presentation clicker; the axes hold still, and a slider moved here keeps your place.</>}</>
                       : <><span style={{ color: pal.orange }}>■</span> the selected sweep ({sweeps[sel] ? ru.text(sweeps[sel].amp) : "—"}). Hover to read values, click a trace to select it. Drag a marquee and click inside it to zoom; ⌘/Ctrl-A autoscales.</>}
                     {synOn && <> Conductances are the selected sweep's: <span style={{ color: pal.orange }}>■</span> glutamate, <span style={{ color: pal.aqua }}>■</span> GABA.</>}
                   </p>
@@ -755,7 +807,7 @@ export function App() {
                         <button className="linkish" onClick={downloadCsv}>CSV</button>
                       </span>
                     </figcaption>
-                    <FIPlot summary={summary!} pins={pins} pal={pal} cu={ru} />
+                    <FIPlot summary={summary!} pins={pins} pal={pal} cu={ru} upTo={newest?.amp} />
                     <p className="legendline">
                       Mean rate is spikes in the step ÷ its duration; initial rate is 1 / the first interspike interval. Steps below
                       zero are left off; they are in the table.
@@ -763,8 +815,9 @@ export function App() {
                     </p>
                   </figure>
                   <figure className="card">
-                    <figcaption><span>Phase plot, {sweeps[sel] ? ru.text(sweeps[sel].amp) : "—"}</span></figcaption>
-                    <PhasePlot vm={sweeps[sel].vm} dt={sweeps[sel].sampleMs} color={pal.orange} />
+                    {/* while the sweeps play or step, the newest sweep's: the selected one could show a spike the room has not reached */}
+                    <figcaption><span>Phase plot, {(newest ?? sweeps[sel]) ? ru.text((newest ?? sweeps[sel]).amp) : "—"}</span></figcaption>
+                    <PhasePlot vm={(newest ?? sweeps[sel]).vm} dt={(newest ?? sweeps[sel]).sampleMs} color={pal.orange} />
                   </figure>
                 </div>
 
@@ -1108,14 +1161,18 @@ function TracePlots({ result, rank, sel, showVm, synOn, onSelect, ranges, screen
 
 // ------------------------------------------------------------------ F–I
 
-function FIPlot({ summary, pins, pal, cu }: { summary: FamilySummary; pins: Pin[]; pal: ChartColors; cu: CurrentUnit }) {
+function FIPlot({ summary, pins, pal, cu, upTo }: { summary: FamilySummary; pins: Pin[]; pal: ChartColors; cu: CurrentUnit; upTo?: number }) {
   // The F–I curve starts at 0 pA: hyperpolarizing steps fire nothing and belong
   // to the Rin measurement. They stay in the table below.
   // In density mode each curve converts by its own cell's Cm, which is what lets
   // cells of different size share the axis.
+  // While the sweeps play or step, only the steps shown so far are plotted (upTo, pA), on the whole family's axes.
   const x = (amp: number, cm: number) => (cu.density ? +(amp / cm).toPrecision(6) : amp);
-  const stats = [...summary.stats].filter((s) => s.amp >= 0).sort((a, b) => a.amp - b.amp);
-  const xs = Array.from(new Set([...stats.map((s) => x(s.amp, cu.cm)), ...pins.flatMap((p) => p.points.filter((q) => q.amp >= 0).map((q) => x(q.amp, p.cm)))])).sort((a, b) => a - b);
+  const all = [...summary.stats].filter((s) => s.amp >= 0).sort((a, b) => a.amp - b.amp);
+  const stats = upTo === undefined ? all : all.filter((s) => s.amp <= upTo);
+  const yTop = useRef(0);
+  yTop.current = Math.max(0, ...all.map((s) => s.meanRate), ...all.map((s) => (Number.isFinite(s.initialRate) ? s.initialRate : 0)));
+  const xs = Array.from(new Set([...all.map((s) => x(s.amp, cu.cm)), ...pins.flatMap((p) => p.points.filter((q) => q.amp >= 0).map((q) => x(q.amp, p.cm)))])).sort((a, b) => a - b);
   const at = (pts: { x: number; v: number }[]) => xs.map((xx) => pts.find((p) => p.x === xx)?.v ?? null);
   const data = [
     xs,
@@ -1140,7 +1197,7 @@ function FIPlot({ summary, pins, pal, cu }: { summary: FamilySummary; pins: Pin[
         cursor: { drag: { x: false, y: false } },
         scales: {
           x: { time: false, range: (_u, _lo, hi) => [0, Math.max(hi ?? 0, 1)] },
-          y: { range: (_u, _lo, hi) => [0, Math.max(10, hi * 1.08)] },
+          y: { range: (_u, _lo, hi) => [0, Math.max(10, Math.max(hi ?? 0, yTop.current) * 1.08)] },
         },
         axes: [axisOpts(pal, `step current (${cu.label})`, 40), axisOpts(pal, "firing rate (Hz)", 50)],
         series,

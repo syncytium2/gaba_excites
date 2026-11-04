@@ -86,6 +86,44 @@ await page.selectOption("#model-select", "rs");
 await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
 await page.screenshot({ path: `${out}/app.png`, fullPage: true });
 
+// Step: one sweep at a time, moved by hand, for teaching from the front. The buttons and the clicker's keys step and
+// stop at the ends; nothing advances on its own; a knob keeps the keys it uses, and turning one keeps the place.
+{
+  const st = () => page.locator(".play-status").textContent();
+  const at = async (k, what) => { const s = await st(); if (!new RegExp(`^Sweep ${k} of \\d+`).test(s ?? "")) problems.push(`step: ${what}: "${s}"`); };
+  await page.click("#step-sweeps");
+  await at(1, "Step does not open on the first sweep");
+  if (!(await page.locator("#step-back").isDisabled())) problems.push("step: back is enabled on the first sweep");
+  await page.locator("h1").click();
+  await page.keyboard.press("PageDown");
+  await page.keyboard.press("PageDown");
+  await at(3, "Page Down (a clicker) does not step");
+  await page.keyboard.press("ArrowLeft");
+  await at(2, "the left arrow does not step back");
+  await page.click("#step-next");
+  await page.waitForTimeout(1200);
+  await at(3, "the next button does not step, or the sweeps advance on their own");
+  const knob = page.locator("[role=slider]").first();
+  const before = await knob.getAttribute("aria-valuenow");
+  await knob.focus();
+  await knob.press("ArrowRight");
+  if ((await knob.getAttribute("aria-valuenow")) === before) problems.push("step: a focused knob lost the arrow keys");
+  await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
+  await page.waitForTimeout(300);
+  await at(3, "turning a knob lost the place");
+  await knob.press("ArrowLeft");
+  await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
+  await page.locator("h1").click();
+  for (let i = 0; i < 30; i++) await page.keyboard.press("PageDown");
+  const last = await st();
+  const m = /^Sweep (\d+) of (\d+)/.exec(last ?? "");
+  if (!m || m[1] !== m[2]) problems.push(`step: does not stop at the last sweep: "${last}"`);
+  if (!(await page.locator("#step-next").isDisabled())) problems.push("step: next is enabled on the last sweep");
+  await page.screenshot({ path: `${out}/step.png`, fullPage: false });
+  await page.click("#step-done");
+  if (await page.locator("#step-next").count()) problems.push("step: Show all leaves the step buttons");
+}
+
 const presetSelect = "#preset-select";
 for (const preset of ["shunt", "barrage"]) {
   await page.selectOption(presetSelect, preset);

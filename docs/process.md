@@ -1616,3 +1616,26 @@ The methods page has a paragraph on it (`#beta-vc`), and the validation table's 
 `beta-app.test.ts` requires both, and `scripts/screenshot.mjs` checks the note shows on the beta cell and not on the
 pyramidal cell. In parallel, a search for beta cell models whose currents were fitted to voltage-clamp data (mouse and
 human) was started at the owner's request.
+
+## 2026-11-04 — Step: the family one sweep at a time, by hand
+
+The owner asked for advice on phone and lecture-screen views, after HHhero (`syncytium2/HHhero`), which has both,
+then for the first recommendation: HHhero's Step. Play sweeps already drew the family in amplitude order on fixed
+axes, one sweep every 0.5 s, so Step is that view moved by hand rather than a second mechanism.
+
+- **Step**, beside Play sweeps, opens on the first sweep. ◀ ▶, the arrow keys and Page Up/Down (what a presentation
+  clicker sends) move one sweep and stop at the ends; nothing advances on its own. **Show all** leaves it.
+- **The keys stay with a control that uses them**: a text field, a list, or a knob (role="slider"). The segmented
+  buttons are role="radio" but leave the arrows alone, so the clicker still steps after Zoom or Measure is pressed.
+  Modified keys never step. `src/ui/step.ts`, tested in `step.test.ts`.
+- **A knob turned while stepping keeps the place**, as HHhero's pulses stay put while a slider moves: a re-run with the
+  same amplitudes keeps the count; a new family (other amplitudes, or a preset) starts again at its first sweep.
+- **The status line says what the sweep did**: "Sweep 8 of 13: 500 pA · no spikes", and "the first to fire" on the
+  rheobase step. The readouts stay hidden until Show all, as they already did while playing, so the room finds
+  rheobase before the page names it.
+- **The F–I curve and the phase plot follow**: F–I fills in point by point on the whole family's axes, and the phase
+  plot shows the newest sweep, not the selected one, which could show a spike the room has not reached yet.
+
+`scripts/screenshot.mjs` steps with the buttons and the keys, checks a focused knob keeps its arrows and turning it
+keeps the place, and checks both ends. Not yet built from the same advice: Step in voltage clamp, a Focus view for the
+projector, larger touch targets on the amplifier, and a 1280×720 check.
