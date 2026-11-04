@@ -1639,3 +1639,28 @@ axes, one sweep every 0.5 s, so Step is that view moved by hand rather than a se
 `scripts/screenshot.mjs` steps with the buttons and the keys, checks a focused knob keeps its arrows and turning it
 keeps the place, and checks both ends. Not yet built from the same advice: Step in voltage clamp, a Focus view for the
 projector, larger touch targets on the amplifier, and a 1280×720 check.
+
+## 2026-11-04 — Focus, Step in voltage clamp, phone-sized controls
+
+The owner, after Step: "go for it", for the rest of the same advice.
+
+- **Focus** (a checkbox beside Old school, every mode): the screen takes the window below the readouts, up to 1400 px;
+  the tour, the tagline, the links, the stamp and the footer step aside; the page drops its 1500 px cap, so a
+  projector's whole width is traces; the amplifier waits a scroll below. The oscilloscope drops its sticky column in
+  Focus (it scrolled the tube out of sight) and its tube may grow past 300 px (`maxScreen`). Remembered per device
+  (`gaba_excites.focus.v1`), like Old school. Type is not scaled up; worth checking from the back of the room.
+- **Step in voltage clamp**: the same buttons and keys. The trace plot keeps every sweep in its data and gives the
+  ones not reached yet as gaps, so the axes, and a zoom, hold still; the newest sweep is orange, its color read at draw
+  time so stepping does not rebuild the plot. The status line gives the newest sweep's value and what each
+  measurement read there. The measured and normalized curves fill in on the whole family's ranges (the same ranges
+  linePlot picked before, so Show all looks as it did); the normalization keeps the whole family's maximum, so no
+  point moves as more arrive, and the Boltzmann is fitted once four points are in. The Tektronix readout gives the
+  extremes over the sweeps shown.
+- **Phone-sized controls** (760 px and below): buttons, segmented switches, lists and number fields at least 36 px
+  tall (Step's arrows 40), segment buttons at least 36 px wide, checkboxes 20 px, and every text field at 16 px, below
+  which iOS zooms the page on a tap. 67 controls on the screen card and the amplifier were under 32 px; none are now.
+  Wide screens keep the instrument panel's tight sizes.
+
+`scripts/screenshot.mjs` now steps the voltage-clamp family (points fill in, axes hold), checks Focus at 1280×720 in
+all three modes (the screen reaches the window's foot, the amplifier just below, nothing overflows, unticking brings
+the tour back), and fails on any phone control under 32 px or text field under 16 px.

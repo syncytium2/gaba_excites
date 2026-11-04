@@ -17,6 +17,7 @@ import { Tip } from "./Tip.tsx";
 import { axisOpts } from "./axis.ts";
 import { useCurrentUnit, type CurrentUnit } from "./current.tsx";
 import type { ChartColors } from "./palette.ts";
+import { ampsKey, stepDirection, stepTo } from "./step.ts";
 
 /** Limits that keep a family quick: a run is settled once, then every sweep. */
 const MAX_SWEEPS = 30;
@@ -47,6 +48,18 @@ const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 function vcUnit(maxAbs: number, cu: CurrentUnit): { div: number; unit: string } {
   if (cu.density) return { div: cu.cm, unit: cu.label };
   return maxAbs >= 5000 ? { div: 1000, unit: "nA" } : { div: 1, unit: "pA" };
+}
+
+/** While stepping: "Sweep 4 of 13: −40 mV · M1 −12.3 nA", the newest sweep's value and what each measurement read. */
+function stepText(k: number, n: number, sw: VCSweep, measures: VCMeasure[], points: VCPoint[][], idx: number, varied: "v" | "dur", u: { div: number; unit: string }): string {
+  const v = varied === "v" ? `${sw.value > 0 ? "+" : ""}${+sw.value.toFixed(1)} mV` : `${+sw.value.toFixed(1)} ms`;
+  const reads = measures.map((_, j) => {
+    const p = points[j]?.[idx];
+    if (!p || !Number.isFinite(p.i)) return "";
+    const x = p.i / u.div;
+    return `M${j + 1} ${x.toFixed(Math.abs(x) < 10 ? 2 : 1)} ${u.unit}`;
+  }).filter(Boolean);
+  return `Sweep ${k} of ${n}: ${v}${reads.length ? " · " + reads.join(" · ") : ""}`.replace(/-/g, "−");
 }
 
 /**
@@ -100,6 +113,11 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   const [seed, setSeed] = useState(1);
   // the run on screen, and the request that made it: a zoomed window re-simulates exactly that
   const [result, setResult] = useState<{ sweeps: VCSweep[]; ms: number; protocol: VCProtocol; req: VCRequest } | null>(null);
+  // Step: the family one sweep at a time, in order of the varied value, moved by hand (◀ ▶, the arrow keys, a
+  // presentation clicker), as in the step protocol. null shows every sweep. A re-run with the same values (a knob
+  // turned) keeps the place; a new family starts again at its first sweep.
+  const [stepAt, setStepAt] = useState<number | null>(null);
+  const steppedValues = useRef("");
   // the family run's progress, 0..1, while one is running (a GnRH family takes seconds)
   const [runProgress, setRunProgress] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -153,6 +171,9 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
       }
       if (r.kind === "run" && pending.current) {
         setResult({ sweeps: r.sweeps, ms: r.ms, protocol: pending.current.protocol, req: pending.current });
+        const values = ampsKey(r.sweeps.map((sw) => sw.value));
+        if (values !== steppedValues.current) setStepAt((k) => (k === null ? null : 1));
+        steppedValues.current = values;
         setError(null);
       } else if (r.kind === "error") setError(r.message);
       setBusy(false);
@@ -187,6 +208,27 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
   const capMs = transientMs(rs, cell.cm, result?.sweeps[0]?.sampleMs ?? 0.01, noise.recFilter);
   const sweeps = useMemo(() => (blank ? (result?.sweeps ?? []).map((sw) => blankSweep(sw, capMs)) : result?.sweeps ?? []), [result, blank, capMs]);
   const points: VCPoint[][] = useMemo(() => measures.map((m) => sweeps.map((sw) => measureSweep(sw, m))), [sweeps, measures]);
+  // while stepping, which sweeps are shown so far: the first stepAt in order of the varied value
+  const nSweeps = sweeps.length;
+  const shownCount = stepAt === null ? nSweeps : Math.min(Math.max(1, stepAt), nSweeps);
+  const vis = useMemo(() => {
+    const order = sweeps.map((sw, k) => [sw.value, k] as const).sort((a, b) => a[0] - b[0]);
+    const v = new Array<boolean>(sweeps.length).fill(false);
+    order.slice(0, shownCount).forEach(([, k]) => (v[k] = true));
+    return { v, newest: order[shownCount - 1]?.[1] ?? -1 };
+  }, [sweeps, shownCount]);
+  const step = (dir: -1 | 1) => setStepAt((k) => stepTo(k ?? 1, dir, nSweeps));
+  useEffect(() => {
+    if (stepAt === null || nSweeps === 0) return;
+    const key = (e: KeyboardEvent) => {
+      const dir = stepDirection(e.key, { alt: e.altKey, ctrl: e.ctrlKey, meta: e.metaKey, shift: e.shiftKey }, e.target);
+      if (dir === 0) return;
+      e.preventDefault();
+      setStepAt((k) => stepTo(k ?? 1, dir, nSweeps));
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [stepAt === null, nSweeps]); // eslint-disable-line react-hooks/exhaustive-deps
   const vary = result?.protocol.vary ?? proto.vary;
   const varied = vary.what;
   // x is the swept value: the command of the varied segment, or its duration. True Vm can stand in for the
@@ -219,31 +261,40 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
       for (const r of raw) if (Number.isFinite(r) && (asG ? r > big : Math.abs(r) > Math.abs(big))) big = r;
       const y = raw.map((r) => (big !== 0 ? r / big : NaN));
       const leaveOut = asG && fitPos;
-      const ok = x.map((_, i) => Number.isFinite(x[i]) && Number.isFinite(y[i]) && (!leaveOut || y[i] > -NEG_G));
-      const dropped = leaveOut ? y.filter((v) => Number.isFinite(v) && v <= -NEG_G).length : 0;
+      // while stepping, only the sweeps shown so far are fitted; the maximum is the whole family's, so no point moves
+      const ok = x.map((_, i) => vis.v[i] && Number.isFinite(x[i]) && Number.isFinite(y[i]) && (!leaveOut || y[i] > -NEG_G));
+      const dropped = leaveOut ? y.filter((v, i) => vis.v[i] && Number.isFinite(v) && v <= -NEG_G).length : 0;
       const fx = x.filter((_, i) => ok[i]);
       const fy = y.filter((_, i) => ok[i]);
-      const fit = varied === "v" && fitOn && big !== 0 ? fitBoltzmann(fx, fy) : null;
+      const fit = varied === "v" && fitOn && big !== 0 && fx.length >= 4 ? fitBoltzmann(fx, fy) : null;
       // where the measured current changes sign, by linear interpolation: a reversal potential, for a tail family
       const zero = varied === "v" ? zeroCrossing(x, pts.map((p) => p.i)) : NaN;
       return { x, y, ok, fit, zero, dropped, noMax: big === 0 };
     });
     return out.some(Boolean) ? out : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, norm, erev, xAxis, varied, fitOn, fitPos]);
+  }, [points, norm, erev, xAxis, varied, fitOn, fitPos, vis]);
 
   // ------------------------------------------------------------ plots
   const theme: PlotTheme = { ink: pal.ink2, ink2: pal.ink2, grid: pal.grid, axis: pal.axis, surface: pal.surface };
   const colors = [pal.orange, pal.aqua];
   const ivSvg = useMemo(() => {
     if (!sweeps.length) return "";
+    // the whole family's range, so a plot built point by point while stepping holds still (the same range linePlot would pick)
+    const ax: number[] = [];
+    const ay: number[] = [];
     const series: Series[] = points.map((pts, j) => {
       const order = pts.map((p, i) => [xOf(p, j), i] as const).sort((a, b) => a[0] - b[0]);
-      return { x: order.map(([x]) => x), y: order.map(([, i]) => pts[i].i / u.div), color: colors[j], dots: true, label: `M${j + 1}: ${kindName(measures[j].kind)}` };
+      for (const [x, i] of order) if (Number.isFinite(x) && Number.isFinite(pts[i].i)) { ax.push(x); ay.push(pts[i].i / u.div); }
+      const shown = order.filter(([, i]) => vis.v[i]);
+      return { x: shown.map(([x]) => x), y: shown.map(([, i]) => pts[i].i / u.div), color: colors[j], dots: true, label: `M${j + 1}: ${kindName(measures[j].kind)}` };
     });
-    return linePlot({ series, xlabel: xLabel, ylabel: `${u.unit === "pA/pF" ? "measured I" : "measured current"} (${u.unit})`, hlines: [{ y: 0, color: pal.muted }], legend: "clear", theme, width: 520, height: 150 });
+    const [yLo, yHi] = [Math.min(...ay), Math.max(...ay)];
+    const yPad = 0.05 * (yHi - yLo);
+    const ranges = ax.length ? { xrange: [Math.min(...ax), Math.max(...ax)] as [number, number], yrange: [yLo - yPad, yHi + yPad] as [number, number] } : {};
+    return linePlot({ series, xlabel: xLabel, ylabel: `${u.unit === "pA/pF" ? "measured I" : "measured current"} (${u.unit})`, hlines: [{ y: 0, color: pal.muted }], legend: "clear", theme, width: 520, height: 150, ...ranges });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, xAxis, pal, u.div, u.unit]);
+  }, [points, xAxis, pal, u.div, u.unit, vis]);
   const normSvg = useMemo(() => {
     if (!normalized) return "";
     const series: Series[] = [];
@@ -253,8 +304,9 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     normalized.forEach((nm, j) => {
       if (!nm) return;
       const order = nm.x.map((x, i) => [x, i] as const).filter(([x]) => Number.isFinite(x)).sort((a, b) => a[0] - b[0]);
-      const inFit = order.filter(([, i]) => nm.ok[i] || !nm.dropped);
-      const outFit = order.filter(([, i]) => !nm.ok[i] && nm.dropped);
+      const shown = order.filter(([, i]) => vis.v[i]);
+      const inFit = shown.filter(([, i]) => nm.ok[i] || !nm.dropped);
+      const outFit = shown.filter(([, i]) => !nm.ok[i] && nm.dropped);
       series.push({ x: inFit.map(([x]) => x), y: inFit.map(([, i]) => nm.y[i]), color: colors[j], dots: true, line: false, label: `M${j + 1}` });
       if (outFit.length) series.push({ x: outFit.map(([x]) => x), y: outFit.map(([, i]) => nm.y[i]), color: colors[j], dots: true, hollow: true, line: false, label: `M${j + 1}, left out of the fit` });
       for (const [x, i] of order) {
@@ -263,9 +315,9 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
       }
       const f = nm.fit;
       // the best curve is drawn however poor, across the data's range only, so a V½ far outside it stretches nothing
-      if (f && Number.isFinite(f.vHalf) && order.length) {
-        const lo = order[0][0];
-        const hi = order[order.length - 1][0];
+      if (f && Number.isFinite(f.vHalf) && shown.length) {
+        const lo = shown[0][0];
+        const hi = shown[shown.length - 1][0];
         const xs: number[] = [];
         for (let v = lo; v <= hi; v += (hi - lo) / 100 || 1) xs.push(v);
         fits.push({ x: xs, y: xs.map((v) => 1 / (1 + Math.exp((v - f.vHalf) / f.k))), color: j === 0 ? pal.blue : colors[j], dash: j === 0 ? undefined : "5 3", label: `M${j + 1} fit` });
@@ -280,7 +332,7 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
     const xPad = 0.02 * (xHi - xLo || 1);
     return linePlot({ series: [...series, ...fits], xlabel: xLabel, ylabel: norm === "G" && varied === "v" ? "G / Gmax" : "I / |I|max", xrange: allX.length ? [xLo - xPad, xHi + xPad] : undefined, yrange: [Math.min(-0.1, yLo - yPad), Math.max(1.1, yHi + yPad)], legend: "clear", theme, width: 520, height: 150 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [normalized, pal, norm]);
+  }, [normalized, pal, norm, vis]);
 
   // ------------------------------------------------------------ controls
   const segs = proto.segments;
@@ -301,6 +353,16 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
         <figure className="card screen-card vc-traces">
           <figcaption>
             <span>Recorded current{showTrue ? ", true current and Vm dashed behind" : ""} <span className="status" aria-live="polite">{status}</span></span>
+            <span className="play-status" aria-live="polite">{stepAt !== null && vis.newest >= 0 ? stepText(shownCount, nSweeps, sweeps[vis.newest], measures, points, vis.newest, varied, u) : ""}</span>
+            {nSweeps > 1 && (stepAt === null ? (
+              <button id="vc-step" type="button" title="Show one sweep, then step with ◀ ▶, the arrow keys or a presentation clicker" onClick={() => setStepAt(1)}>Step</button>
+            ) : (
+              <span className="stepper" role="group" aria-label="Step through the sweeps">
+                <button id="vc-step-back" type="button" aria-label="previous sweep" title="Previous sweep (← or Page Up)" disabled={shownCount <= 1} onClick={() => step(-1)}>◀</button>
+                <button id="vc-step-next" type="button" aria-label="next sweep" title="Next sweep (→ or Page Down; a presentation clicker works too)" disabled={shownCount >= nSweeps} onClick={() => step(1)}>▶</button>
+                <button id="vc-step-done" type="button" onClick={() => setStepAt(null)}>Show all</button>
+              </span>
+            ))}
             <span className="check">
               <input id="vc-show-true" type="checkbox" checked={showTrue} onChange={(e) => setShowTrue(e.target.checked)} />
               <label htmlFor="vc-show-true">show</label>
@@ -317,11 +379,12 @@ export function VClampMode({ cell, simTop, simSummary, ampControls, pal, screenH
               <span style={{ width: `${Math.round(runProgress * 100)}%` }} />
             </div>
           )}
-          {sweeps.length > 0 && result && <VCTraces sweeps={sweeps} measures={measures} showTrue={showTrue} pal={pal} valueUnit={varied === "v" ? "mV" : "ms"} capMs={capMs} height={Math.max(330, screenH - 110)} req={result.req} blank={blank} />}
+          {sweeps.length > 0 && result && <VCTraces sweeps={sweeps} measures={measures} showTrue={showTrue} pal={pal} valueUnit={varied === "v" ? "mV" : "ms"} capMs={capMs} height={Math.max(330, screenH - 110)} req={result.req} blank={blank} shown={stepAt === null ? undefined : vis} />}
           <p className="legendline">
             Sweeps shade {pal.name === "dark" ? "dim → bright" : "light → dark"} with the varied value. {pal.name === "dark" ? <>Dotted gates mark where each measurement is taken, and the readout under the screen gives each one's extreme over the family.</> : <>Shaded windows show where each
             measurement is taken (<span style={{ color: colors[0] }}>■</span> M1, <span style={{ color: colors[1] }}>■</span> M2).</>} The
             capacitive transient after each step (5 Rs·Cm and the filter's settling, here {fmt(capMs, 2)} ms) is left out of the autoscale{blank ? ", and blanked" : ""}.
+            {stepAt !== null && <> Stepping: <span style={{ color: pal.orange }}>■</span> the newest sweep. Step with ◀ ▶, the arrow keys, or a presentation clicker; the axes hold still, the plots beside fill in, and a knob turned here keeps your place.</>}
           </p>
           {error && <div className="warn" role="alert">Simulation failed: {error}</div>}
         </figure>
@@ -503,7 +566,11 @@ const GATE = ["rgba(170, 255, 190, 0.95)", "rgba(150, 220, 255, 0.9)"];
 const NEG_G = 0.05;
 
 /** The current traces of a family over the command, with each measurement's window shaded. */
-function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height, req, blank }: { sweeps: VCSweep[]; measures: VCMeasure[]; showTrue: boolean; pal: ChartColors; valueUnit: string; capMs: number; height: number; req: VCRequest; blank: boolean }) {
+function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height, req, blank, shown }: {
+  sweeps: VCSweep[]; measures: VCMeasure[]; showTrue: boolean; pal: ChartColors; valueUnit: string; capMs: number; height: number; req: VCRequest; blank: boolean;
+  /** while stepping: which sweeps are drawn, and the newest. The whole family still sets the axes, so nothing rescales. */
+  shown?: { v: boolean[]; newest: number };
+}) {
   const cu = useCurrentUnit();
   // the current plot and the command strip share one time axis, so they zoom together
   // (the zoom is carried by the xSync hooks; the sync key moves the crosshair on both at once)
@@ -609,15 +676,23 @@ function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height, r
   };
   // the traces on one time axis, the refined window spliced in where there is one
   const spliced = useMemo(() => spliceWindow(sweeps, refined, blank ? capMs : null), [sweeps, refined, blank, capMs]);
+  // a sweep not reached yet while stepping is all gaps: it keeps its place in the data, so the plot only redraws
+  const hide = useMemo(() => {
+    const empty = new Array<null>(spliced.t.length).fill(null);
+    return <T,>(cols: T[]) => (shown ? cols.map((c, k) => (shown.v[k] ? c : (empty as unknown as T))) : cols);
+  }, [spliced, shown]);
   const iData = useMemo(() => {
     const div = (c: (number | null)[]) => (u.div === 1 ? c : c.map((v) => (v === null ? null : v / u.div)));
-    return [spliced.t, ...(showTrue ? spliced.iTrue.map(div) : []), ...spliced.iRec.map(div)] as uPlot.AlignedData;
-  }, [spliced, showTrue, u.div]);
-  const vData = useMemo(() => [spliced.t, ...(showTrue ? spliced.vm : []), ...spliced.vCmd] as uPlot.AlignedData, [spliced, showTrue]);
+    return [spliced.t, ...hide(showTrue ? spliced.iTrue.map(div) : []), ...hide(spliced.iRec.map(div))] as uPlot.AlignedData;
+  }, [spliced, showTrue, u.div, hide]);
+  const vData = useMemo(() => [spliced.t, ...hide(showTrue ? spliced.vm : []), ...hide(spliced.vCmd)] as uPlot.AlignedData, [spliced, showTrue, hide]);
+  // the newest sweep is drawn orange; read at draw time, so stepping redraws without rebuilding the plot (and its zoom)
+  const newestRef = useRef(-1);
+  newestRef.current = shown ? shown.newest : -1;
   const series = (label: string): uPlot.Series[] => [
     {},
     ...(showTrue ? sweeps.map((_, k) => ({ label: `true ${k}`, stroke: tube ? "rgba(217, 211, 194, 0.45)" : pal.muted, width: 1, dash: [4, 3] })) : []),
-    ...sweeps.map((s, k) => ({ label: `${label} ${s.value}`, stroke: color(k), width: 1.25 })),
+    ...sweeps.map((s, k) => ({ label: `${label} ${s.value}`, stroke: () => (newestRef.current === k ? pal.orange : color(k)), width: 1.25 })),
   ];
   const windows = (u0: uPlot) => {
     const ctx = u0.ctx;
@@ -742,7 +817,8 @@ function VCTraces({ sweeps, measures, showTrue, pal, valueUnit, capMs, height, r
   const readout = tube
     ? measures.map((m, j) => {
         let best: VCPoint | null = null;
-        for (const s of sweeps) {
+        for (const [k, s] of sweeps.entries()) {
+          if (shown && !shown.v[k]) continue;
           const p = measureSweep(s, m);
           const better = !best || (m.kind === "peakIn" ? p.i < best.i : m.kind === "peakOut" ? p.i > best.i : Math.abs(p.i) > Math.abs(best.i));
           if (better) best = p;

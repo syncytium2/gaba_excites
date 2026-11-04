@@ -379,6 +379,27 @@ await vcRan("activation again");
   await page.waitForTimeout(300);
   if (await page.locator(".refine-badge, .refine-bar").count()) problems.push("vc refine: the badge or bar outlived the reset");
 }
+// Step in voltage clamp: one sweep at a time, by hand, as in the step protocol. The plots beside fill in on the
+// family's axes, and the clicker's keys step.
+{
+  const st = () => page.locator(".vc-traces .play-status").textContent();
+  const dots = () => page.evaluate(() => document.querySelector(".vc-side svg")?.querySelectorAll("circle").length ?? 0);
+  const ticks = () => page.evaluate(() => [...(document.querySelector(".vc-side svg")?.querySelectorAll("text") ?? [])].map((t) => t.textContent).join("|"));
+  const allDots = await dots();
+  const allTicks = await ticks();
+  await page.click("#vc-step");
+  if (!/^Sweep 1 of \d+/.test((await st()) ?? "")) problems.push(`vc step: does not open on the first sweep: "${await st()}"`);
+  await page.locator("h1").click();
+  await page.keyboard.press("PageDown");
+  await page.keyboard.press("PageDown");
+  if (!/^Sweep 3 of \d+/.test((await st()) ?? "")) problems.push(`vc step: Page Down does not step: "${await st()}"`);
+  const some = await dots();
+  if (!(some > 0 && some < allDots)) problems.push(`vc step: the measured plot shows ${some} of ${allDots} points on the third sweep`);
+  if ((await ticks()) !== allTicks) problems.push("vc step: the measured plot's axes moved while stepping");
+  await page.screenshot({ path: `${out}/vc-step.png`, fullPage: false });
+  await page.click("#vc-step-done");
+  if ((await dots()) !== allDots) problems.push("vc step: Show all does not bring every point back");
+}
 await page.locator(".vc-block input").first().uncheck();
 await page.waitForTimeout(300);
 await vcRan("a blocked run");
@@ -443,6 +464,46 @@ if (modelIds.includes("hh")) {
   await page.click("#units-pa");
   await page.waitForTimeout(300);
 }
+
+// Focus, for a lecture screen: at a projector's 1280×720 the screen fills the window in every mode, the amplifier
+// waits just below it, the tour and the header's text step aside, and nothing scrolls sideways.
+await page.setViewportSize({ width: 1280, height: 720 });
+await page.selectOption("#model-select", "rs");
+await page.waitForTimeout(500);
+await page.check("#focus");
+for (const mode of ["steps", "scope", "vc"]) {
+  await page.click(`#mode-${mode}`);
+  await page.waitForTimeout(mode === "scope" ? 1500 : 3000);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(200);
+  const m = await page.evaluate(() => {
+    const card = document.querySelector(".screen-card").getBoundingClientRect();
+    const amp = document.querySelector(".amp").getBoundingClientRect();
+    return { top: card.top, bottom: card.bottom, amp: amp.top, h: window.innerHeight, tour: !!document.querySelector(".tools")?.offsetParent, tagline: !!document.querySelector(".tagline")?.offsetParent, wide: document.documentElement.scrollWidth > window.innerWidth };
+  });
+  if (m.top < 0 || m.bottom < m.h - 40 || m.amp < m.h - 40) problems.push(`focus ${mode}: the screen does not fill the window (${Math.round(m.top)}–${Math.round(m.bottom)} px, amplifier at ${Math.round(m.amp)}, window ${m.h})`);
+  if (m.tour || m.tagline) problems.push(`focus ${mode}: the tour or the tagline still shows`);
+  if (m.wide) problems.push(`focus ${mode}: horizontal overflow at 1280 px`);
+  await page.screenshot({ path: `${out}/focus-${mode}.png`, fullPage: false });
+}
+await page.uncheck("#focus");
+await page.click("#mode-steps"); // voltage clamp has no tour column of its own
+await page.waitForTimeout(300);
+if (!(await page.locator(".tools").isVisible())) problems.push("focus: unticking it does not bring the tour back");
+
+// Phones: every button, list and field on the screen card and the amplifier is big enough for a thumb (checkboxes
+// are tapped by their labels), and text fields are 16 px, below which iOS zooms the page on a tap.
+await page.setViewportSize({ width: 390, height: 844 });
+await page.click("#mode-steps");
+await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 30000 });
+{
+  const small = await page.evaluate(() => [...document.querySelectorAll(".amp button, .amp select, .amp input:not([type=checkbox]), .screen-card button, .screen-card select")]
+    .filter((e) => e.offsetParent)
+    .map((e) => ({ name: (e.id || e.getAttribute("aria-label") || e.textContent || e.tagName).trim().slice(0, 24), h: e.getBoundingClientRect().height, fs: parseFloat(getComputedStyle(e).fontSize), text: e.tagName === "INPUT" || e.tagName === "SELECT" }))
+    .filter((x) => x.h < 32 || (x.text && x.fs < 16)));
+  if (small.length) problems.push(`phone: ${small.length} controls too small for a thumb or zoomed on a tap: ${small.slice(0, 6).map((x) => `${x.name} (${Math.round(x.h)} px, ${x.fs} px text)`).join(", ")}`);
+}
+await page.setViewportSize({ width: 1440, height: 1000 });
 
 await browser.close();
 if (problems.length) { console.error(problems.join("\n")); process.exit(1); }

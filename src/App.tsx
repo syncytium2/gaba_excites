@@ -36,6 +36,7 @@ import { ampsKey, stepDirection, stepTo } from "./ui/step.ts";
 const OPENING = TOUR[0].settings;
 const OLD_SCHOOL_KEY = "gaba_excites.oldschool.v2";
 const DENSITY_KEY = "gaba_excites.density.v1";
+const FOCUS_KEY = "gaba_excites.focus.v1";
 const opening = tourInputs(OPENING);
 import type { RunSettings } from "./core/report.ts";
 
@@ -117,6 +118,24 @@ export function App() {
     setOldSchoolPref(on);
     try {
       localStorage.setItem(OLD_SCHOOL_KEY, on ? "1" : "0");
+    } catch {
+      /* storage unavailable: still works for this visit */
+    }
+  };
+  // Focus: the screen takes the window, for a lecture screen (or a phone held sideways); the tour, the header's text
+  // and the footer step aside, and the amplifier waits just below. Remembered in this browser only, like Old school,
+  // so an instructor's laptop stays as it was left; every access is guarded.
+  const [focus, setFocusPref] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(FOCUS_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const setFocus = (on: boolean) => {
+    setFocusPref(on);
+    try {
+      localStorage.setItem(FOCUS_KEY, on ? "1" : "0");
     } catch {
       /* storage unavailable: still works for this visit */
     }
@@ -398,13 +417,15 @@ export function App() {
     if (!fig || !bar) return;
     const fit = () => {
       const top = fig.getBoundingClientRect().top + window.scrollY;
-      const h = window.innerHeight - top - bar.getBoundingClientRect().height - AMP_ALLOWANCE - 2 * 14;
-      setScreenH(Math.round(Math.max(380, Math.min(560, h))));
+      const barH = bar.getBoundingClientRect().height;
+      // in Focus the screen takes the window below the readouts; the amplifier is a scroll away
+      const h = focus ? window.innerHeight - top - barH - 2 * 14 : window.innerHeight - top - barH - AMP_ALLOWANCE - 2 * 14;
+      setScreenH(Math.round(focus ? Math.max(380, Math.min(1400, h)) : Math.max(380, Math.min(560, h))));
     };
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
-  }, []);
+  }, [focus]);
   const rinRest = built.rinRest;
   const tauM = (rinRest * cell.cm) / 1000;
   const preset = presets.find((p) => p.id === presetId);
@@ -684,12 +705,16 @@ export function App() {
           Old school
         </label>
       )}
+      <label className="check oldschool-toggle" title="Give the screen the whole window, for a lecture screen: the tour and the header step aside, and the amplifier is a scroll below. Remembered on this device.">
+        <input id="focus" type="checkbox" checked={focus} onChange={(e) => setFocus(e.target.checked)} />
+        Focus
+      </label>
     </>
   );
 
   // ------------------------------------------------------------ render
   return (
-    <div className={"page" + (oldSchool ? " old-school" : "")}>
+    <div className={"page" + (oldSchool ? " old-school" : "") + (focus ? " focus" : "")}>
       <header className="topbar">
         <h1>gaba_excites</h1>
         <span className="tagline">Current-clamp excitability, simulated in your browser. Nothing leaves your machine.</span>
@@ -711,7 +736,7 @@ export function App() {
 
         </aside>
 
-        <main className={"figures" + (mode === "scope" ? " pinned" : "")} style={{ "--screen-h": `${screenH}px` } as React.CSSProperties}>
+        <main className={"figures" + (mode === "scope" && !focus ? " pinned" : "")} style={{ "--screen-h": `${screenH}px` } as React.CSSProperties}>
           <div className="modebar">
             {mode === "scope" && <div className="readout-slot" ref={setReadoutSlot} />}
             {mode === "steps" && <StepReadouts summary={playing ? undefined : summary} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} cu={ru} />}
@@ -724,7 +749,7 @@ export function App() {
               simTop={simTop} />
           ) : mode === "scope" ? (
             <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} limits={limits} onExtremes={setScopeReasons} oldSchool={oldSchool}
-              rig={{ amp: ampCC, ampSummary, acq: acqRows, acqSummary, sim: simRows, simSummary }} ampControls={ampControls} readoutSlot={readoutSlot} screenH={screenH} view={view} />
+              rig={{ amp: ampCC, ampSummary, acq: acqRows, acqSummary, sim: simRows, simSummary }} ampControls={ampControls} readoutSlot={readoutSlot} screenH={screenH} view={view} focus={focus} />
           ) : (
             <>
 

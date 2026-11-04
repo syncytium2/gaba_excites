@@ -66,7 +66,7 @@ interface Readout {
 /** the siren stays on while anything tripped within this much simulated time */
 const SIREN_WINDOW = 1000;
 
-export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false, rig, ampControls, readoutSlot, screenH = 460, view }: {
+export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false, rig, ampControls, readoutSlot, screenH = 460, view, focus = false }: {
   cell: CellParams; inputs: StreamInputs; seed: number; limits: Limits; onExtremes: (reasons: string[]) => void; oldSchool?: boolean;
   /** the rig's panels as the app supplies them: amplifier sections (this adds the audio monitor), acquisition and simulation rows */
   rig: { amp: React.ReactNode; ampSummary: string; acq: React.ReactNode; acqSummary: string; sim: React.ReactNode; simSummary: string };
@@ -74,6 +74,8 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
   ampControls?: React.ReactNode;
   /** the screen card's height, px: the same in both modes, so the amplifier below stays put */
   screenH?: number;
+  /** Focus: the screen may grow to the window's height */
+  focus?: boolean;
   /** where the one-line readouts go: the mode bar, beside Step / Oscilloscope */
   readoutSlot?: HTMLElement | null;
   /** a time base and speed a preset asks for; applied whenever its key changes */
@@ -280,7 +282,7 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
         <figcaption className="sr-only">Oscilloscope{paused ? ", paused" : ""}</figcaption>
         {error && <p className="warn">Simulation failed: {error}</p>}
         <Scope ref={scope} msPerDiv={msPerDiv} vRange={[-100, 60]} iRange={iRange} iUnit={{ div: cu.density ? cu.cm : 1, label: cu.label }} showVm={showVm} triggered={triggered} stored={stored} phosphor={oldSchool}
-          height={screenH - (oldSchool ? 104 : 82)} />
+          height={screenH - (oldSchool ? 104 : 82)} maxScreen={focus ? 1200 : undefined} />
         <div className="scope-bar">
           <label className="select inline">
             <span>Time base</span>

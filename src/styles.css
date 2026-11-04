@@ -561,3 +561,23 @@ body:has(.page.old-school) { background: #1a1b19; }
 @media (max-width: 760px) {
   .stepper #step-back, .stepper #step-next { min-width: 56px; min-height: 40px; }
 }
+/* Focus: the screen takes the window. The tour, the header's text, the stamp and the footer step aside; the page
+   drops its width cap so a projector's whole width is traces; the amplifier is a scroll below. */
+.page.focus { max-width: none; padding-top: 8px; }
+.page.focus .topbar { margin-bottom: 6px; }
+.page.focus .topbar .tagline, .page.focus .topbar .toplinks, .page.focus .topbar .stamp { display: none; }
+.page.focus .topbar h1 { font-size: 16px; }
+.page.focus .layout { grid-template-columns: minmax(0, 1fr); }
+.page.focus .tools, .page.focus > footer { display: none; }
+/* Phones: every control big enough for a thumb (about 36 px tall, the steppers 40), and every text field at 16 px,
+   below which iOS zooms the page when one is tapped. Wide screens keep the instrument panel's tight sizes. */
+@media (max-width: 760px) {
+  .seg button, .amp .seg button, .amp-slot-body .seg button { min-height: 36px; min-width: 36px; height: auto; }
+  .amp-slot-body { height: auto; min-height: 36px; }
+  .amp-slot-body select, .amp-slot-body button, .select select, select { min-height: 36px; height: auto; font-size: 16px; }
+  .nf-box input, .amp-list, .notebook input[type="text"], .notebook textarea, .amp-num { min-height: 36px; font-size: 16px; }
+  .amp-list { height: 36px; }
+  .card figcaption button, .btns button { min-height: 36px; }
+  .rig-fold, .ph-toggle { min-height: 36px; min-width: 36px; }
+  input[type="checkbox"] { width: 20px; height: 20px; }
+}

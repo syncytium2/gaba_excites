@@ -69,6 +69,8 @@ interface Props {
   phosphor?: boolean;
   /** the canvas's whole height, px: the app sizes the screen, the same in both modes */
   height?: number;
+  /** the tallest the voltage screen may grow, px; raised in Focus, where the screen takes the window */
+  maxScreen?: number;
 }
 
 const DIVS_X = 10;
@@ -127,7 +129,7 @@ function iTick(i: number, range: [number, number], u: { div: number }): string {
   return (i / u.div).toFixed(span < 0.8 ? 2 : span < 8 ? 1 : 0);
 }
 
-export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, vRange, iRange, iUnit = PA, showVm, triggered, stored, phosphor = false, height }, ref) {
+export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, vRange, iRange, iUnit = PA, showVm, triggered, stored, phosphor = false, height, maxScreen = V_H_MAX }, ref) {
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const width = useRef(600);
@@ -135,7 +137,7 @@ export const Scope = forwardRef<ScopeHandle, Props>(function Scope({ msPerDiv, v
   const cols = useRef<Columns>(columns(600));
   const dirty = useRef(true);
   // the screen's height comes from the app; a change redraws at the new size
-  const wantVH = height === undefined ? V_H_MAX : Math.round(Math.max(V_H_MIN, Math.min(V_H_MAX, height - (TOP + GAP + I_H + BOTTOM))));
+  const wantVH = height === undefined ? V_H_MAX : Math.round(Math.max(V_H_MIN, Math.min(maxScreen, height - (TOP + GAP + I_H + BOTTOM))));
   if (wantVH !== vH.current) {
     vH.current = wantVH;
     dirty.current = true;
