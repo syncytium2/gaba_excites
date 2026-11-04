@@ -128,6 +128,8 @@ Riz M, Braun M, Pedersen MG (2014). Mathematical modeling of heterogeneous elect
 
 **Took:** The human beta cell: Equations 13–34 and Table 1 (every current, the submembrane and cytosolic calcium, the SK and GABA_A currents, Cm = 10 pF), the GABA_A conductances for 10 µM, 100 µM and 1 mM GABA, and the reported behavior the port is checked against: the interspike potential of about −70 mV (Fig. 3B), TTX silencing a cell with less L-type current (Fig. 3D), and GABA's single spike and ~−45 mV plateau in a silent cell and faster firing in an active one (Fig. 5). The glycolytic oscillator (Eqs. 35–47, Fig. 6) is not ported.
 
+**Permission:** Morten Gram Pedersen, by email on 2026-11-03, to the owner's request to build this teaching simulation from his human beta cell model with attribution, writing it from the papers' equations and tables and using the authors' XPP files only as a check, none of them redistributed: “Absolutely - yes, that would be fine.”
+
 > In a silent model cell with a rather large K(ATP)-conductance, simulated GABA application leads to a single action potential whereafter the membrane potential settles at ∼−45 mV (Fig. 5A), in close correspondence with the experimental results
 > — Results, Paracrine effects on electrical activity
 
@@ -148,6 +150,8 @@ Pedersen MG (2010). A biophysical model of electrical activity in human β-cells
 [doi:10.1016/j.bpj.2010.09.004](https://doi.org/10.1016/j.bpj.2010.09.004) · [PMID 21081067](https://pubmed.ncbi.nlm.nih.gov/21081067/) · [PMC2980734](https://pmc.ncbi.nlm.nih.gov/articles/PMC2980734/) · *open (PubMed Central)* · models: human β-cell
 
 **Took:** The voltage-gated currents of the human beta cell, Equations 1–9 and Table 1, which Riz et al. 2014 keep; how each was taken from Braun et al. 2008's voltage-clamp data; his parameter set (no SK, HERG 0.2 nS/pF, g_K(ATP) 0.015 nS/pF, P/Q slope −10 mV); and the numbers the port is checked against: spikes at 4.6 Hz peaking at −8 mV with troughs at −68 mV, 7 Hz with HERG blocked, 4.0 Hz with τ_mHERG = 500 ms, interspike intervals 217 → 312 ms with TTX, and 163 → 178 ms at g_K(ATP) 0.008 nS/pF. From its Supporting Material (Figs. S1–S3): the reversal potentials the currents were fitted to Braun's recordings with, E_Ca = +40 mV and E_Na = +100 mV, against the +65 and +70 mV every firing simulation uses.
+
+**Permission:** Morten Gram Pedersen, by email on 2026-11-03, to the owner's request to build this teaching simulation from his human beta cell model with attribution, writing it from the papers' equations and tables and using the authors' XPP files only as a check, none of them redistributed: “Absolutely - yes, that would be fine.”
 
 > Special attention has been given to choose model parameters directly from published, high-quality electrophysiological data, mainly from Braun et al. (3) ... Using published parameters reduced parameter tweaking to a minimum.
 > — Introduction
@@ -178,6 +182,8 @@ Riz M, Pedersen MG (2014). XPP files for Riz, Braun & Pedersen 2014 and Pedersen
 [www.dei.unipd.it/~pedersen/](https://www.dei.unipd.it/~pedersen/) · *open (code; no license in the files; Software S1 of a CC BY article)* · models: human β-cell
 
 **Took:** The initial values of Riz et al. 2014's Fig. 1A, which the cell starts from. The equations were also integrated literally, outside this repository, as a check on the port (lit/notes/riz2014.md). No file of the authors' is in this repository.
+
+**Permission:** Morten Gram Pedersen, by email on 2026-11-03, to the owner's request to build this teaching simulation from his human beta cell model with attribution, writing it from the papers' equations and tables and using the authors' XPP files only as a check, none of them redistributed: “Absolutely - yes, that would be fine.”
 
 **Used in:** [`src/core/human.ts`](../src/core/human.ts), [`src/core/human-run.ts`](../src/core/human-run.ts), [`src/core/human.test.ts`](../src/core/human.test.ts)
 

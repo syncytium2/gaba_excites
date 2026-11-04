@@ -1669,3 +1669,17 @@ intervals), which confirmed the transcription before the port. The port matches 
 Pedersen's supplement (Figs. S1–S3, on the want-list) and Braun's own figures, and a decision on whether such presets
 use Pedersen's firing reversals (+70, +65 mV) or the voltage-clamp ones. Rin and "rest" in the header are taken at the
 unstable fixed point (−44 mV, 667 MΩ) of a cell that never rests there, as for the mouse cell.
+
+## 2026-11-03 — Pedersen's permission for the human beta cell
+
+The owner emailed Morten Gram Pedersen on 2026-11-03. The email asked to add his human beta cell model (Pedersen 2010,
+with the SK, calcium and GABA_A additions of Riz, Braun & Pedersen 2014) to this app, with attribution. It said the
+model would be written from the papers' equations and tables, that the authors' published XPP files would be used only
+to check that the port reproduces theirs, and that none of their files would be redistributed. Pedersen replied the
+same day: "Absolutely - yes, that would be fine."
+
+The email asked no technical questions, and the reply answers none; it is permission, not a review of the port. It
+adds no condition beyond the attribution the request offered.
+
+Recorded in `lit/sources.json` on `pedersen2010`, `riz2014` and `riz14code`, in a new optional field, `permission`,
+which `scripts/lit.ts` renders on `public/lit.html` and `lit/README.md`.

@@ -977,7 +977,8 @@
           "where": "Methods, Modeling"
         }
       ],
-      "notes": "notes/riz2014.md"
+      "notes": "notes/riz2014.md",
+      "permission": "Morten Gram Pedersen, by email on 2026-11-03, to the owner's request to build this teaching simulation from his human beta cell model with attribution, writing it from the papers' equations and tables and using the authors' XPP files only as a check, none of them redistributed: “Absolutely - yes, that would be fine.”"
     },
     {
       "key": "pedersen2010",
@@ -1030,7 +1031,8 @@
           "where": "Supporting Material, Fig. S1 legend"
         }
       ],
-      "notes": "notes/riz2014.md"
+      "notes": "notes/riz2014.md",
+      "permission": "Morten Gram Pedersen, by email on 2026-11-03, to the owner's request to build this teaching simulation from his human beta cell model with attribution, writing it from the papers' equations and tables and using the authors' XPP files only as a check, none of them redistributed: “Absolutely - yes, that would be fine.”"
     },
     {
       "key": "braun2008",
@@ -1115,7 +1117,8 @@
         "src/core/human-run.ts",
         "src/core/human.test.ts"
       ],
-      "notes": "notes/riz2014.md"
+      "notes": "notes/riz2014.md",
+      "permission": "Morten Gram Pedersen, by email on 2026-11-03, to the owner's request to build this teaching simulation from his human beta cell model with attribution, writing it from the papers' equations and tables and using the authors' XPP files only as a check, none of them redistributed: “Absolutely - yes, that would be fine.”"
     }
   ]
 }
