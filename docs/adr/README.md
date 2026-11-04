@@ -26,8 +26,14 @@ unchanged, ID collisions across refs). It runs in CI (`.github/workflows/test.ym
 excludes `docs/handoffs/` from the citation scan, because handoffs are dated records whose bodies are not edited.
 `.gitattributes` merges this index by union, so two branches that each add a row do not conflict.
 
-**Not yet wired:** the kit's Claude Code hook, which would run the check before every commit, merge and push in every
-session, and is the only layer that sees unpushed work in sibling worktrees. It waits for the owner's go-ahead.
+**And by the kit's Claude Code hook** (`.claude/settings.json`, `adr.py hook`): before every `git commit`, `merge`,
+`push`, `pull` or `rebase` in a Claude Code session it runs the check and blocks the command while anything fails,
+however the command is chained. It is the only layer that sees unpushed work in sibling worktrees. Asked by the
+armory session "should gaba_excites turn on the hook that blocks git commit, merge and push while an ADR check
+fails?", the owner answered "Yes" (2026-11-04), and in this repository's session, "Yes wire it". Claude Code reads
+the hook from the main checkout's `.claude/settings.json`, so it fires once this reaches `main`. It checks the
+tree of the command's working directory, so a `cd <worktree> && git commit` sent from the main checkout is checked
+against the main checkout.
 
 **Not enforced by anything:** that a decision gets an ADR at all; that an ADR and AGENTS.md or `docs/process.md` agree
 in substance; that an ADR's reasons are the ones the history shows; that a Proposed ADR is ever decided.

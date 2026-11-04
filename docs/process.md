@@ -1760,3 +1760,17 @@ index merges by union (`.gitattributes`). The kit's selftest passes here, and a 
 push, pull and rebase in every session in this repository. It came as another session's suggestion while the owner
 was asleep, and it changes how every session here behaves, so it waits for his yes. His standing request of
 2026-10-18 was for exactly such a hook; the question is only that he confirm it now.
+
+## 2026-11-04 — the ADR hook, wired
+
+The owner answered the armory session's question, "should gaba_excites turn on the hook that blocks git commit, merge
+and push while an ADR check fails?", with "Yes", and confirmed it here: "Yes wire it". `.claude/settings.json` now
+runs `python3 "$CLAUDE_PROJECT_DIR"/tools/adr/adr.py hook` before every Bash command; it blocks only git commit,
+merge, push, pull and rebase, and only while `adr.py check` fails. Checked before wiring: `check` reports 0 failures
+on this branch, `--selftest` passes, and in a scratch clone with a bare citation to a made-up ADR number planted in this file the hook
+refused `git commit`.
+
+Two limits, recorded in `docs/adr/README.md`. Claude Code reads hooks from the main checkout, so the hook fires only
+once this branch reaches `main`. And it checks the tree of the session's working directory, which in this setup is
+the main checkout, so a `cd <worktree> && git commit` is checked against `main`, not the worktree. Reported to
+armory.
