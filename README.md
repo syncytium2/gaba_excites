@@ -140,7 +140,8 @@ Every measurement is taken on the true membrane potential, so electrode
 settings and recording noise change what the traces look like, never the
 numbers.
 
-Readouts: rheobase (refinable to 1 pA), threshold, AP peak and half-width,
+Readouts: rheobase with the Vm it was measured from (refinable to 1 pA; the
+human beta cell, which fires on its own, is measured held at −70 mV), threshold, AP peak and half-width,
 measured Rin, holding Vm, F–I gain; recorded voltage with the true Vm on
 demand, command current, synaptic conductances, the F–I curve (mean and
 initial rate, with up to four pinned curves for comparison, and CSV export), a

@@ -47,3 +47,4 @@ in substance; that an ADR's reasons are the ones the history shows; that a Propo
 | [2026-11-03-d4b6](2026-11-03-d4b6-spike-thresholds-criterion-belongs-to-the-model.md) | Spike threshold's dV/dt criterion belongs to the model, and students can switch it | Accepted, 2026-11-03 |
 | [2026-11-04-f5f6](2026-11-04-f5f6-a-moved-presets-menu-says-custom-and-keeps-its-note.md) | A step preset whose knobs have moved shows as Custom and keeps its note, marked | Accepted, 2026-11-04 |
 | [2026-11-04-f9aa](2026-11-04-f9aa-conductance-knobs-switch-between-ps-and-ns-per-pf.md) | The human beta cell's conductance knobs switch between pS/pF and nS/pF | Accepted, 2026-11-04 |
+| [2026-11-04-3b16](2026-11-04-3b16-rheobase-is-measured-from-a-stated-membrane-potential.md) | Rheobase states the Vm it was measured from; the human beta cell's is measured from −70 mV | Accepted, 2026-11-04 |

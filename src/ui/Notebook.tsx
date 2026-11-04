@@ -6,6 +6,7 @@
  * student downloads: the notebook as JSON, or the report, which carries its runs
  * and loads back in. Nothing is sent anywhere.
  */
+import type { RheobaseFrom } from "../core/rheobase.ts";
 import { useEffect, useRef, useState } from "react";
 import type { FamilySummary } from "../core/analysis.ts";
 import type { ModelDef } from "../core/models.ts";
@@ -38,7 +39,7 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(
 
 export function Notebook({ run, model, app }: {
   /** the last completed run and the settings that produced it; null while there is none */
-  run: { sweeps: Sweep[]; summary: FamilySummary; settings: RunSettings; cell: { vRest: number; rinRest: number; rinAtHold: number } } | null;
+  run: { sweeps: Sweep[]; summary: FamilySummary; settings: RunSettings; cell: { vRest: number; rinRest: number; rinAtHold: number }; rheoFrom?: RheobaseFrom } | null;
   model: ModelDef;
   app: { version: string; updated: string };
 }) {
@@ -61,7 +62,7 @@ export function Notebook({ run, model, app }: {
   const full = runs.length >= MAX_RUNS;
   const record = () => {
     if (!run || full) return;
-    const rec = recordRun({ title: title.trim() || `Run ${runs.length + 1}`, note: note.trim(), settings: run.settings, model, cell: run.cell, sweeps: run.sweeps, summary: run.summary, app });
+    const rec = recordRun({ title: title.trim() || `Run ${runs.length + 1}`, note: note.trim(), settings: run.settings, model, cell: run.cell, sweeps: run.sweeps, summary: run.summary, rheoFrom: run.rheoFrom, app });
     setRuns([...runs, rec]);
     setTitle("");
     setNote("");

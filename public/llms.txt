@@ -56,7 +56,8 @@ background, is at https://gaba.tonydefazio.com/explainer (a first draft).
   1 uF/cm^2), each converted by its own cell's Cm. Display only: the
   simulation and the CSV stay in pA.
 - Runs families of current steps (first/increment/count, or any list) and
-  reports rheobase (refinable to 1 pA), spike threshold (where dV/dt
+  reports rheobase with the Vm it was measured from (refinable to 1 pA;
+  the human beta cell, which fires on its own, from −70 mV), spike threshold (where dV/dt
   reaches the cell's own criterion: 10 V/s for the cortical cells and the
   squid axon, 1 V/s for GnRH, 0.5 V/s for the human beta cell; a switch on
   the phase plot tries 0.5, 1, 2, 10 and 20 V/s),

@@ -7,6 +7,7 @@ import { FILTER_KHZ } from "./core/filter.ts";
 import { DEFAULT_ELECTRODE, type Electrode, type Sweep } from "./core/simulate.ts";
 import { summarize, THRESH_DVDT, type FamilySummary } from "./core/analysis.ts";
 import { CRITERIA } from "./core/threshold.ts";
+import type { RheobaseFrom } from "./core/rheobase.ts";
 import { PRESETS, presetsFor, patternsFor, toProtocol, MAX_SWEEPS, SCOPE_PULSE, INC_DIAL, INC_RANGES, incRangeFor, type IncRange, type Preset, type ProtocolForm } from "./core/protocol.ts";
 import type { SynInput } from "./core/synapses.ts";
 import type { Pulse } from "./core/stream.ts";
@@ -51,6 +52,8 @@ import type { RunSettings } from "./core/report.ts";
 interface Result {
   sweeps: Sweep[];
   summary: FamilySummary;
+  /** rheobase from a standard potential, for a model that measures it so */
+  rheoFrom?: RheobaseFrom;
   cell: CellInfo;
   ms: number;
   protocol: ReturnType<typeof toProtocol>;
@@ -201,7 +204,7 @@ export function App() {
       const r = ev.data;
       if (r.id !== lastId.current && r.kind === "run") return; // stale
       if (r.kind === "run") {
-        setResult({ sweeps: r.sweeps, summary: r.summary, cell: r.cell, ms: r.ms, protocol: pendingProto.current, settings: pendingSettings.current! });
+        setResult({ sweeps: r.sweeps, summary: r.summary, rheoFrom: r.rheoFrom, cell: r.cell, ms: r.ms, protocol: pendingProto.current, settings: pendingSettings.current! });
         setBusy(false);
         if (playAfterRun.current) {
           playAfterRun.current = false;
@@ -747,7 +750,7 @@ export function App() {
         <main className={"figures" + (mode === "scope" ? " pinned" : "")} style={{ "--screen-h": `${screenH}px` } as React.CSSProperties}>
           <div className="modebar">
             {mode === "scope" && <div className="readout-slot" ref={setReadoutSlot} />}
-            {mode === "steps" && <StepReadouts summary={playing ? undefined : summary} crit={crit} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} cu={ru} />}
+            {mode === "steps" && <StepReadouts summary={playing ? undefined : summary} rheoFrom={playing ? undefined : result?.rheoFrom} crit={crit} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} cu={ru} />}
             <Siren reasons={mode === "scope" ? scopeReasons : stepReasons} />
             {error && <div className="warn" role="alert">Simulation failed: {error}</div>}
           </div>
@@ -856,7 +859,7 @@ export function App() {
 
                 <SweepTable summary={summary!} sel={sel} onSelect={setSelected} cu={ru} />
 
-                <Notebook run={busy ? null : { sweeps, summary: summary!, settings: result.settings, cell: result.cell }} model={MODELS[result.settings.cell.model]} app={{ version: VERSION, updated: UPDATED }} />
+                <Notebook run={busy ? null : { sweeps, summary: summary!, settings: result.settings, cell: result.cell, rheoFrom: result.rheoFrom }} model={MODELS[result.settings.cell.model]} app={{ version: VERSION, updated: UPDATED }} />
               </>
             )}
             </>
@@ -1270,8 +1273,8 @@ function SweepTable({ summary, sel, onSelect, cu }: { summary: FamilySummary; se
  * Each name carries its explanation on hover and focus. Rheobase keeps its
  * "refine" link and the refined value, a result someone asked for.
  */
-function StepReadouts({ summary, crit, rinRest, rinHold, refined, onRefine, tol, cu }: {
-  summary?: FamilySummary; crit: number; rinRest: number; rinHold: number; refined: { value: number; tol: number } | null; onRefine: () => void; tol: number;
+function StepReadouts({ summary, rheoFrom, crit, rinRest, rinHold, refined, onRefine, tol, cu }: {
+  summary?: FamilySummary; rheoFrom?: RheobaseFrom; crit: number; rinRest: number; rinHold: number; refined: { value: number; tol: number } | null; onRefine: () => void; tol: number;
   cu: CurrentUnit;
 }) {
   const s = summary;
@@ -1283,20 +1286,30 @@ function StepReadouts({ summary, crit, rinRest, rinHold, refined, onRefine, tol,
   );
   return (
     <span className="readline">
+      {rheoFrom ? (
       <span>
-        <Tip text={s && !Number.isFinite(s.rheobase) ? "No step fired." : "The smallest step that fired."}>Rheobase</Tip> <b>{s ? amp(s.rheobase) : "—"}</b> {cu.label}{" "}
+        <Tip text={<>Measured held at {fmt(rheoFrom.vFrom, 0)} mV by {cu.text(rheoFrom.hold)}, the least step of this protocol's duration that fires, bisected to {cu.text(tol)}. This cell fires on its own, so the least step of the family to fire would say nothing: rheobase is measured from a standard potential instead.{Number.isFinite(rheoFrom.amp) ? "" : " Held there, it fires with no step at all, or not up to 100 nA."}</>}>Rheobase</Tip> <b>{amp2(rheoFrom.amp)}</b> {cu.label}{" "}
+        <small>from {fmt(rheoFrom.vBase, 1)} mV</small>
+      </span>
+      ) : (
+      <span>
+        <Tip text={s && !Number.isFinite(s.rheobase) ? "No step fired." : "The smallest step that fired, measured from the Vm just before it."}>Rheobase</Tip> <b>{s ? amp(s.rheobase) : "—"}</b> {cu.label}{" "}
         <small>
+          {s && Number.isFinite(s.rheobaseVm) && <>from {fmt(s.rheobaseVm, 1)} mV </>}
           {refined ? (Number.isFinite(refined.value) ? `(refined ${amp2(refined.value)} ± ${amp2(refined.tol)})` : "(refining…)")
             : s && Number.isFinite(s.rheobase) ? <button className="linkish" onClick={onRefine}>refine to {cu.text(tol)}</button> : null}
         </small>
       </span>
+      )}
       {item("Threshold", `First spike, where dV/dt reaches ${crit} V/s: ${CRITERIA.find((c) => c.vps === crit)?.source ?? "the app's default"}. Try others on the phase plot.`, s ? fmt(s.threshold, 1) : "—", "mV")}
       {item("AP peak", "First spike at rheobase.", s ? fmt(s.apPeak, 0) : "—", "mV")}
       {item("Half-width", "At half the threshold-to-peak height.", s ? fmt(s.apHalfWidth, 2) : "—", "ms")}
       {item("Rin", s && Number.isFinite(s.rinMeasured)
         ? `Measured from steps ≤ 0 at the holding Vm. Steady-state slope: ${fmt(rinRest, 0)} MΩ at rest${Math.abs(rinHold - rinRest) > 0.02 * rinRest ? `, ${fmt(rinHold, 0)} MΩ at Ihold` : ""}.`
         : "Needs two steps ≤ 0.", s ? fmt(s.rinMeasured, 0) : "—", "MΩ")}
-      {item("Holding Vm", "Before the step.", s ? fmt(s.vHold, 1) : "—", "mV")}
+      {/* the family's rheobase already says the Vm it was measured from, which is the holding Vm to within 0.1 mV;
+          shown apart only when they differ (a cell measured from a standard potential, or synaptic inputs) */}
+      {(rheoFrom || !s || !(Math.abs(s.rheobaseVm - s.vHold) < 0.05)) && item("Holding Vm", "Before the step, averaged over the sweeps.", s ? fmt(s.vHold, 1) : "—", "mV")}
       {cu.density
         ? item("F–I gain", "Slope over the sweeps that fired.", s ? fmt((s.fiGain * cu.cm) / 1000, 1) : "—", "Hz per pA/pF")
         : item("F–I gain", "Slope over the sweeps that fired.", s ? fmt(s.fiGain, 0) : "—", "Hz/nA")}

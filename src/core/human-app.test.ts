@@ -9,6 +9,7 @@ import { limitsFor } from "./extremes.ts";
 import { buildCell } from "./cell.ts";
 import { paramsFromKnobs } from "./human.ts";
 import { runHuman } from "./human-run.ts";
+import { rheobaseFrom } from "./rheobase.ts";
 import { MODELS, MODEL_LIST } from "./models.ts";
 import { DEFAULT_NOISE } from "./noise.ts";
 import { PRESETS, SCOPE_PULSE, patternsFor, presetsFor, toProtocol } from "./protocol.ts";
@@ -47,6 +48,20 @@ describe("human beta cell in the app", () => {
     const n = (a: number) => sweepStats(runSweep(cell, INPUTS, proto, a, st, DEFAULT_SIM, 0), proto).nInStep;
     expect([n(0), n(-1), n(-2), n(4)]).toEqual([12, 9, 0, 18]);
     expect(p.note).toContain("12 spikes with no current, 9 at −1 pA, none at −2 pA, and 18 at +4 pA");
+  });
+
+  it("its rheobase is measured held at −70 mV: about −5.6 pA holds it there silent, and 3.6 pA for the preset's 2 s step fires it", () => {
+    // the owner, 2026-11-04: "Rheobase is usually measured from a standardized membrane potential"
+    expect(MODELS.betahuman.rheobaseFromMv).toBe(-70);
+    const p = PRESETS.find((x) => x.id === "human-steps")!;
+    const r = rheobaseFrom(cellWith(p.knobs!), INPUTS, toProtocol(p.protocol), -70, MODELS.betahuman.rheobaseTol, DEFAULT_SIM);
+    expect(r.hold).toBeCloseTo(-5.6, 1);
+    expect(r.vBase).toBeCloseTo(-70, 0);
+    expect(r.amp).toBeGreaterThan(3.5);
+    expect(r.amp).toBeLessThan(3.75);
+    expect(r.tol).toBeLessThanOrEqual(0.1);
+    // only this cell, for now; the rest still report the family's least firing step, with the Vm it was measured from
+    expect(MODEL_LIST.filter((m) => m.rheobaseFromMv !== undefined).map((m) => m.id)).toEqual(["betahuman"]);
   });
 
   it("its current scale is the silent cell's rheobase, 1.0 pA, and the scope's pulse sits above it", () => {

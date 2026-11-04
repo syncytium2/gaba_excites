@@ -20,6 +20,17 @@ The owner's words are quoted where the item came from them.
 
 ## Not now (the owner: "no time, so make a todo")
 
+- **Rheobase from −70 mV for every cell.** The owner, 2026-11-04, asked whether the human beta cell's rheobase from
+  a standard potential should replace the family's least firing step everywhere: "Everywhere", at "−70 mV, every
+  cell", then "Maybe restrict to current task for now. Mark as to do to make it global". So only the human beta cell
+  measures from −70 mV (`ModelDef.rheobaseFromMv`, `src/core/rheobase.ts`); every other cell still reports the
+  family's least firing step, now with the Vm it was measured from. Going global moves quoted numbers. Measured
+  2026-11-04, 800 ms step, published cells, held at −70 mV versus today: pyramidal 544 against 561 pA, fast-spiking
+  384 against 385, LTS 69 against 39 (it rests at −84 mV), squid axon 314 against 225 (rests at −65), GnRH 15.6
+  against 17. Before it does, decide what holding at −70 means for the GABA crossover (gaba.test.ts): a holding
+  current that cancels GABA's shift of Vm changes the experiment the app is named for. Every place that quotes a
+  rheobase then gets updated: presets, tour, README, methods, llms.txt, extremes' current bound.
+
 - **Reversal potentials differ between cell models, and a teaching point may be hidden there.** Voltage clamp now
   takes E_rev from the selected model (E_Na +50 mV on the cortical cells, +54 on the GnRH cell). The lesson the owner
   glimpsed (2026-10-30): what assuming another cell's E_rev does to a G–V and its fit, e.g. normalizing the GnRH

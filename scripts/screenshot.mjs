@@ -81,6 +81,9 @@ if (modelIds.includes("betahuman")) {
   await page.waitForFunction(() => /6 sweeps simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 60000 });
   if ((await page.locator("#preset-select").inputValue()) !== "human-steps") problems.push("human: choosing the step preset did not hold");
   if (await page.locator(".siren").count()) problems.push("human: the siren shows on its own preset");
+  // it fires on its own, so its rheobase is measured held at −70 mV, and says so (the owner, 2026-11-04)
+  const rheoLine = await page.locator(".readline > span").filter({ hasText: /^Rheobase/ }).innerText();
+  if (!/Rheobase\s+3\.[5-7]\s+pA\s+from [−-]70\.0 mV/.test(rheoLine)) problems.push(`human: rheobase should read about 3.6 pA from −70 mV: "${rheoLine}"`);
   // the conductance knobs read in pS/pF or, switched, in the papers' nS/pF; the cell is the same (the owner, 2026-11-04)
   await page.getByRole("radio", { name: "nS/pF" }).click();
   const gK = () => page.getByRole("slider", { name: "gK(ATP)" }).first().getAttribute("aria-valuetext");
@@ -436,7 +439,7 @@ if (modelIds.includes("hh")) {
   const head = await page.locator("table th").first().innerText();
   if (!head.includes("pA/pF")) problems.push(`units: the sweep table's first column reads "${head}"`);
   const readline = await page.locator(".readline").innerText();
-  if (!/Rheobase\s+[\d.]+\s+pA\/pF/.test(readline)) problems.push(`units: rheobase does not read in pA/pF: "${readline.slice(0, 80)}"`);
+  if (!/Rheobase\s+[\d.]+\s+pA\/pF\s+from [−-]\d+\.\d mV/.test(readline)) problems.push(`units: rheobase does not read in pA/pF: "${readline.slice(0, 80)}"`);
   await page.screenshot({ path: `${out}/units-steps.png`, fullPage: true });
   // the temperature preset sets the model's own control
   await page.selectOption("#preset-select", "hh-temp");

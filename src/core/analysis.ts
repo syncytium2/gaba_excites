@@ -149,6 +149,8 @@ export interface FamilySummary {
   stats: SweepStats[];
   /** smallest step (pA) that fired at least one spike in the step; NaN if none did */
   rheobase: number;
+  /** Vm before that step, mV: the potential the rheobase was measured from */
+  rheobaseVm: number;
   /** threshold of the first spike at rheobase, mV */
   threshold: number;
   /** the dV/dt criterion that threshold was measured at, mV/ms */
@@ -202,6 +204,7 @@ export function summarize(sweeps: Sweep[], proto: StepProtocol, crit?: number): 
   return {
     stats,
     rheobase: first ? first.amp : NaN,
+    rheobaseVm: first ? first.vBaseline : NaN,
     threshold: firstSpike ? firstSpike.threshold : NaN,
     threshDvdt: crit ?? sweeps[0]?.threshDvdt ?? THRESH_DVDT,
     apPeak: firstSpike ? firstSpike.peak : NaN,

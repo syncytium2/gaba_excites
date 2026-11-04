@@ -241,6 +241,8 @@ export function humanBeta(over: Partial<HumanParams> = {}): ModelDef {
     // its input resistance is about 4.4 GΩ (human-app.test.ts).
     rheobase: 0,
     rheobaseTol: 0.1,
+    // it fires on its own, so its rheobase is measured held at −70 mV (about 3.6 pA for a 2 s step; human-app.test.ts)
+    rheobaseFromMv: -70,
     currentScale: 1,
     start: {
       v: -63,

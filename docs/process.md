@@ -1788,3 +1788,10 @@ back as a tooltip on the preset menu, as in voltage clamp.
 
 The owner answered "Toggle" to keeping the human cell's knobs in pS/pF: a units switch, display only. Recorded in
 [ADR 2026-11-04-f9aa](adr/2026-11-04-f9aa-conductance-knobs-switch-between-ps-and-ns-per-pf.md).
+
+The step protocol stays on for the human beta cell, and its header no longer claims "Rheobase 1 pA" for a cell that
+fires at 0 pA: it is measured held at −70 mV (3.6 pA), and every rheobase now states the Vm it was measured from.
+The owner first chose −70 mV for every cell, then narrowed it to this cell with a to-do for the rest
+(`docs/roadmap.md`). Recorded in [ADR 2026-11-04-3b16](adr/2026-11-04-3b16-rheobase-is-measured-from-a-stated-membrane-potential.md). On the way, a quick search for the
+holding current that puts each cell at −70 mV failed on the three cells with no stable rest; `cellHoldAt` now
+takes it from the steady-state I–V directly.

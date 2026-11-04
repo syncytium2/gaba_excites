@@ -255,6 +255,11 @@ export function cellRinAt(c: BuiltCell, iInj = 0): number {
   return rinAt(asActive(c), c.gLeak, iInj);
 }
 
+/** The steady current a cell needs to hold it at v, pA: its steady-state membrane current there, every gate at steady state. */
+export function cellHoldAt(c: BuiltCell, v: number): number {
+  return iSteady(asActive(c), c.gLeak, v);
+}
+
 export function cellSteadyV(c: BuiltCell, iInj = 0): number {
   return steadyV(asActive(c), c.gLeak, iInj);
 }

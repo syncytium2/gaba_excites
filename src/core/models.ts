@@ -157,6 +157,12 @@ export interface ModelDef {
   rheobase: number;
   /** rheobase bisection tolerance, pA — 1 pA is fine resolution for one cell and coarse for the other */
   rheobaseTol: number;
+  /**
+   * Measure rheobase from this membrane potential, mV, held by steady current (src/core/rheobase.ts), instead of the
+   * family's least firing step. Set for a cell that fires on its own, where the family's rheobase means nothing.
+   * The owner, 2026-11-04, wants every cell measured this way at −70 mV; for now only the human beta cell is.
+   */
+  rheobaseFromMv?: number;
   /** settle before each run, ms — long enough for the slowest gate */
   settleMs: number;
   /** how far to trust it, in one sentence, shown in the UI */
