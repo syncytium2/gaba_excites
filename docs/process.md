@@ -1873,3 +1873,12 @@ The owner, after Step: "go for it", for the rest of the same advice.
 `scripts/screenshot.mjs` now steps the voltage-clamp family (points fill in, axes hold), checks Focus at 1280×720 in
 all three modes (the screen reaches the window's foot, the amplifier just below, nothing overflows, unticking brings
 the tour back), and fails on any phone control under 32 px or text field under 16 px.
+
+## 2026-11-04 — deployed v0.2.15: Step, Focus and phone-sized controls
+
+The owner: "merge and deploy". `origin/main` had moved on (v0.2.13, v0.2.14, the human beta cell, the threshold
+criterion picker) while this work was on `teaching-views`, so it was merged in first. Two conflicts, both kept on both
+sides: the storage keys (Focus beside the pS/pF | nS/pF knob switch) and the phase plot, which keeps the new threshold
+criterion picker and follows the newest sweep while stepping. 293 tests and the screenshot check passed on the merge.
+`npm run deploy` shipped v0.2.15 (bundle `assets/index-Daqw7dF9.js`) to both domains, the classroom version at
+`/fall-2026/` unchanged. Recorded in `DEPLOYED.md`.
