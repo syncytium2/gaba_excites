@@ -5,8 +5,10 @@ import { MODELS, MODEL_LIST, type ModelId } from "./core/models.ts";
 import { DEFAULT_NOISE, type NoiseParams } from "./core/noise.ts";
 import { FILTER_KHZ } from "./core/filter.ts";
 import { DEFAULT_ELECTRODE, type Electrode, type Sweep } from "./core/simulate.ts";
-import type { FamilySummary } from "./core/analysis.ts";
-import { PRESETS, presetsFor, patternsFor, toProtocol, MAX_SWEEPS, SCOPE_PULSE, INC_DIAL, INC_RANGES, incRangeFor, type IncRange, type ProtocolForm } from "./core/protocol.ts";
+import { summarize, THRESH_DVDT, type FamilySummary } from "./core/analysis.ts";
+import { CRITERIA } from "./core/threshold.ts";
+import type { RheobaseFrom } from "./core/rheobase.ts";
+import { PRESETS, presetsFor, patternsFor, toProtocol, MAX_SWEEPS, SCOPE_PULSE, INC_DIAL, INC_RANGES, incRangeFor, type IncRange, type Preset, type ProtocolForm } from "./core/protocol.ts";
 import type { SynInput } from "./core/synapses.ts";
 import type { Pulse } from "./core/stream.ts";
 import type { CellInfo, Request, Response } from "./worker.ts";
@@ -19,7 +21,7 @@ import { ScopeMode } from "./ui/ScopeMode.tsx";
 import { VClampMode } from "./ui/VClampMode.tsx";
 import { Siren } from "./ui/Siren.tsx";
 import { KnobContext } from "./ui/Knob.tsx";
-import { describe as describeTrip, ExtremeWatch, limitsFor, type ExtremeKind } from "./core/extremes.ts";
+import { describe as describeTrip, ExtremeWatch, limitsFor, settingWarnings, type ExtremeKind } from "./core/extremes.ts";
 import { DARK_CHART, LIGHT_CHART, rampIn, type ChartColors } from "./ui/palette.ts";
 import { axisOpts } from "./ui/axis.ts";
 import { BORN, UPDATED, VERSION, fmtStamp } from "./version.ts";
@@ -37,12 +39,23 @@ const OPENING = TOUR[0].settings;
 const OLD_SCHOOL_KEY = "gaba_excites.oldschool.v2";
 const DENSITY_KEY = "gaba_excites.density.v1";
 const FOCUS_KEY = "gaba_excites.focus.v1";
+const NS_KNOBS_KEY = "gaba_excites.nsknobs.v1";
+
+/** A knob in pS/pF shown in pS/pF or, at the student's choice, in the papers' nS/pF: display only (the owner, 2026-11-04). */
+interface KnobShow { unit: string; value: number; min: number; max: number; step: number }
+function knobShow(k: { unit: string; min: number; max: number; step: number }, v: number, ns: boolean): KnobShow & { toModel: (x: number) => number } {
+  if (!ns || k.unit !== "pS/pF") return { unit: k.unit, value: v, min: k.min, max: k.max, step: k.step, toModel: (x) => x };
+  const f = (x: number) => +(x / 1000).toFixed(9);
+  return { unit: "nS/pF", value: f(v), min: f(k.min), max: f(k.max), step: f(k.step), toModel: (x) => +(x * 1000).toFixed(6) };
+}
 const opening = tourInputs(OPENING);
 import type { RunSettings } from "./core/report.ts";
 
 interface Result {
   sweeps: Sweep[];
   summary: FamilySummary;
+  /** rheobase from a standard potential, for a model that measures it so */
+  rheoFrom?: RheobaseFrom;
   cell: CellInfo;
   ms: number;
   protocol: ReturnType<typeof toProtocol>;
@@ -58,6 +71,27 @@ interface Pin {
 }
 
 const fmt = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "—");
+
+/** A preset measured at set knob values (Preset.knobs) holds only while the cell is still at them. */
+function presetHolds(p: Preset, cell: CellParams): boolean {
+  if (!p.knobs) return true;
+  const now = knobValues(MODELS[cell.model], cell.knobs);
+  return Object.entries(p.knobs).every(([k, v]) => Math.abs((now[k] ?? NaN) - v) < 1e-9);
+}
+
+/** The knobs that have moved off a preset's values, as "Temperature 18.5 → 20 °C", in the units the knobs show. */
+function presetMoved(p: Preset, cell: CellParams, ns = false): string[] {
+  if (!p.knobs) return [];
+  const model = MODELS[cell.model];
+  const now = knobValues(model, cell.knobs);
+  return Object.entries(p.knobs).flatMap(([k, v]) => {
+    if (Math.abs((now[k] ?? NaN) - v) < 1e-9) return [];
+    const def = model.knobs?.find((d) => d.id === k);
+    const show = (x: number) => (def ? knobShow(def, x, ns).value : x);
+    const unit = def ? knobShow(def, v, ns).unit : "";
+    return [`${def?.label ?? k} ${show(v)} → ${+show(now[k] ?? NaN).toFixed(6)}${unit ? ` ${unit}` : ""}`];
+  });
+}
 
 export function App() {
   const [cell, setCell] = useState<CellParams>(opening.cell);
@@ -80,6 +114,8 @@ export function App() {
   const [noise, setNoise] = useState<NoiseParams>({ ...DEFAULT_NOISE, recSigma: 0.2, recFilter: 10 });
   const [showVm, setShowVm] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
+  // the threshold criterion picked on the phase plot's switch, for the model it was picked on (else the model's own)
+  const [critPick, setCritPick] = useState<{ model: ModelId; vps: number } | null>(null);
   const [pins, setPins] = useState<Pin[]>([]);
   const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
@@ -149,6 +185,22 @@ export function App() {
       return false;
     }
   });
+  // Conductance knobs in pS/pF or nS/pF: display only, remembered as a convenience, every access guarded.
+  const [nsKnobs, setNsKnobsPref] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(NS_KNOBS_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const setNsKnobs = (on: boolean) => {
+    setNsKnobsPref(on);
+    try {
+      localStorage.setItem(NS_KNOBS_KEY, on ? "1" : "0");
+    } catch {
+      /* storage unavailable: still works for this visit */
+    }
+  };
   const setDensity = (on: boolean) => {
     setDensityPref(on);
     setZoom(NO_ZOOM); // a zoomed current axis was in the other unit
@@ -178,7 +230,7 @@ export function App() {
       const r = ev.data;
       if (r.id !== lastId.current && r.kind === "run") return; // stale
       if (r.kind === "run") {
-        setResult({ sweeps: r.sweeps, summary: r.summary, cell: r.cell, ms: r.ms, protocol: pendingProto.current, settings: pendingSettings.current! });
+        setResult({ sweeps: r.sweeps, summary: r.summary, rheoFrom: r.rheoFrom, cell: r.cell, ms: r.ms, protocol: pendingProto.current, settings: pendingSettings.current! });
         setBusy(false);
         const amps = ampsKey(r.sweeps.map((s) => s.amp));
         if (playAfterRun.current) {
@@ -208,7 +260,7 @@ export function App() {
     const h = setTimeout(() => {
       const id = ++lastId.current;
       pendingProto.current = protocol;
-      pendingSettings.current = { cell, ihold, electrode, protocol, glu, gaba, noise, seed, preset: PRESETS.find((p) => p.id === presetId)?.label };
+      pendingSettings.current = { cell, ihold, electrode, protocol, glu, gaba, noise, seed, preset: PRESETS.find((p) => p.id === presetId && presetHolds(p, cell))?.label };
       const msg: Request = { kind: "run", id, cell, inputs: { ihold, electrode, glu, gaba, noise }, protocol, seed };
       worker.current?.postMessage(msg);
     }, 90);
@@ -271,8 +323,11 @@ export function App() {
   };
 
   const applyPreset = (id: string) => {
-    const p = PRESETS.find((x) => x.id === id)!;
+    const p = PRESETS.find((x) => x.id === id);
+    if (!p) return; // "Custom" is not a preset
     setPresetId(id);
+    // a preset that sets knobs leaves the scope pattern behind unless it is the same setting
+    if (p.knobs) setPatternId(patternsFor(cell.model).find((x) => Object.entries(p.knobs!).every(([k, v]) => x.knobs[k] === v))?.id ?? "custom");
     setForm(p.protocol);
     setGlu(p.glu);
     setGaba(p.gaba);
@@ -361,7 +416,14 @@ export function App() {
     return { v: pad(vLo, vHi), i: pad(iLo, iHi) };
   }, [result]);
   const sweeps = result?.sweeps ?? [];
-  const summary = result?.summary;
+  // threshold is measured at the run's model's own criterion unless the phase plot's switch picked another
+  const runModel = result ? MODELS[result.settings.cell.model] : null;
+  const ownCrit = runModel?.thresholdDvdt ?? THRESH_DVDT;
+  const crit = critPick && runModel && critPick.model === runModel.id ? critPick.vps : ownCrit;
+  const summary = useMemo(
+    () => (result && crit !== result.summary.threshDvdt ? summarize(result.sweeps, result.protocol, crit) : result?.summary),
+    [result, crit],
+  );
   // the controls convert by the cell as dialed; a result, by the cell it was run on
   const cu = useMemo(() => currentUnit(density, cell.cm), [density, cell.cm]);
   const ru = useMemo(() => (result ? currentUnit(density, result.settings.cell.cm) : cu), [density, result, cu]);
@@ -404,6 +466,8 @@ export function App() {
     return [...seen.values()].map((e) => `${e.text} (step${e.amps.length > 1 ? "s" : ""} ${e.amps.map((a) => ru.fmt(a)).join(", ")} ${ru.label})`);
   }, [result, limits, ru]);
   const [scopeReasons, setScopeReasons] = useState<string[]>([]);
+  // PSC inputs on a cell that receives no such synapses (the beta cells): a warning from the settings, in every mode
+  const settingReasons = useMemo(() => settingWarnings(MODELS[cell.model], [glu, gaba]), [cell.model, glu, gaba]);
   const [readoutSlot, setReadoutSlot] = useState<HTMLElement | null>(null);
   // One screen height for both modes, so the amplifier below the screen stays in
   // place when the mode switches. It depends on the window alone, with a fixed
@@ -428,7 +492,15 @@ export function App() {
   }, [focus]);
   const rinRest = built.rinRest;
   const tauM = (rinRest * cell.cm) / 1000;
-  const preset = presets.find((p) => p.id === presetId);
+  // A preset measured at set knob values (Preset.knobs) holds only while the cell is still at them: turning a knob
+  // or choosing a scope pattern leaves the protocol as it was, but the preset's numbers no longer apply (2026-11-02).
+  const preset = presets.find((p) => p.id === presetId && presetHolds(p, cell));
+  // The preset last chosen, even if a knob has since moved off its values. The menu then says Custom, but its note
+  // stays in the menu's tooltip, marked as measured elsewhere (the owner, 2026-11-04).
+  const lastPreset = preset ?? presets.find((p) => p.id === presetId);
+  const presetTip = preset ? preset.note
+    : lastPreset ? <><b>Custom: you have moved {presetMoved(lastPreset, cell, nsKnobs).join(", ")}.</b> “{lastPreset.label}” was measured at its own values; its note, for comparison: {lastPreset.note}</>
+    : "Your own protocol.";
   const refinedValid = refined && refined.key === runKey ? refined : null;
 
   const pinCurrent = () => {
@@ -546,11 +618,16 @@ export function App() {
                   </Tip>
                 </AmpSlot>
               )}
+              {model.knobs.some((k) => k.unit === "pS/pF") && (
+                <AmpChoice label="Units" value={nsKnobs ? "ns" : "ps"} options={[["ps", "pS/pF"], ["ns", "nS/pF"]] as const} onChange={(u) => setNsKnobs(u === "ns")}
+                  hint="The same conductances either way. pS/pF makes the published values whole numbers (10, 100, 300); nS/pF is how Riz et al. 2014 and Pedersen 2010 write them (0.010, 0.1, 0.3)." />
+              )}
               {model.knobs.map((k) => {
                 const vals = knobValues(model, cell.knobs);
+                const d = knobShow(k, vals[k.id], nsKnobs);
                 return (
-                  <AmpDial key={k.id} label={k.label} unit={k.unit} value={vals[k.id]} min={k.min} max={k.max} step={k.step} digits={k.step < 0.1 ? 2 : 1} hint={k.note}
-                    onChange={(v) => { setCell({ ...cell, knobs: { ...vals, [k.id]: v } }); setPatternId("custom"); }} />
+                  <AmpDial key={k.id} label={k.label} unit={d.unit} value={d.value} min={d.min} max={d.max} step={d.step} digits={digitsFor(d.step)} hint={k.note}
+                    onChange={(v) => { setCell({ ...cell, knobs: { ...vals, [k.id]: d.toModel(v) } }); setPatternId("custom"); }} />
                 );
               })}
         </AmpSection>
@@ -640,10 +717,12 @@ export function App() {
         {mode === "steps" ? (
         <AmpSection name="STEPS">
           <AmpSlot label="Protocol">
-            <select id="preset-select" aria-label="Step protocol preset" value={presetId} onChange={(e) => applyPreset(e.target.value)}>
-              {presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-              {!preset && <option value={presetId}>Custom</option>}
-            </select>
+            <Tip text={presetTip}>
+              <select id="preset-select" aria-label="Step protocol preset" value={preset ? presetId : "custom"} onChange={(e) => applyPreset(e.target.value)}>
+                {presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                {!preset && <option value="custom">Custom</option>}
+              </select>
+            </Tip>
           </AmpSlot>
           <AmpChoice label="Steps as" value={form.mode} options={[["family", "Family"], ["list", "List"]] as const} onChange={(m) => putForm({ mode: m })} />
           {form.mode === "family" ? <>
@@ -665,7 +744,7 @@ export function App() {
         </AmpSection>
         ) : (
         <AmpSection name="PULSES" power={{ on: pulse.enabled, onChange: (on) => setPulse({ ...pulse, enabled: on }) }}>
-          <CurrentDial label="Amplitude" value={pulse.amp} min={-3 * limits.iBound} max={3 * limits.iBound} step={cell.model === "gnrh" ? 1 : cell.model === "betamouse" ? 0.1 : 10} digits={cell.model === "betamouse" ? 1 : 0} disabled={!pulse.enabled} onChange={(amp) => setPulse({ ...pulse, amp })} />
+          <CurrentDial label="Amplitude" value={pulse.amp} min={-3 * limits.iBound} max={3 * limits.iBound} step={cell.model === "gnrh" ? 1 : cell.model === "betamouse" ? 0.1 : cell.model === "betahuman" ? 0.5 : 10} digits={cell.model === "betamouse" || cell.model === "betahuman" ? 1 : 0} disabled={!pulse.enabled} onChange={(amp) => setPulse({ ...pulse, amp })} />
           <AmpDial label="Width" unit="ms" value={pulse.width} min={1} max={2000} step={10} digits={0} disabled={!pulse.enabled} onChange={(width) => setPulse({ ...pulse, width })} />
           <AmpDial label="Period" unit="ms" value={pulse.period} min={10} max={10000} step={50} digits={0} disabled={!pulse.enabled} onChange={(period) => setPulse({ ...pulse, period })} />
         </AmpSection>
@@ -739,8 +818,8 @@ export function App() {
         <main className={"figures" + (mode === "scope" && !focus ? " pinned" : "")} style={{ "--screen-h": `${screenH}px` } as React.CSSProperties}>
           <div className="modebar">
             {mode === "scope" && <div className="readout-slot" ref={setReadoutSlot} />}
-            {mode === "steps" && <StepReadouts summary={playing ? undefined : summary} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} cu={ru} />}
-            <Siren reasons={mode === "scope" ? scopeReasons : stepReasons} />
+            {mode === "steps" && <StepReadouts summary={playing ? undefined : summary} rheoFrom={playing ? undefined : result?.rheoFrom} crit={crit} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} cu={ru} />}
+            <Siren reasons={[...settingReasons, ...(mode === "scope" ? scopeReasons : stepReasons)]} />
             {error && <div className="warn" role="alert">Simulation failed: {error}</div>}
           </div>
 
@@ -840,15 +919,27 @@ export function App() {
                     </p>
                   </figure>
                   <figure className="card">
-                    {/* while the sweeps play or step, the newest sweep's: the selected one could show a spike the room has not reached */}
-                    <figcaption><span>Phase plot, {(newest ?? sweeps[sel]) ? ru.text((newest ?? sweeps[sel]).amp) : "—"}</span></figcaption>
-                    <PhasePlot vm={(newest ?? sweeps[sel]).vm} dt={(newest ?? sweeps[sel]).sampleMs} color={pal.orange} />
+                    <figcaption>
+                      {/* while the sweeps play or step, the newest sweep's: the selected one could show a spike the room has not reached */}
+                      <span>Phase plot, {(newest ?? sweeps[sel]) ? ru.text((newest ?? sweeps[sel]).amp) : "—"}</span>
+                      <label className="crit-pick">threshold at{" "}
+                        <select value={crit} aria-label="Threshold criterion, V/s" onChange={(e) => runModel && setCritPick({ model: runModel.id, vps: +e.target.value })}>
+                          {CRITERIA.map((c) => <option key={c.vps} value={c.vps}>{c.vps} V/s{c.vps === ownCrit ? " (this cell's)" : ""}</option>)}
+                        </select>
+                      </label>
+                    </figcaption>
+                    <PhasePlot vm={(newest ?? sweeps[sel]).vm} dt={(newest ?? sweeps[sel]).sampleMs} color={pal.orange} crit={crit} spikeLevel={runModel?.spikeLevel} />
+                    <p className="small">
+                      Threshold is where dV/dt first reaches a chosen rate, and labs choose differently for different neurons.
+                      This cell's is {ownCrit} V/s ({CRITERIA.find((c) => c.vps === ownCrit)?.source ?? "the app's default"}).
+                      Pick another and watch the dot, and the threshold readout, move.
+                    </p>
                   </figure>
                 </div>
 
                 <SweepTable summary={summary!} sel={sel} onSelect={setSelected} cu={ru} />
 
-                <Notebook run={busy ? null : { sweeps, summary: summary!, settings: result.settings, cell: result.cell }} model={MODELS[result.settings.cell.model]} app={{ version: VERSION, updated: UPDATED }} />
+                <Notebook run={busy ? null : { sweeps, summary: summary!, settings: result.settings, cell: result.cell, rheoFrom: result.rheoFrom }} model={MODELS[result.settings.cell.model]} app={{ version: VERSION, updated: UPDATED }} />
               </>
             )}
             </>
@@ -1266,8 +1357,8 @@ function SweepTable({ summary, sel, onSelect, cu }: { summary: FamilySummary; se
  * Each name carries its explanation on hover and focus. Rheobase keeps its
  * "refine" link and the refined value, a result someone asked for.
  */
-function StepReadouts({ summary, rinRest, rinHold, refined, onRefine, tol, cu }: {
-  summary?: FamilySummary; rinRest: number; rinHold: number; refined: { value: number; tol: number } | null; onRefine: () => void; tol: number;
+function StepReadouts({ summary, rheoFrom, crit, rinRest, rinHold, refined, onRefine, tol, cu }: {
+  summary?: FamilySummary; rheoFrom?: RheobaseFrom; crit: number; rinRest: number; rinHold: number; refined: { value: number; tol: number } | null; onRefine: () => void; tol: number;
   cu: CurrentUnit;
 }) {
   const s = summary;
@@ -1279,20 +1370,30 @@ function StepReadouts({ summary, rinRest, rinHold, refined, onRefine, tol, cu }:
   );
   return (
     <span className="readline">
+      {rheoFrom ? (
       <span>
-        <Tip text={s && !Number.isFinite(s.rheobase) ? "No step fired." : "The smallest step that fired."}>Rheobase</Tip> <b>{s ? amp(s.rheobase) : "—"}</b> {cu.label}{" "}
+        <Tip text={<>Measured held at {fmt(rheoFrom.vFrom, 0)} mV by {cu.text(rheoFrom.hold)}, the least step of this protocol's duration that fires, bisected to {cu.text(tol)}. This cell fires on its own, so the least step of the family to fire would say nothing: rheobase is measured from a standard potential instead.{Number.isFinite(rheoFrom.amp) ? "" : " Held there, it fires with no step at all, or not up to 100 nA."}</>}>Rheobase</Tip> <b>{amp2(rheoFrom.amp)}</b> {cu.label}{" "}
+        <small>from {fmt(rheoFrom.vBase, 1)} mV</small>
+      </span>
+      ) : (
+      <span>
+        <Tip text={s && !Number.isFinite(s.rheobase) ? "No step fired." : "The smallest step that fired, measured from the Vm just before it."}>Rheobase</Tip> <b>{s ? amp(s.rheobase) : "—"}</b> {cu.label}{" "}
         <small>
+          {s && Number.isFinite(s.rheobaseVm) && <>from {fmt(s.rheobaseVm, 1)} mV </>}
           {refined ? (Number.isFinite(refined.value) ? `(refined ${amp2(refined.value)} ± ${amp2(refined.tol)})` : "(refining…)")
             : s && Number.isFinite(s.rheobase) ? <button className="linkish" onClick={onRefine}>refine to {cu.text(tol)}</button> : null}
         </small>
       </span>
-      {item("Threshold", "First spike, where dV/dt reaches 20 V/s.", s ? fmt(s.threshold, 1) : "—", "mV")}
+      )}
+      {item("Threshold", `First spike, where dV/dt reaches ${crit} V/s: ${CRITERIA.find((c) => c.vps === crit)?.source ?? "the app's default"}. Try others on the phase plot.`, s ? fmt(s.threshold, 1) : "—", "mV")}
       {item("AP peak", "First spike at rheobase.", s ? fmt(s.apPeak, 0) : "—", "mV")}
       {item("Half-width", "At half the threshold-to-peak height.", s ? fmt(s.apHalfWidth, 2) : "—", "ms")}
       {item("Rin", s && Number.isFinite(s.rinMeasured)
         ? `Measured from steps ≤ 0 at the holding Vm. Steady-state slope: ${fmt(rinRest, 0)} MΩ at rest${Math.abs(rinHold - rinRest) > 0.02 * rinRest ? `, ${fmt(rinHold, 0)} MΩ at Ihold` : ""}.`
         : "Needs two steps ≤ 0.", s ? fmt(s.rinMeasured, 0) : "—", "MΩ")}
-      {item("Holding Vm", "Before the step.", s ? fmt(s.vHold, 1) : "—", "mV")}
+      {/* the family's rheobase already says the Vm it was measured from, which is the holding Vm to within 0.1 mV;
+          shown apart only when they differ (a cell measured from a standard potential, or synaptic inputs) */}
+      {(rheoFrom || !s || !(Math.abs(s.rheobaseVm - s.vHold) < 0.05)) && item("Holding Vm", "Before the step, averaged over the sweeps.", s ? fmt(s.vHold, 1) : "—", "mV")}
       {cu.density
         ? item("F–I gain", "Slope over the sweeps that fired.", s ? fmt((s.fiGain * cu.cm) / 1000, 1) : "—", "Hz per pA/pF")
         : item("F–I gain", "Slope over the sweeps that fired.", s ? fmt(s.fiGain, 0) : "—", "Hz/nA")}

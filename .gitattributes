@@ -3,3 +3,4 @@
 # at deploy.sh's first line (2026-10-30, the owner's workstation).
 * text=auto eol=lf
 *.sh text eol=lf
+docs/adr/README.md merge=union

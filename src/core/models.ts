@@ -23,13 +23,14 @@ import {
   type Channel,
 } from "./channels.ts";
 import { BETA_MOUSE } from "./beta.ts";
+import { BETA_HUMAN } from "./human.ts";
 import { adamsPool, destexheDecay, type CaPool } from "./pools.ts";
 
 export type { CaPool } from "./pools.ts";
-export type ModelId = "rs" | "fs" | "lts" | "gnrh" | "betamouse" | "hh";
+export type ModelId = "rs" | "fs" | "lts" | "gnrh" | "betamouse" | "betahuman" | "hh";
 
-export type Ion = "na" | "k" | "ca" | "cation";
-export const ION_NAME: Record<Ion, string> = { na: "Na⁺", k: "K⁺", ca: "Ca²⁺", cation: "cation" };
+export type Ion = "na" | "k" | "ca" | "cl" | "cation";
+export const ION_NAME: Record<Ion, string> = { na: "Na⁺", k: "K⁺", ca: "Ca²⁺", cl: "Cl⁻", cation: "cation" };
 
 /**
  * The model's reversal for an ion, from its own channel data: the first channel that carries it (where a model
@@ -156,16 +157,46 @@ export interface ModelDef {
   rheobase: number;
   /** rheobase bisection tolerance, pA — 1 pA is fine resolution for one cell and coarse for the other */
   rheobaseTol: number;
+  /**
+   * Measure rheobase from this membrane potential, mV, held by steady current (src/core/rheobase.ts), instead of the
+   * family's least firing step. Set for a cell that fires on its own, where the family's rheobase means nothing.
+   * The owner, 2026-11-04, wants every cell measured this way at −70 mV; for now only the human beta cell is.
+   */
+  rheobaseFromMv?: number;
   /** settle before each run, ms — long enough for the slowest gate */
   settleMs: number;
   /** how far to trust it, in one sentence, shown in the UI */
   validation: string;
+  /**
+   * The Vm a spike must rise through to be counted, mV, where this cell's spikes do not reach the app's −20 mV
+   * (analysis.ts SPIKE_LEVEL); the detector re-arms 20 mV below it. The human beta cell's action potentials peak
+   * between about −7 and −28 mV across the papers' conditions.
+   */
+  spikeLevel?: number;
+  /**
+   * The dV/dt criterion this cell's spike threshold is measured at, mV/ms (= V/s): one of threshold.ts CRITERIA,
+   * which says where it comes from. Labs define threshold differently for different neurons, and the app teaches
+   * that: the phase plot's switch tries the others. null for a cell whose threshold the app never measures (the
+   * oscilloscope-only mouse beta cell). See docs/adr, "spike threshold's criterion belongs to the model".
+   */
+  thresholdDvdt: number | null;
+  /**
+   * false for a cell whose published action potentials do not overshoot 0 mV (the human beta cell's peak at −8 mV
+   * in Pedersen 2010), so the siren does not call every one of them a failed spike (extremes.ts). Absent: true.
+   */
+  spikesOvershoot?: boolean;
   /**
    * What voltage clamp on this model can and cannot show, where that differs
    * from the rest: shown under the voltage-clamp plots. Set it when the
    * model's currents were not fitted to voltage-clamp recordings.
    */
   vcNote?: string;
+  /**
+   * Why the PSC inputs (the app's generic synaptic barrage) are not this cell's physiology, where they are not:
+   * the siren shows it whenever a GABA or glutamate PSC input is on (extremes.ts settingWarnings). The panel stays,
+   * so a student can try it and read why (the owner, 2026-11-04).
+   */
+  pscNote?: string;
 }
 
 // ---------------------------------------------------------------- RS pyramidal
@@ -180,6 +211,7 @@ const RS_CM = (Math.PI * 96 * 96) / 100;
 
 export const RS: ModelDef = {
   id: "rs",
+  thresholdDvdt: 10,
   label: "Cortical pyramidal (regular spiking)",
   short: "pyramidal",
   blurb: "Pospischil et al. 2008: Traub INa and IKd, slow M-current for adaptation.",
@@ -222,6 +254,7 @@ const FS_CM = (Math.PI * 67 * 67) / 100;
 
 export const FS: ModelDef = {
   id: "fs",
+  thresholdDvdt: 10,
   label: "Cortical interneuron (fast spiking)",
   short: "fast-spiking",
   blurb: "Pospischil et al. 2008: the pyramidal cell's INa and IKd, with twice the K⁺ and no M current. Fast, and it does not adapt.",
@@ -270,6 +303,7 @@ const CELSIUS = 36;
 
 export const LTS: ModelDef = {
   id: "lts",
+  thresholdDvdt: 10,
   label: "Cortical pyramidal (low-threshold spike, rebound)",
   short: "LTS",
   blurb: "Pospischil et al. 2008: the pyramidal cell plus a T-type Ca²⁺ current. Bursts from its own rest; held near −65 mV, it fires on release from hyperpolarization.",
@@ -320,6 +354,7 @@ const ECA_G = 82.5;
 
 export const GNRH: ModelDef = {
   id: "gnrh",
+  thresholdDvdt: 1,
   label: "GnRH neuron (mouse, negative feedback)",
   short: "GnRH",
   blurb: "Adams et al. 2018: Markov INaF, INaP, IA, IK, T- and HVA-type ICa, IS, Ih, IKCa, with a calcium pool.",
@@ -455,6 +490,7 @@ const HH_CM = 100;
 
 export const HH: ModelDef = {
   id: "hh",
+  thresholdDvdt: 10,
   label: "Squid giant axon (Hodgkin–Huxley)",
   short: "squid axon",
   blurb:
@@ -500,6 +536,6 @@ export const HH: ModelDef = {
     "Spike counts match NEURON's built-in hh mechanism exactly, at 6.3 and 18.5 °C, spike times within 0.01 ms; the equations match the 1952 paper's exactly, and its computed action potentials (Table 4) are reproduced.",
 };
 
-export const MODELS: Record<ModelId, ModelDef> = { rs: RS, fs: FS, lts: LTS, gnrh: GNRH, betamouse: BETA_MOUSE, hh: HH };
+export const MODELS: Record<ModelId, ModelDef> = { rs: RS, fs: FS, lts: LTS, gnrh: GNRH, betamouse: BETA_MOUSE, betahuman: BETA_HUMAN, hh: HH };
 /** The models the app offers, in the selector's order. */
-export const MODEL_LIST: ModelDef[] = [RS, FS, LTS, GNRH, BETA_MOUSE, HH];
+export const MODEL_LIST: ModelDef[] = [RS, FS, LTS, GNRH, BETA_MOUSE, BETA_HUMAN, HH];

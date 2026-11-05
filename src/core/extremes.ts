@@ -3,7 +3,8 @@
  * siren. Every criterion comes from the cell itself, so none is a number
  * someone picked for the cell from outside:
  *
- *   spike failure    a spike that no longer overshoots 0 mV, or depolarization
+ *   spike failure    a spike that no longer overshoots 0 mV (not checked for a cell
+ *                    whose published spikes do not overshoot: ModelDef.spikesOvershoot), or depolarization
  *                    block: Vm held above −30 mV for 50 ms (a spike spends
  *                    about a millisecond there; the GnRH cell at the top of its
  *                    range, 1.4 ms)
@@ -29,6 +30,10 @@ export interface Limits {
   vMax: number;
   iCenter: number;
   iBound: number;
+  /** the level a spike is counted at, mV: the model's own (ModelDef.spikeLevel) or SPIKE_UP */
+  spikeUp: number;
+  /** the peak a spike must reach, mV, or null where the published cell's spikes do not overshoot */
+  overshoot: number | null;
 }
 
 /** a spike must reach this to count as overshooting, mV */
@@ -52,6 +57,8 @@ export function limitsFor(cell: BuiltCell, model: ModelDef, syn: SynInput[] = []
     vMax: Math.max(...es) + RANGE_MARGIN,
     iCenter: model.defaults.ihold,
     iBound: CURRENT_RHEOBASES * (model.currentScale ?? model.rheobase),
+    spikeUp: model.spikeLevel ?? SPIKE_UP,
+    overshoot: model.spikesOvershoot === false ? null : OVERSHOOT,
   };
 }
 
@@ -103,17 +110,17 @@ export class ExtremeWatch {
         if (v > this.peak) {
           this.peak = v;
           this.peakT = t;
-        } else if (v < this.peak - 1 || v < SPIKE_UP) {
-          if (this.peak < OVERSHOOT) this.trip("overshoot", this.peakT, this.peak);
+        } else if (v < this.peak - 1 || v < L.spikeUp) {
+          if (L.overshoot !== null && this.peak < L.overshoot) this.trip("overshoot", this.peakT, this.peak);
           this.inSpike = false;
         }
-      } else if (this.armed && this.lastV < SPIKE_UP && v >= SPIKE_UP) {
+      } else if (this.armed && this.lastV < L.spikeUp && v >= L.spikeUp) {
         this.inSpike = true;
         this.armed = false;
         this.peak = v;
         this.peakT = t;
       }
-      if (!this.armed && !this.inSpike && v < SPIKE_REARM) this.armed = true;
+      if (!this.armed && !this.inSpike && v < L.spikeUp - (SPIKE_UP - SPIKE_REARM)) this.armed = true;
       this.lastV = v;
     }
   }
@@ -121,6 +128,14 @@ export class ExtremeWatch {
   since(t: number): Trip[] {
     return [...this.trips.values()].filter((x) => x.t >= t);
   }
+}
+
+/**
+ * Settings, not trips: a PSC input on a cell that receives no such synapses (ModelDef.pscNote). Shown by the siren
+ * in every mode, from the moment the input is switched on.
+ */
+export function settingWarnings(model: ModelDef, syn: SynInput[]): string[] {
+  return model.pscNote && syn.some((s) => s.enabled && s.rate > 0 && s.gPeak > 0) ? [model.pscNote] : [];
 }
 
 /** One line per kind, for the siren's explanation. */

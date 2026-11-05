@@ -1101,7 +1101,7 @@ message. Neither side can reply to the other, so answers come through the owner.
 
 beta_max answered the same day, by direct message, at the owner's request: **mouse first, then human.** Its granule
 engine is fitted to mouse and rat islets, so only a mouse membrane model can drive it later without mixing species.
-It builds no membrane model of its own (an averaged front end, its ADR-0006) and takes voltage as input
+It builds no membrane model of its own (an averaged front end, its `docs/adr/0006-electrical-activity-is-averaged.md`) and takes voltage as input
 (`Drive = { Vmd, Vi, G }`). It suggested the Bertram/Sherman Integrated Oscillator Model for mouse, whose code has
 no stated license, and is extracting Ashcroft & Rorsman 1989 into `01-lit/beta_max/ashcroft1989-extraction.md` for
 reuse. The roadmap entry now says all of this. Correction to the paragraph above: the 065 session could reply after
@@ -1616,6 +1616,215 @@ The methods page has a paragraph on it (`#beta-vc`), and the validation table's 
 `beta-app.test.ts` requires both, and `scripts/screenshot.mjs` checks the note shows on the beta cell and not on the
 pyramidal cell. In parallel, a search for beta cell models whose currents were fitted to voltage-clamp data (mouse and
 human) was started at the owner's request.
+
+## 2026-11-02 — the human beta cell, built overnight on a branch
+
+The owner, having emailed Morten Pedersen for permission: "lets assume the response is positive. build the model. i am
+going to sleep now so proceed autonomously. Any issues that you cannot resolve safely, I will review in the morning.
+Do not deploy until i review your update in the morning." Built on branch `human-beta`; not merged, not deployed.
+
+**The model.** A survey of beta-cell models (the 2026-11-02 entry above) ranked Riz, Braun & Pedersen 2014, on
+Pedersen 2010, first: its voltage-gated currents come from Braun et al. 2008's voltage-clamp recordings of human beta
+cells, and it has an explicit GABA_A current. Transcribed from both papers' PDFs (`lit/notes/riz2014.md`), with every
+sign checked against the authors' XPP files, since the PDF text layer drops some minus signs. Pedersen 2010 is the
+same model with SK off, HERG at 0.2 nS/pF, g_K(ATP) 0.015 nS/pF and a P/Q slope of −10 mV, so one port
+(`src/core/human.ts`) covers both papers. Not ported: Riz's glycolytic oscillator (one figure) and its K_ATP noise.
+
+**How it was checked.** The authors' equations, transcribed literally into a scratch Python script and integrated by
+LSODA at 1e-9, reproduce Pedersen's reported numbers (4.63 Hz, −8.4 and −67.9 mV, 7.06 Hz with HERG blocked, the TTX
+intervals), which confirmed the transcription before the port. The port matches LSODA's interspike intervals within
+0.5% in nine configurations and its first spikes within 0.1 ms, and matches every number the papers report:
+`human.test.ts` (16 tests). The app's numbers (presets, patterns, current scale) are in `human-app.test.ts`.
+
+**Decisions taken overnight, each for the owner to confirm or undo:**
+
+- **The solver passes the Ca²⁺ current to channels that ask for it** (`Channel.readsICa`). BK in this model is
+  driven by the Ca²⁺ current itself (Pedersen Eq. 9); the owner had been asked and not yet answered. The input is
+  computed only for a model with such a channel, so every other model's step is the same arithmetic in the same
+  order; the NEURON oracles and every other test pass unchanged.
+- **A model may count its spikes at its own level** (`ModelDef.spikeLevel`). This cell's spikes peak at −7 to
+  −10 mV, and at −20 to −28 mV with GABA, TTX or less L-type current, so the app's −20 mV missed the papers' own
+  conditions. It counts at −30 mV, re-arming at −50; every other model stays at −20/−40. Sweeps carry the level, so
+  the F–I analysis, the report and the oscilloscope all use it.
+- **The siren's "spike fails to overshoot 0 mV" is not applied to this cell** (`ModelDef.spikesOvershoot: false`):
+  its published spikes never overshoot, so every one of them would have tripped it. Block, range and current still
+  apply. The siren's criteria are the owner's (2026-10-16), so this is flagged.
+- **A spike whose upstroke never reaches 20 V/s has no threshold or half-width** (analysis.ts). This cell's spikes
+  rise at about 7 V/s, and the readout showed −30.0 mV, the counting level, as "threshold". It now shows "—". General,
+  but no neuron's spike is that slow, and every test passes.
+- **A step preset measured at set knob values shows as Custom once the knobs move** (`presetHolds`, App.tsx). Found
+  in the screenshot check: choosing a scope pattern, then the step protocol, left "Picoamps steer its firing" on the
+  menu with K_ATP the pattern had changed, so its note's numbers no longer applied. This also applies to the squid
+  axon's "Warmed to 18.5 °C". A preset that sets knobs now also moves the pattern menu to the matching pattern.
+- **Knobs in pS/pF** (10, 21, 100, 300…) rather than the papers' nS/pF, so the published values are whole numbers
+  and fit the readout; the model converts. Knob readouts now take their decimals from the knob's step, which leaves
+  the other models' knobs as they were.
+- **Step protocol is enabled** for this cell (it spikes at ~6 Hz, so a 3 s sweep shows it), with one preset: picoamp
+  steps on the spiking cell (12, 9, 0 and 18 spikes in 2 s at 0, −1, −2 and +4 pA). Rheobase is undefined; the
+  siren's current scale is the silent cell's 1.0 pA (g_K(ATP) 21 pS/pF, Riz Fig. 5A; Rin 4.4 GΩ).
+- **E_GABA for the PSC controls opens at −40 mV**, Riz's E_Cl. The PSC size and kinetics are the app's generic ones
+  (3 nS peak), unsourced for beta cells, and large for a 10 pF cell; the bath GABA knob is the papers' experiment.
+
+**Left for the owner.** Pedersen's reply. No voltage-clamp preset reproduces Braun 2008's figures yet: that needs
+Pedersen's supplement (Figs. S1–S3, on the want-list) and Braun's own figures, and a decision on whether such presets
+use Pedersen's firing reversals (+70, +65 mV) or the voltage-clamp ones. Rin and "rest" in the header are taken at the
+unstable fixed point (−44 mV, 667 MΩ) of a cell that never rests there, as for the mouse cell.
+
+## 2026-11-03 — Pedersen's permission for the human beta cell
+
+The owner emailed Morten Gram Pedersen on 2026-11-03. The email asked to add his human beta cell model (Pedersen 2010,
+with the SK, calcium and GABA_A additions of Riz, Braun & Pedersen 2014) to this app, with attribution. It said the
+model would be written from the papers' equations and tables, that the authors' published XPP files would be used only
+to check that the port reproduces theirs, and that none of their files would be redistributed. Pedersen replied the
+same day: "Absolutely - yes, that would be fine."
+
+The email asked no technical questions, and the reply answers none; it is permission, not a review of the port. It
+adds no condition beyond the attribution the request offered.
+
+Recorded in `lit/sources.json` on `pedersen2010`, `riz2014` and `riz14code`, in a new optional field, `permission`,
+which `scripts/lit.ts` renders on `public/lit.html` and `lit/README.md`.
+
+## 2026-11-03 — the owner approves the Ca²⁺ current as a solver input
+
+Reviewing the overnight decisions one at a time, the owner was asked: "The human beta cell's BK channel needs the
+calcium current, so the branch lets any channel ask the solver for it (NEURON's pattern; other models unchanged).
+Approve this?" He chose "Approve, merge the sums": keep `Channel.readsICa`, and compute the Ca²⁺ current once per
+step instead of twice.
+
+The design is NEURON's: a mechanism there declares `USEION ca READ ica` and is handed the summed calcium current of
+the mechanisms that write it. Here the sum is taken before any channel reads it, so the answer does not depend on the
+order the channels are listed in, which in NEURON it can. The solver still learns about no particular channel.
+
+`simulate.ts` now has one helper, `caCurrent`, for the pools and for a channel that reads the current. A model with
+such a channel sums the current once before the conductance loop, and every other model sums it along the way, as
+before. Same products, same order: every test, the NEURON oracles and `human.test.ts` included, passes unchanged.
+
+The owner also said, of recording this rule in AGENTS.md: "agents.md is unreliable. thses should be ADRs". The
+repository has no ADRs yet; building the enforcement for them was handed to armory
+(its `docs/handoffs/2026-11-03-adr-hygiene-has-no-kit.md`). This decision becomes an ADR once that kit exists.
+
+## 2026-11-03 — the owner's review of the overnight decisions: spike level, siren, and threshold per cell
+
+Reviewing the human beta cell's overnight decisions one at a time (the calcium current is the entry above):
+
+- **Spike level.** Asked to approve a model counting spikes at its own level (this cell at −30 mV, re-arming below
+  −50 mV; every other model at −20/−40), he chose "Approve".
+- **Siren.** Asked to approve skipping only the "fails to overshoot 0 mV" check for this cell, whose published spikes
+  peak at −7 to −10 mV, he chose "Approve".
+- **Threshold.** Asked to approve "—" for a spike that never reaches 20 V/s, he answered instead that labs define
+  threshold differently for different neurons and that this should be a teaching moment. Each model now carries its
+  own dV/dt criterion, and a switch on the phase plot tries the others. The decision, his words with the questions
+  they answered, the figure he measured on, and what enforces it are in
+  [`docs/adr/2026-11-03-d4b6-spike-thresholds-criterion-belongs-to-the-model.md`](adr/2026-11-03-d4b6-spike-thresholds-criterion-belongs-to-the-model.md).
+  In short: 10 V/s for the cortical cells and the squid axon (Kress 2010), 1 V/s for GnRH, 0.5 V/s for the human beta
+  cell (his reading of its phase plot, "the point of no return"), none for the oscilloscope-only mouse cell.
+
+**The first ADRs.** On being told the decision belongs in AGENTS.md, he said "agents.md is unreliable. thses should
+be ADRs", and of the threshold decision, "that's an adr!". armory owns the ADR kit (not built yet), and its format is
+taken: a date plus four random hex characters as the ID. `docs/adr/` starts with two records, the threshold criterion
+and, written after the fact, the mouse beta cell's oscilloscope-only decision of 2026-10-29. That one was written
+because he remembered steps as turned on for the mouse cell ("i thought we turned steps on? it was vc that was
+challenging"); the decision existed only in this log. He said: "this is why we need adrs". He asked that the figure he
+measured on be saved in the ADR (`docs/adr/figures/`).
+
+**The measuring page is kept.** He measured the criterion on a page drawn for him: one spike, V and dV/dt on one time
+axis, and the phase plot, with a hover readout and click-to-pin. He called it a "very hand display tool" and asked
+that it be preserved. It is `scripts/apview.ts` (any model, any step, `--pin` criteria, `--out` page, `--png`
+figure) with its template `scripts/apview.html`, tested in `src/apview.test.ts`.
+
+**What moved.**
+- The phase plot takes the criterion, marks the first spike's threshold with a dot, and scales its dV/dt axis to the
+  criterion instead of a 40 V/s floor, which had flattened the beta cell's 7 V/s spike onto the axis.
+- The fast-spiking and pyramidal half-widths quoted in the presets and methods page are 0.57 and 0.71 ms (were 0.56
+  and 0.70), measured from threshold at 10 V/s.
+- The report's threshold table read each run's thresholds by position in the criteria list; adding 0.5 V/s would have
+  shifted every saved notebook's columns by one. It now reads them by criterion, tested with an old-style record.
+- At each model's own criterion, the first rheobase spike's threshold falls 0.4–3.8 ms before its spike-level
+  crossing and well after step onset, so on the spike, not on the charging ramp.
+- `tools/experiments/threshold_criteria.ts` keeps its own 1, 2, 10, 20 V/s list; untouched.
+
+## 2026-11-03 — armory's ADR kit, vendored; its hook waits for the owner
+
+The session "mac armory adr" built the kit the owner handed to armory (armory `tools/adr/adr.py`, commit 1649990b)
+and reported that this repository's two ADRs passed every rule. Its check failed on three bare citations of other
+repositories' ADRs: two to one of beta_max's in this log and the roadmap, now named by its file
+(`docs/adr/0006-electrical-activity-is-averaged.md` in beta_max), and one in a dated handoff, which is excluded instead.
+
+Vendored as `tools/adr/adr.py` with its source stamped on line two, unedited. `.adr-kit.json` names `docs/adr` and
+excludes `docs/handoffs/` from the citation and link scans, since rewriting a handoff's old citations would falsify
+it. CI runs `python3 tools/adr/adr.py check` after the build, on the full-history clone it already makes. The ADR
+index merges by union (`.gitattributes`). The kit's selftest passes here, and a bare ID planted in the roadmap made
+`check` fail, then pass once removed.
+
+**Not wired: the Claude Code hook** in `.claude/settings.json`, which would run the check before every commit, merge,
+push, pull and rebase in every session in this repository. It came as another session's suggestion while the owner
+was asleep, and it changes how every session here behaves, so it waits for his yes. His standing request of
+2026-10-18 was for exactly such a hook; the question is only that he confirm it now.
+
+## 2026-11-04 — the ADR hook, wired
+
+The owner answered the armory session's question, "should gaba_excites turn on the hook that blocks git commit, merge
+and push while an ADR check fails?", with "Yes", and confirmed it here: "Yes wire it". `.claude/settings.json` now
+runs `python3 "$CLAUDE_PROJECT_DIR"/tools/adr/adr.py hook` before every Bash command; it blocks only git commit,
+merge, push, pull and rebase, and only while `adr.py check` fails. Checked before wiring: `check` reports 0 failures
+on this branch, `--selftest` passes, and in a scratch clone with a bare citation to a made-up ADR number planted in this file the hook
+refused `git commit`.
+
+Two limits, recorded in `docs/adr/README.md`. Claude Code reads hooks from the main checkout, so the hook fires only
+once this branch reaches `main`. And it checks the tree of the session's working directory, which in this setup is
+the main checkout, so a `cd <worktree> && git commit` is checked against `main`, not the worktree. Reported to
+armory.
+
+Later the same day armory fixed both limits (armory `2ded5cd3`). `tools/adr/adr.py` is re-vendored at that commit,
+and the hook command in `.claude/settings.json` now runs only when the file exists. Checked from the main checkout:
+`cd <scratch clone with a bad citation> && git commit` is refused, `cd <this worktree> && git commit` passes, and with
+no `adr.py` present an ordinary command passes.
+
+## 2026-11-04 — the owner's review, continued: a moved preset keeps its note
+
+Recorded in [ADR 2026-11-04-f5f6](adr/2026-11-04-f5f6-a-moved-presets-menu-says-custom-and-keeps-its-note.md). Two findings on the way: the squid preset's note invites turning the very
+knob that hid it, and since 2026-10-19 (`7cabed8`) current-clamp step notes had no place on screen at all. They are
+back as a tooltip on the preset menu, as in voltage clamp.
+
+The owner answered "Toggle" to keeping the human cell's knobs in pS/pF: a units switch, display only. Recorded in
+[ADR 2026-11-04-f9aa](adr/2026-11-04-f9aa-conductance-knobs-switch-between-ps-and-ns-per-pf.md).
+
+The step protocol stays on for the human beta cell, and its header no longer claims "Rheobase 1 pA" for a cell that
+fires at 0 pA: it is measured held at −70 mV (3.6 pA), and every rheobase now states the Vm it was measured from.
+The owner first chose −70 mV for every cell, then narrowed it to this cell with a to-do for the rest
+(`docs/roadmap.md`). Recorded in [ADR 2026-11-04-3b16](adr/2026-11-04-3b16-rheobase-is-measured-from-a-stated-membrane-potential.md). On the way, a quick search for the
+holding current that puts each cell at −70 mV failed on the three cells with no stable rest; `cellHoldAt` now
+takes it from the steady-state I–V directly.
+
+The last overnight choice, GABA on the human beta cell. The owner asked what GABA inputs to beta cells are; from
+PubMed abstracts, autocrine and paracrine from the beta cells themselves, not synaptic. He kept the PSC panel with a
+siren warning ("This is exactly what we built the site for") and asked for the findings as a high-priority to-do,
+now at the top of `docs/roadmap.md`. Recorded in [ADR 2026-11-04-8e7a](adr/2026-11-04-8e7a-beta-cells-keep-the-psc-panel-and-the-siren-says-why.md). That ends the review of
+the overnight choices.
+
+## 2026-11-04 — deployed v0.2.13: the human beta cell
+
+Asked whether to merge and deploy the reviewed `human-beta` branch, the owner answered "Yep go". `main` was
+fast-forwarded to it (`ea64dc6`) and pushed. The first `npm run deploy` was refused by Claude Code's permission check
+as a production deploy; its dry run passed every gate. The owner then wrote "deploy", and `npm run deploy` shipped
+v0.2.13 (`5049fce`, bundle `assets/index-DBdxHz70.js`) to both domains, the classroom version at `/fall-2026/`
+unchanged. Recorded in `DEPLOYED.md`. v0.2.12 had been live before it.
+
+## 2026-11-04 — the islet siren's note, corrected
+
+Asked to "review the islet gaba followup", the session re-read the four abstracts on PubMed. The siren's note on
+beta-cell PSCs claimed an ambient islet GABA level of 100–1000 nM, which Korol 2018's abstract says is unknown; it
+called the bath GABA knob the islet's steady signal, though the knob is a 10 µM to 1 mM dose; and it said beta cells
+receive no GABA synapses, which no source says. Offered the rewording, a to-do update and an ADR, the owner answered
+"go". Recorded in [ADR 2026-11-04-48f9](adr/2026-11-04-48f9-the-islet-siren-says-the-gaba-level-is-unknown-and-the-bath-knob-is-a-dose.md), which supersedes the PSC-siren ADR; the to-do gains the
+Braun–Menegaz disagreement over release, the knob's range and a review to start from.
+
+
+## 2026-11-04 — deployed v0.2.14: the islet siren's note corrected
+
+After the corrected note and the re-vendored ADR kit reached `main`, the owner, asked whether to merge and deploy,
+answered "deploy". `npm run deploy` shipped v0.2.14 (`1a43ec7`, bundle `assets/index-DHgAImOP.js`) to both domains, the
+classroom version at `/fall-2026/` unchanged. Recorded in `DEPLOYED.md`.
 
 ## 2026-11-04 — Step: the family one sweep at a time, by hand
 

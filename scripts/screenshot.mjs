@@ -60,6 +60,62 @@ if (modelIds.includes("betamouse")) {
   await page.screenshot({ path: `${out}/beta-scope.png`, fullPage: true });
   if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) problems.push("beta: horizontal overflow");
 }
+// The human beta cell (Riz et al. 2014): its GABA pattern on the scope, its step preset with no siren, and the
+// voltage-clamp note on how far its currents rest on voltage-clamp data (2026-11-02).
+if (modelIds.includes("betahuman")) {
+  await page.selectOption("#model-select", "betahuman");
+  await page.waitForTimeout(1500);
+  if (!(await page.locator("#pattern-select").count())) problems.push("human: no pattern selector");
+  await page.selectOption("#pattern-select", "human-gaba-silent");
+  await page.waitForTimeout(4000);
+  await page.screenshot({ path: `${out}/human-scope.png`, fullPage: true });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) problems.push("human: horizontal overflow");
+  await page.click("#mode-steps");
+  // the pattern moved K_ATP off the step preset's value, so the preset no longer holds and the menu says Custom
+  if ((await page.locator("#preset-select").inputValue()) !== "custom") problems.push("human: a step preset still shows after its knobs moved");
+  // ...but the preset's note stays in the menu's tooltip, saying which knob moved (the owner, 2026-11-04)
+  const movedTip = (await page.locator(".tip", { has: page.locator("#preset-select") }).locator(".tip-body").textContent()) ?? "";
+  if (!/you have moved .*→/.test(movedTip) || !movedTip.includes("Picoamps steer")) problems.push(`human: the moved preset's tooltip lost its note: "${movedTip.slice(0, 120)}"`);
+  await page.selectOption("#preset-select", "human-steps");
+  await page.waitForTimeout(300);
+  await page.waitForFunction(() => /6 sweeps simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 60000 });
+  if ((await page.locator("#preset-select").inputValue()) !== "human-steps") problems.push("human: choosing the step preset did not hold");
+  if (await page.locator(".siren").count()) problems.push("human: the siren shows on its own preset");
+  // no GABA synapses onto beta cells are described: the PSC panel stays, and switching it on lights the siren with why (the owner, 2026-11-04)
+  await page.getByRole("switch", { name: "GABA PSC on" }).check();
+  await page.waitForTimeout(300);
+  const pscSiren = (await page.locator(".siren .tip-body").textContent().catch(() => "")) ?? "";
+  if (!/No GABA synapses/.test(pscSiren)) problems.push(`human: GABA PSCs on did not light the siren with the islet note: "${pscSiren.slice(0, 100)}"`);
+  await page.getByRole("switch", { name: "GABA PSC on" }).uncheck();
+  await page.waitForFunction(() => /sweeps? simulated/.test(document.querySelector(".status")?.textContent ?? ""), null, { timeout: 60000 });
+  if (await page.locator(".siren").count()) problems.push("human: the siren stayed on after GABA PSCs went off");
+  // it fires on its own, so its rheobase is measured held at −70 mV, and says so (the owner, 2026-11-04)
+  const rheoLine = await page.locator(".readline > span").filter({ hasText: /^Rheobase/ }).innerText();
+  if (!/Rheobase\s+3\.[5-7]\s+pA\s+from [−-]70\.0 mV/.test(rheoLine)) problems.push(`human: rheobase should read about 3.6 pA from −70 mV: "${rheoLine}"`);
+  // the conductance knobs read in pS/pF or, switched, in the papers' nS/pF; the cell is the same (the owner, 2026-11-04)
+  await page.getByRole("radio", { name: "nS/pF" }).click();
+  const gK = () => page.getByRole("slider", { name: "gK(ATP)" }).first().getAttribute("aria-valuetext");
+  const gNs = await gK();
+  await page.getByRole("radio", { name: "pS/pF" }).click();
+  const gPs = await gK();
+  if (gNs !== "0.010 nS/pF" || gPs !== "10 pS/pF") problems.push(`human: the knob units switch reads gK(ATP) as "${gNs}" and "${gPs}", not "0.010 nS/pF" and "10 pS/pF"`);
+  // each cell measures threshold at its own dV/dt criterion, and the phase plot's switch changes it
+  // (docs/adr: "spike threshold's criterion belongs to the model")
+  const critSwitch = page.getByLabel("Threshold criterion, V/s");
+  // the bold value after the "Threshold" label (the label's tooltip text sits between them)
+  const readout = async () => (await page.locator(".readline > span").filter({ hasText: /^Threshold/ }).locator("b").textContent()) ?? "";
+  if ((await critSwitch.inputValue()) !== "0.5") problems.push("human: the threshold switch does not open on the cell's own 0.5 V/s");
+  if (!/^[−-]4\d\.\d$/.test(await readout())) problems.push(`human: at 0.5 V/s the threshold readout is not in the −40s (${await readout()})`);
+  await critSwitch.selectOption("20");
+  if ((await readout()) !== "—") problems.push(`human: at 20 V/s its ~7 V/s spikes should have no threshold (${await readout()})`);
+  await critSwitch.selectOption("0.5");
+  await page.screenshot({ path: `${out}/human-steps.png`, fullPage: true });
+  await page.click("#mode-vc");
+  await page.waitForFunction(() => /sweeps simulated/.test(document.querySelector(".vc-traces .status")?.textContent ?? ""), null, { timeout: 60000 }).catch(() => problems.push("human: voltage clamp never finished"));
+  if (!(await page.locator("#vc-model-note").isVisible())) problems.push("human: the voltage-clamp note is missing");
+  await page.screenshot({ path: `${out}/human-vc.png`, fullPage: true });
+  await page.click("#mode-scope");
+}
 await page.selectOption("#model-select", "gnrh");
 await page.waitForTimeout(1500);
 // It opens in Old school, and Old school dresses the step protocol too, so a mode switch keeps the theme
@@ -450,7 +506,7 @@ if (modelIds.includes("hh")) {
   const head = await page.locator("table th").first().innerText();
   if (!head.includes("pA/pF")) problems.push(`units: the sweep table's first column reads "${head}"`);
   const readline = await page.locator(".readline").innerText();
-  if (!/Rheobase\s+[\d.]+\s+pA\/pF/.test(readline)) problems.push(`units: rheobase does not read in pA/pF: "${readline.slice(0, 80)}"`);
+  if (!/Rheobase\s+[\d.]+\s+pA\/pF\s+from [−-]\d+\.\d mV/.test(readline)) problems.push(`units: rheobase does not read in pA/pF: "${readline.slice(0, 80)}"`);
   await page.screenshot({ path: `${out}/units-steps.png`, fullPage: true });
   // the temperature preset sets the model's own control
   await page.selectOption("#preset-select", "hh-temp");

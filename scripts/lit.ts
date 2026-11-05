@@ -36,6 +36,8 @@ export interface Source {
   usedIn: string[];
   quotes?: { text: string; where: string }[];
   notes?: string;
+  /** the authors' permission, where they were asked for it: who, when, for what, in their words */
+  permission?: string;
 }
 
 const ROLE_ORDER: Source["role"][] = ["model", "parameter", "method", "background", "further"];
@@ -53,7 +55,7 @@ const ROLE_BLURB: Record<Source["role"], string> = {
   background: "What the models were built on, credited but not read for any number here.",
   further: "Related work not yet used — candidates for the next presets.",
 };
-const MODEL_NAME: Record<string, string> = { rs: "pyramidal", lts: "LTS", gnrh: "GnRH", betamouse: "mouse β-cell", hh: "squid axon" };
+const MODEL_NAME: Record<string, string> = { rs: "pyramidal", lts: "LTS", gnrh: "GnRH", betamouse: "mouse β-cell", betahuman: "human β-cell", hh: "squid axon" };
 
 const REPO = "https://github.com/syncytium2/gaba_excites/blob/main/";
 
@@ -103,6 +105,7 @@ export function renderReadme(about: string, src: Source[]): string {
       const ln = links(s).map((l) => `[${l.label}](${l.href})`).join(" · ");
       L.push(`${ln}${ln ? " · " : ""}*${s.access}* · models: ${s.models.map((m) => MODEL_NAME[m] ?? m).join(", ")}`, "");
       L.push(`**Took:** ${s.took}`, "");
+      if (s.permission) L.push(`**Permission:** ${s.permission}`, "");
       if (s.quotes?.length) for (const q of s.quotes) L.push(`> ${q.text}`, `> — ${q.where}`, "");
       if (s.usedIn.length) L.push(`**Used in:** ${s.usedIn.map((f) => `[\`${f}\`](../${f})`).join(", ")}`, "");
       if (s.notes) L.push(`**Notes:** [\`${s.notes}\`](${s.notes})`, "");
@@ -165,7 +168,7 @@ export function renderHtml(about: string, src: Source[]): string {
           return `<li id="${esc(s.key)}">
   <p class="cite">${esc(cite(s))}</p>
   <p class="meta">${ln}${ln ? " · " : ""}<span>${esc(s.access)}</span> · <span>${s.models.map((m) => esc(MODEL_NAME[m] ?? m)).join(", ")}</span></p>
-  <p class="took"><strong>Took:</strong> ${esc(s.took)}</p>${quotes}${used}
+  <p class="took"><strong>Took:</strong> ${esc(s.took)}</p>${s.permission ? `\n  <p class="permission"><strong>Permission:</strong> ${esc(s.permission)}</p>` : ""}${quotes}${used}
 </li>`;
         })
         .join("\n");

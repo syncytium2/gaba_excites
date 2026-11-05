@@ -125,3 +125,78 @@ export function bertramPool(p: {
     },
   };
 }
+
+/**
+ * Submembrane and cytosolic calcium of the human beta-cell model of Riz, Braun & Pedersen (2014) PLoS Comput
+ * Biol 10:e1003389, Eqs. 14–15 and 32–34 (the pool's `ca` is the submembrane Ca_m, which the SK channels
+ * read; the bulk cytosol's Ca_c is its extra state):
+ *   dCa_m/dt = f·α·(−I_Ca)/Vol_m − f·(Vol_c/Vol_m)·[B·(Ca_m − Ca_c) + J_PMCA + J_NCX]
+ *   dCa_c/dt = f·[B·(Ca_m − Ca_c) − J_SERCA + J_leak]
+ *   J_SERCA = J_SERCA,max·Ca_c²/(K_SERCA² + Ca_c²),  J_PMCA = J_PMCA,max·Ca_m/(K_PMCA + Ca_m),  J_NCX = J_NCX,0·Ca_m
+ * The paper writes the influx as α·Cm·(−I_Ca) with I_Ca in pA/pF; here I_Ca is the whole-cell current in pA,
+ * which is the same product. α is per cell (5.18e-15 µmol pA⁻¹ ms⁻¹), and over Vol_m in litres it gives µM ms⁻¹.
+ * J_leak is a constant (Table 1). Forward Euler: the fastest rate, f·(Vol_c/Vol_m)·(B + J_NCX,0 + J_PMCA,max/K_PMCA)
+ * ≈ 0.019 ms⁻¹, moves Ca_m by 0.02% of itself per 0.01 ms step.
+ */
+export function rizPool(p: {
+  f: number;
+  /** µmol pA⁻¹ ms⁻¹ */
+  alpha: number;
+  /** litres */
+  volC: number;
+  volM: number;
+  /** ms⁻¹ */
+  B: number;
+  /** µM ms⁻¹ and µM */
+  jSercaMax: number;
+  kSerca: number;
+  jPmcaMax: number;
+  kPmca: number;
+  jLeak: number;
+  /** ms⁻¹ */
+  jNcx0: number;
+}): CaPool {
+  const r = p.volC / p.volM;
+  const influx = (iCa: number) => (p.alpha * -iCa) / p.volM; // µM ms⁻¹, before f
+  const serca = (cac: number) => (p.jSercaMax * cac * cac) / (p.kSerca * p.kSerca + cac * cac);
+  const out = (cam: number) => (p.jPmcaMax * cam) / (p.kPmca + cam) + p.jNcx0 * cam;
+  // dCa_c = 0: B·(Ca_m − Ca_c) = J_SERCA(Ca_c) − J_leak, increasing in Ca_c, so bisect
+  const cacSteady = (cam: number) => {
+    let lo = 0, hi = Math.max(cam, 1) * 10 + 10;
+    for (let i = 0; i < 200; i++) {
+      const mid = 0.5 * (lo + hi);
+      if (serca(mid) - p.jLeak - p.B * (cam - mid) > 0) hi = mid;
+      else lo = mid;
+    }
+    return 0.5 * (lo + hi);
+  };
+  return {
+    reads: "after",
+    nExtra: 1,
+    extraNames: ["Ca_c"],
+    // dCa_m = 0 with Ca_c at its own steady state: α·(−I_Ca)/Vol_m = r·[J_SERCA(Ca_c) − J_leak + J_PMCA + J_NCX],
+    // the right side increasing in Ca_m
+    steady(iCa) {
+      const target = influx(iCa);
+      const g = (cam: number) => r * (serca(cacSteady(cam)) - p.jLeak + out(cam)) - target;
+      let lo = 0, hi = 1;
+      while (g(hi) < 0 && hi < 1e6) hi *= 2;
+      if (g(lo) >= 0) return 0;
+      for (let i = 0; i < 200; i++) {
+        const mid = 0.5 * (lo + hi);
+        if (g(mid) > 0) hi = mid;
+        else lo = mid;
+      }
+      return 0.5 * (lo + hi);
+    },
+    initExtra(ca, x, o) {
+      x[o] = cacSteady(ca);
+    },
+    advance(cam, iCa, _cm, dt, x, o = 0) {
+      const cac = x ? x[o] : cacSteady(cam);
+      const xfer = p.B * (cam - cac);
+      if (x) x[o] = Math.max(0, cac + dt * p.f * (xfer - serca(cac) + p.jLeak));
+      return Math.max(0, cam + dt * p.f * (influx(iCa) - r * (xfer + out(cam))));
+    },
+  };
+}

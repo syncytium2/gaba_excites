@@ -1,0 +1,6 @@
+{
+  "dir": "docs/adr",
+  "exclude": [
+    "docs/handoffs/"
+  ]
+}

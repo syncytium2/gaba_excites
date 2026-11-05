@@ -59,6 +59,15 @@ Five cell models, chosen from a menu:
   compound, accordion and slow glycolytic bursting. Transcribed from the paper
   (the PFK rate law from the authors' code) and checked against what it
   reports.
+- **Pancreatic beta cell (human):** Riz, Braun & Pedersen (2014, PLoS Comput
+  Biol 10:e1003389), on Pedersen (2010, Biophys J 99:3200). Na⁺, three Ca²⁺
+  currents, Kv, BK, SK, HERG and K_ATP, built from voltage-clamp recordings of
+  human beta cells (Braun et al. 2008), with submembrane and cytosolic calcium.
+  GABA excites it: chloride reverses at −40 mV, above rest, so 100 µM GABA on a
+  silent cell fires one spike and holds it near −44 mV (the paper: ~−45), and
+  10 µM speeds a spiking cell from 5.7 to 7.7 Hz. Checked against both papers'
+  numbers (Pedersen's 4.6 Hz, 7 Hz with HERG blocked, the TTX intervals) and
+  against the authors' equations run by a stiff solver (intervals within 0.5%).
 - **Squid giant axon:** Hodgkin & Huxley (1952, J Physiol 117:500). The first
   model of the action potential, only Na⁺, K⁺ and a leak, on a space-clamped
   10 000 µm² patch (no propagation), with a temperature control (Q₁₀ = 3, from
@@ -99,7 +108,8 @@ a property of the simulated cell, not an amplifier's leak compensation.
 **Voltage-gated conductances**
 
 Each model's channels are fixed at their published values for now. You see
-them at work in threshold (dV/dt ≥ 20 V/s), action-potential peak and
+them at work in threshold (where dV/dt reaches each cell's own criterion,
+which a switch on the phase plot changes), action-potential peak and
 half-width, the phase plot, the F–I curve, and adaptation (initial against
 mean rate). An editor that lets you change each channel is next on the
 [roadmap](docs/roadmap.md).
@@ -131,14 +141,15 @@ Every measurement is taken on the true membrane potential, so electrode
 settings and recording noise change what the traces look like, never the
 numbers.
 
-Readouts: rheobase (refinable to 1 pA), threshold, AP peak and half-width,
+Readouts: rheobase with the Vm it was measured from (refinable to 1 pA; the
+human beta cell, which fires on its own, is measured held at −70 mV), threshold, AP peak and half-width,
 measured Rin, holding Vm, F–I gain; recorded voltage with the true Vm on
 demand, command current, synaptic conductances, the F–I curve (mean and
 initial rate, with up to four pinned curves for comparison, and CSV export), a
 phase plot, and a per-sweep table.
 
 A lab notebook under the results records runs (full settings, measurements, and
-threshold at 1, 2, 10 and 20 V/s, since the criterion changes the number), with a
+threshold at 0.5, 1, 2, 10 and 20 V/s, since the criterion changes the number), with a
 title and notes for each. It shows what changed from the first run, and downloads
 a report: one self-contained HTML file with comparison tables, overlaid F–I
 curves and phase plots, each run's traces, and a methods paragraph written from

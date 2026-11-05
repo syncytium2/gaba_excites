@@ -49,6 +49,15 @@ describe("the lab notebook and its report", () => {
     expect(a.rec.spike).not.toBeNull();
   });
 
+  it("records the Vm each rheobase was measured from, and the report tabulates it", () => {
+    // the owner, 2026-11-04: "Each rheobase should list the vm it was measured from"
+    const rheo = a.summary.stats.find((x) => x.amp === a.summary.rheobase)!;
+    expect(a.summary.rheobaseVm).toBe(rheo.vBaseline);
+    expect(a.rec.measures.rheobaseVm).toBeCloseTo(rheo.vBaseline, 1);
+    expect(a.rec.measures.rheobaseVm).toBeLessThan(-60);
+    expect(buildReport([a.rec, b.rec], { title: "t", author: "", generatedAt: new Date("2026-11-04T12:00:00Z"), app: APP })).toContain("Rheobase from");
+  });
+
   it("keeps the traces small enough for browser storage, with every spike's peak", () => {
     const json = serializeRuns([a.rec]);
     expect(json.length).toBeLessThan(150_000);
@@ -73,6 +82,22 @@ describe("the lab notebook and its report", () => {
     expect(html).not.toMatch(/<(img|link|iframe|object|embed)\b/i);
     expect(html).not.toMatch(/\bsrc=|@import|url\(\s*["']?http/i);
     expect(html.match(/<script\b[^>]*>/g)).toEqual(['<script type="application/json" id="gaba-excites-runs">']);
+  });
+
+  it("reads each threshold by its criterion, so a record made before 0.5 V/s was added keeps its columns", () => {
+    const old = { ...a.rec, thresholds: a.rec.thresholds.filter((t) => t.vps !== 0.5), measures: { ...a.rec.measures, threshDvdt: undefined } };
+    const html = buildReport([old], { title: "t", author: "", generatedAt: new Date(), app: APP });
+    const table = html.slice(html.indexOf('<table class="m">'));
+    const heads = [...table.slice(0, table.indexOf("</tr>")).matchAll(/<th>([^<]*)/g)].map((m) => m[1]);
+    const row = table.slice(table.indexOf("</tr>") + 5);
+    const cells = [...row.slice(0, row.indexOf("</tr>")).matchAll(/<td>([^<]*)/g)].map((m) => m[1]);
+    const cell = (vps: number) => cells[heads.indexOf(`Threshold @${vps} V/s`)];
+    for (const c of CRITERIA) {
+      const t = old.thresholds.find((u) => u.vps === c.vps);
+      if (!t) expect(cell(c.vps)).toBe("—");
+      else if (!t.hitFloor) expect(cell(c.vps)).toBe(t.v.toFixed(1));
+    }
+    expect(a.rec.measures.threshDvdt).toBe(10);
   });
 
   it("loads its runs back from the report or the notebook file, NaN included", () => {

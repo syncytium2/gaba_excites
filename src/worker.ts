@@ -7,6 +7,7 @@
 import { buildCell, cellRinAt, type CellParams } from "./core/cell.ts";
 import { runFamily, runSweep, settle, DEFAULT_SIM, type Inputs, type StepProtocol, type Sweep } from "./core/simulate.ts";
 import { summarize, sweepStats, type FamilySummary } from "./core/analysis.ts";
+import { rheobaseFrom, type RheobaseFrom } from "./core/rheobase.ts";
 
 export type Request =
   | { kind: "run"; id: number; cell: CellParams; inputs: Inputs; protocol: StepProtocol; seed: number }
@@ -23,7 +24,7 @@ export interface CellInfo {
 }
 
 export type Response =
-  | { kind: "run"; id: number; sweeps: Sweep[]; summary: FamilySummary; cell: CellInfo; ms: number }
+  | { kind: "run"; id: number; sweeps: Sweep[]; summary: FamilySummary; cell: CellInfo; ms: number; rheoFrom?: RheobaseFrom }
   | { kind: "rheobase"; id: number; rheobase: number; tolerance: number; ms: number }
   | { kind: "error"; id: number; message: string };
 
@@ -47,7 +48,9 @@ ctx.onmessage = (ev: MessageEvent<Request>) => {
       };
       const transfer: ArrayBuffer[] = [];
       for (const s of sweeps) transfer.push(s.vRec.buffer as ArrayBuffer, s.vm.buffer as ArrayBuffer, s.iCmd.buffer as ArrayBuffer, s.gGlu.buffer as ArrayBuffer, s.gGaba.buffer as ArrayBuffer);
-      const msg: Response = { kind: "run", id: r.id, sweeps, summary, cell: info, ms: performance.now() - t0 };
+      const vFrom = cell.model.rheobaseFromMv;
+      const rheoFrom = vFrom === undefined ? undefined : rheobaseFrom(cell, r.inputs, r.protocol, vFrom, cell.model.rheobaseTol, opt);
+      const msg: Response = { kind: "run", id: r.id, sweeps, summary, cell: info, ms: performance.now() - t0, rheoFrom };
       ctx.postMessage(msg, transfer);
     } else {
       // Bisection to `tol` pA between a step that did not fire and one that did.

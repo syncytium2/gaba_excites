@@ -3,6 +3,57 @@
 What is deliberately NOT in v0.1, and the order it is likely to arrive in.
 The owner's words are quoted where the item came from them.
 
+## High priority
+
+- **GABA in the islet: what the beta cells' GABA inputs really are, and how the app should offer them.** The owner,
+  2026-11-04, on the human beta cell's GABA PSC panel: "Describe gaba inputs to beta cells. I don't know this
+  literature. Is it synaptic or paracrine like", then "Document your findings for more detailed follow up as a todo
+  with high priority. Keep the psc panel with a siren warning. This is exactly what we built the site for".
+
+  **Done now:** the PSC panel stays on both beta cells; turning on a GABA or glutamate PSC input lights the siren with
+  the reason (`ModelDef.pscNote`, `settingWarnings` in `src/core/extremes.ts`; [ADR 2026-11-04-8e7a](adr/2026-11-04-8e7a-beta-cells-keep-the-psc-panel-and-the-siren-says-why.md)).
+
+  **Found so far, from PubMed abstracts only (full texts not yet read):**
+  - Neither synaptic nor classic paracrine from another cell type: the beta cells make the GABA and it acts on
+    themselves and their neighbors. Braun et al. 2010, Diabetes 59:1694 (doi:10.2337/db09-0797): GABA_A currents in
+    52% of human beta cells (9 pA/pF), 91% of delta cells (148 pA/pF), 6% of alpha cells (2 pA/pF); beta cells secrete
+    GABA by glucose-dependent exocytosis of insulin granules and by a glucose-independent route; "an autocrine
+    positive feedback loop". Its release events were seen with GABA_A receptors added by adenovirus as sensors.
+  - Much of the release is not vesicular. Menegaz et al. 2019, Nat Metab 1:1110 (doi:10.1038/s42255-019-0135-7):
+    human beta cells lack a vesicular GABA transporter; GABA accumulates in the cytosol and leaves in pulses through
+    VRAC (LRRC8A/Swell1), imposing a rhythm on pulsatile insulin secretion; depleted in type 1 and type 2 diabetic
+    islets.
+  - The receptors are high-affinity; the islet's GABA level is unknown. Korol et al. 2018, EBioMedicine 30:273
+    (doi:10.1016/j.ebiom.2018.03.014), whose abstract says "the effective, physiological GABA concentration range
+    within human islets is unknown": native GABA_A receptors on human beta cells open most often at 100–1000 nM GABA, and desensitize in
+    saturating GABA; diazepam, propofol and GLP-1 enhance them; higher affinity in type 2 diabetes.
+  - On alpha cells it inhibits: Rorsman et al. 1989, Nature 341:233 (doi:10.1038/341233a0), guinea pig: GABA
+    co-secreted with insulin activates GABA_A Cl⁻ channels in alpha cells, part of glucose's inhibition of glucagon.
+    The same transmitter excites the beta cell and inhibits the alpha cell: a GABA-excites lesson inside one islet.
+
+  **To follow up:**
+  - Start with the review Weitz, Menegaz & Caicedo 2021, Diabetes 70:17 (doi:10.2337/dbi19-0033), which describes
+    "new developments that revise current notions about purinergic and GABA signaling in islets".
+  - Settle how GABA leaves the beta cell. Braun 2010 reports release by exocytosis of insulin granules; Menegaz 2019
+    says beta cells lack a vesicular GABA transporter, so the GABA is cytosolic. Brief events are worth offering only
+    if the granule route holds.
+  - The bath GABA knob is a dose, not the islet's signal: it is calibrated at 10 µM to 1 mM, its smallest step is
+    5 pS/pF, and the model has no desensitization. A tonic conductance at Korol's 100–1000 nM would need its own
+    control, well below that range, and a number from the full text (found 2026-11-04 in review).
+  - The Birnir group (Uppsala; Korol 2018 is theirs) for whole-cell tonic GABA currents in human beta cells.
+  - Read the full texts (fetch through murderboard's `fetch_paper.py`; never commit the PDFs): Braun 2010's release
+    events (amplitude, kinetics, frequency, whether any are seen without the sensor), Menegaz 2019's pulse period and
+    amplitude, Korol 2018's single-channel and whole-cell numbers, and the tonic-current literature from the Birnir
+    group.
+  - Decide what the app offers instead of, or beside, the generic PSC barrage: a pulsatile ambient GABA conductance
+    (Menegaz), a tonic conductance at Korol's concentrations, or autocrine events sized from Braun's sensor data. Each
+    needs its numbers cited through `lit/sources.json` and a test against the paper.
+  - Glutamate: the siren warns for glutamate PSCs on beta cells too, on the absence of any source here describing
+    synaptic glutamate input. Check the islet glutamate literature before saying more; from memory, not yet checked:
+    the Caicedo group on glutamate as an alpha-cell signal, and NMDA receptors on beta cells.
+  - Whether the mouse beta cell (Bertram 2004, no GABA conductance) should get one, and from which mouse data.
+  - Delta and alpha cells: if the app ever models them, GABA's opposite effects there are the lesson.
+
 ## Small fixes (to do)
 
 - **The first recorded sample dips when a step starts at 0 ms.** Fixed 2026-10-21 with the filter: sample 0 of
@@ -19,6 +70,17 @@ The owner's words are quoted where the item came from them.
   Found 2026-10-17; the description corrected 2026-10-18.
 
 ## Not now (the owner: "no time, so make a todo")
+
+- **Rheobase from −70 mV for every cell.** The owner, 2026-11-04, asked whether the human beta cell's rheobase from
+  a standard potential should replace the family's least firing step everywhere: "Everywhere", at "−70 mV, every
+  cell", then "Maybe restrict to current task for now. Mark as to do to make it global". So only the human beta cell
+  measures from −70 mV (`ModelDef.rheobaseFromMv`, `src/core/rheobase.ts`); every other cell still reports the
+  family's least firing step, now with the Vm it was measured from. Going global moves quoted numbers. Measured
+  2026-11-04, 800 ms step, published cells, held at −70 mV versus today: pyramidal 544 against 561 pA, fast-spiking
+  384 against 385, LTS 69 against 39 (it rests at −84 mV), squid axon 314 against 225 (rests at −65), GnRH 15.6
+  against 17. Before it does, decide what holding at −70 means for the GABA crossover (gaba.test.ts): a holding
+  current that cancels GABA's shift of Vm changes the experiment the app is named for. Every place that quotes a
+  rheobase then gets updated: presets, tour, README, methods, llms.txt, extremes' current bound.
 
 - **Reversal potentials differ between cell models, and a teaching point may be hidden there.** Voltage clamp now
   takes E_rev from the selected model (E_Na +50 mV on the cortical cells, +54 on the GnRH cell). The lesson the owner
@@ -117,7 +179,8 @@ The owner's words are quoted where the item came from them.
     Oscillator Model was not named, so ask before relying on it. Check its .ode files for the
     conventions beta_max found in the same authors' Chen 2008 files (an initial value that is a typo for the
     steady state, per-file time units).
-  - **Human, second.** Riz, Braun & Pedersen 2014 (PLoS Comput Biol, doi:10.1371/journal.pcbi.1003389), which adds
+  - **Human, second. Built 2026-11-02, reviewed by the owner and deployed 2026-11-04 in v0.2.13** (Pedersen's
+    permission granted; see `docs/process.md`). Riz, Braun & Pedersen 2014 (PLoS Comput Biol, doi:10.1371/journal.pcbi.1003389), which adds
     SK channels and Ca²⁺ dynamics to Pedersen 2010 (Biophys J, doi:10.1016/j.bpj.2010.09.004). It belongs here
     because GABA depolarizes human beta cells and drives their firing (Braun et al. 2010, Diabetes,
     doi:10.2337/db09-0797), so the E_GABA slider applies outside the brain. The mouse/human difference in Na⁺
@@ -129,7 +192,7 @@ The owner's words are quoted where the item came from them.
     `Channel` objects; the solver should not need to change. The Integrated Oscillator Model's slow metabolic
     variables may not be channels at all; decide where they live before porting.
   - **Neighbor project:** beta_max (github.com/syncytium2/beta_max, private) ports Chen, Wang & Sherman 2008,
-    granule secretion fitted to mouse and rat islets. It builds no membrane model (its ADR-0006: an averaged
+    granule secretion fitted to mouse and rat islets. It builds no membrane model (its `docs/adr/0006-electrical-activity-is-averaged.md`: an averaged
     glucose → K_ATP → plateau voltage). Its engine takes voltage as input, `Drive = { Vmd, Vi, G }` in
     `src/core/chen08.ts` (the voltage the L-type and R-type channels see, and a glucose factor); a mouse V(t) from
     here can feed both voltages later. That is why mouse comes first: it can drive that engine without mixing

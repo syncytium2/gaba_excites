@@ -63,6 +63,8 @@ export interface BuiltCell {
   /** a reversal that follows calcium, where the channel has one (aligned with `channels`) */
   erevCa: (((ca: number) => number) | undefined)[];
   carriesCa: boolean[];
+  /** some channel reads the cell's Ca²⁺ current (Channel.readsICa), so the solver computes it for them */
+  readsICa: boolean;
   pool: CaPool | null;
   eLeak: number;
   /** gate offset of each channel in the state vector */
@@ -93,6 +95,7 @@ interface ActiveSet {
   erev: number[];
   erevCa: (((ca: number) => number) | undefined)[];
   carriesCa: boolean[];
+  readsICa: boolean;
   cm: number;
   pool: CaPool | null;
   eLeak: number;
@@ -107,6 +110,7 @@ function activeSet(p: CellParams, m: ModelDef = MODELS[p.model]): ActiveSet {
     erev: chs.map((c) => c.erev),
     erevCa: chs.map((c) => c.erevCa),
     carriesCa: chs.map((c) => !!c.carriesCa),
+    readsICa: chs.some((c) => c.channel.readsICa),
     cm: p.cm,
     pool: m.pool ?? null,
     eLeak: m.eLeak,
@@ -142,8 +146,16 @@ export function caSteady(a: ActiveSet, v: number): number {
 /** Steady-state membrane current (pA, outward positive) at v, every gate and the calcium at steady state. */
 export function iSteady(a: ActiveSet, gLeak: number, v: number): number {
   const ca = caSteady(a, v);
+  // the steady Ca²⁺ current density, for a channel that reads it (Channel.readsICa)
+  let iCaD: number | undefined;
+  if (a.readsICa) {
+    iCaD = 0;
+    for (let k = 0; k < a.channels.length; k++)
+      if (a.carriesCa[k]) iCaD += a.gbar[k] * a.channels[k].openInf(v, ca) * (v - erevAt(a, k, ca));
+    iCaD /= a.cm;
+  }
   let i = gLeak * (v - a.eLeak);
-  for (let k = 0; k < a.channels.length; k++) i += a.gbar[k] * a.channels[k].openInf(v, ca) * (v - erevAt(a, k, ca));
+  for (let k = 0; k < a.channels.length; k++) i += a.gbar[k] * a.channels[k].openInf(v, ca, iCaD) * (v - erevAt(a, k, ca));
   return i;
 }
 
@@ -216,6 +228,7 @@ export function buildCell(p: CellParams, model: ModelDef = MODELS[p.model]): Bui
     erev: a.erev,
     erevCa: a.erevCa,
     carriesCa: a.carriesCa,
+    readsICa: a.readsICa,
     pool: a.pool,
     eLeak: a.eLeak,
     offsets,
@@ -234,12 +247,17 @@ export function buildCell(p: CellParams, model: ModelDef = MODELS[p.model]): Bui
 }
 
 function asActive(c: BuiltCell): ActiveSet {
-  return { channels: c.channels, gbar: c.gbar, erev: c.erev, erevCa: c.erevCa, carriesCa: c.carriesCa, cm: c.cm, pool: c.pool, eLeak: c.eLeak };
+  return { channels: c.channels, gbar: c.gbar, erev: c.erev, erevCa: c.erevCa, carriesCa: c.carriesCa, readsICa: c.readsICa, cm: c.cm, pool: c.pool, eLeak: c.eLeak };
 }
 
 /** Rin of a built cell at a given holding current, MΩ. */
 export function cellRinAt(c: BuiltCell, iInj = 0): number {
   return rinAt(asActive(c), c.gLeak, iInj);
+}
+
+/** The steady current a cell needs to hold it at v, pA: its steady-state membrane current there, every gate at steady state. */
+export function cellHoldAt(c: BuiltCell, v: number): number {
+  return iSteady(asActive(c), c.gLeak, v);
 }
 
 export function cellSteadyV(c: BuiltCell, iInj = 0): number {

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spike and dV/dt</title>
+<!-- Made by scripts/apview.ts from scripts/apview.html; the data are inlined, nothing is fetched. -->
+<style>
+ body{font:14px/1.45 -apple-system,system-ui,sans-serif;margin:16px;color:#1d1d1f;background:#fff;max-width:1100px}
+ h1{font-size:18px;margin:0 0 4px} p{margin:4px 0 10px;color:#444}
+ .row{display:flex;gap:16px;flex-wrap:wrap} .panel{flex:1 1 480px;min-width:280px}
+ canvas{width:100%;height:440px;border:1px solid #ddd;border-radius:4px;cursor:crosshair;display:block}
+ .read{font:13px ui-monospace,Menlo,monospace;min-height:1.5em;margin-top:6px}
+ #pins{font:13px ui-monospace,Menlo,monospace;white-space:pre;margin-top:8px}
+ button{font:inherit;margin-left:8px} .v{color:#1f5fbf}.d{color:#c0392b}
+</style></head><body>
+<h1 id="h"></h1><p id="sub"></p>
+<div class="row">
+ <div class="panel"><b>Against time</b> <span class="v">— V (mV, left)</span> <span class="d">— dV/dt (mV/ms, right)</span><canvas id="ts"></canvas><div class="read" id="r1"></div></div>
+ <div class="panel"><b>Phase plot</b>: dV/dt against V<canvas id="ph"></canvas><div class="read" id="r2"></div></div>
+</div>
+<div>Pinned points<button id="clr">clear</button></div><div id="pins"></div>
+<script>
+const D=__DATA__;
+document.getElementById('h').textContent=D.title;document.getElementById('sub').textContent=D.subtitle+' Hover to read; click to pin. Scroll on the time plot zooms time (shift+scroll zooms dV/dt); scroll on the phase plot zooms both axes. Double-click resets.';
+const N=D.v.length,T=i=>D.t0+i*D.dt;
+const span=(a,p)=>{let lo=Math.min(...a),hi=Math.max(...a);const m=(hi-lo)*p;return [lo-m,hi+m]};
+const V0=span(D.v,0.05),D0=D.dRange||span(D.dvdt,0.05);
+let tw=[T(0),T(N-1)],dw=D0.slice(),pv=V0.slice(),pd=D0.slice();
+const M={l:50,r:56,t:10,b:32};
+function setup(c){const r=c.getBoundingClientRect(),k=devicePixelRatio||1;c.width=r.width*k;c.height=r.height*k;const g=c.getContext('2d');g.setTransform(k,0,0,k,0,0);return [g,r.width,r.height]}
+const nice=s=>{const p=Math.pow(10,Math.floor(Math.log10(s/8)));for(const m of [1,2,5,10])if(s/(m*p)<=10)return m*p;return 10*p};
+const lab=x=>+x.toFixed(6);
+function axis(g,w,h,x0,x1,X,vertical,col,side){g.font='11px system-ui';const st=nice(x1-x0);g.fillStyle=col;
+ for(let x=Math.ceil(x0/st)*st;x<=x1+1e-9;x+=st){if(vertical){g.strokeStyle='#eee';g.beginPath();g.moveTo(X(x),M.t);g.lineTo(X(x),h-M.b);g.stroke();g.fillText(lab(x),X(x)-8,h-M.b+14)}
+ else{if(side==='l'){g.strokeStyle='#eee';g.beginPath();g.moveTo(M.l,X(x));g.lineTo(w-M.r,X(x));g.stroke();g.fillText(lab(x),4,X(x)+4)}else g.fillText(lab(x),w-M.r+6,X(x)+4)}}}
+const pins=(D.pins||[]).map(p=>p.i);let hover=null;
+function drawTS(){const c=document.getElementById('ts');const [g,w,h]=setup(c);const [t0,t1]=tw;
+ const X=t=>M.l+(t-t0)/(t1-t0)*(w-M.l-M.r),YV=v=>M.t+(V0[1]-v)/(V0[1]-V0[0])*(h-M.t-M.b),YD=d=>M.t+(dw[1]-d)/(dw[1]-dw[0])*(h-M.t-M.b);
+ axis(g,w,h,t0,t1,X,true,'#666');axis(g,w,h,V0[0],V0[1],YV,false,'#1f5fbf','l');axis(g,w,h,dw[0],dw[1],YD,false,'#c0392b','r');
+ g.strokeStyle='#c0392b55';g.beginPath();g.moveTo(M.l,YD(0));g.lineTo(w-M.r,YD(0));g.stroke();
+ g.fillStyle='#666';g.fillText('time from the spike-level crossing (ms)',w/2-100,h-4);
+ g.save();g.beginPath();g.rect(M.l,M.t,w-M.l-M.r,h-M.t-M.b);g.clip();
+ const i0=Math.max(0,Math.floor((t0-D.t0)/D.dt)),i1=Math.min(N-1,Math.ceil((t1-D.t0)/D.dt)),st=Math.max(1,Math.floor((i1-i0)/(w*2)));
+ for(const [a,Y,col] of [[D.v,YV,'#1f5fbf'],[D.dvdt,YD,'#c0392b']]){g.strokeStyle=col;g.lineWidth=1.5;g.beginPath();for(let i=i0;i<=i1;i+=st){const x=X(T(i)),y=Y(a[i]);i===i0?g.moveTo(x,y):g.lineTo(x,y)}g.stroke()}
+ for(const i of pins){g.fillStyle='#000';g.beginPath();g.arc(X(T(i)),YV(D.v[i]),3.5,0,7);g.fill();g.beginPath();g.arc(X(T(i)),YD(D.dvdt[i]),3.5,0,7);g.fill()}
+ if(hover!=null){g.strokeStyle='#999';g.beginPath();g.moveTo(X(T(hover)),M.t);g.lineTo(X(T(hover)),h-M.b);g.stroke()}
+ g.restore();c._m={w,h}}
+function drawPH(){const c=document.getElementById('ph');const [g,w,h]=setup(c);
+ const X=v=>M.l+(v-pv[0])/(pv[1]-pv[0])*(w-M.l-M.r),Y=d=>M.t+(pd[1]-d)/(pd[1]-pd[0])*(h-M.t-M.b);
+ axis(g,w,h,pv[0],pv[1],X,true,'#666');axis(g,w,h,pd[0],pd[1],Y,false,'#666','l');g.fillStyle='#666';g.fillText('V (mV)',w/2-20,h-4);
+ g.save();g.beginPath();g.rect(M.l,M.t,w-M.l-M.r,h-M.t-M.b);g.clip();
+ g.strokeStyle='#c0392b55';g.beginPath();g.moveTo(M.l,Y(0));g.lineTo(w-M.r,Y(0));g.stroke();
+ g.strokeStyle='#333';g.lineWidth=1.3;g.beginPath();for(let i=0;i<N;i++){const x=X(D.v[i]),y=Y(D.dvdt[i]);i?g.lineTo(x,y):g.moveTo(x,y)}g.stroke();
+ for(const i of pins){g.fillStyle='#000';g.beginPath();g.arc(X(D.v[i]),Y(D.dvdt[i]),4,0,7);g.fill()}
+ if(hover!=null){g.fillStyle='#e67e22';g.beginPath();g.arc(X(D.v[hover]),Y(D.dvdt[hover]),4,0,7);g.fill()}
+ g.restore();c._X=X;c._Y=Y;c._m={w,h}}
+const fmt=i=>`t ${T(i).toFixed(2)} ms   V ${D.v[i].toFixed(2)} mV   dV/dt ${D.dvdt[i].toFixed(3)} mV/ms`;
+const pinLabel=i=>{const p=(D.pins||[]).find(q=>q.i===i);return (p?p.label+': ':'')+fmt(i)};
+function draw(){drawTS();drawPH();for(const id of ['r1','r2'])document.getElementById(id).textContent=hover!=null?fmt(hover):'';document.getElementById('pins').textContent=pins.map(pinLabel).join('\n')}
+const ts=document.getElementById('ts'),ph=document.getElementById('ph');
+const fx=(c,e)=>{const r=c.getBoundingClientRect();return [(e.clientX-r.left-M.l)/(c._m.w-M.l-M.r),(e.clientY-r.top-M.t)/(c._m.h-M.t-M.b)]};
+function iTS(e){const [f]=fx(ts,e);const t=tw[0]+f*(tw[1]-tw[0]);return Math.max(0,Math.min(N-1,Math.round((t-D.t0)/D.dt)))}
+function iPH(e){const r=ph.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;let b=0,bd=1e18;for(let i=0;i<N;i++){const dx=ph._X(D.v[i])-x,dy=ph._Y(D.dvdt[i])-y,d=dx*dx+dy*dy;if(d<bd){bd=d;b=i}}return b}
+const zoom=(w,f,z)=>{const c=w[0]+f*(w[1]-w[0]);return [c-(c-w[0])*z,c+(w[1]-c)*z]};
+ts.onmousemove=e=>{hover=iTS(e);draw()};ph.onmousemove=e=>{hover=iPH(e);draw()};
+ts.onmouseleave=ph.onmouseleave=()=>{hover=null;draw()};
+ts.onclick=e=>{pins.push(iTS(e));draw()};ph.onclick=e=>{pins.push(iPH(e));draw()};
+ts.onwheel=e=>{e.preventDefault();const z=e.deltaY>0?1.25:0.8,[fx_,fy]=fx(ts,e);if(e.shiftKey)dw=zoom([dw[1],dw[0]],fy,z).reverse();else tw=zoom(tw,fx_,z);draw()};
+ph.onwheel=e=>{e.preventDefault();const z=e.deltaY>0?1.25:0.8,[a,b]=fx(ph,e);pv=zoom(pv,a,z);pd=zoom([pd[1],pd[0]],b,z).reverse();draw()};
+ts.ondblclick=()=>{tw=[T(0),T(N-1)];dw=D0.slice();draw()};ph.ondblclick=()=>{pv=V0.slice();pd=D0.slice();draw()};
+document.getElementById('clr').onclick=()=>{pins.length=0;draw()};
+addEventListener('resize',draw);draw();
+</script></body></html>

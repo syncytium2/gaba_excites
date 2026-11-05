@@ -243,6 +243,7 @@ export function betaMouse(set: DomSet = DOM_SETS.fast): ModelDef {
   const knob = (k: Record<string, number> | undefined, id: keyof DomSet) => k?.[id] ?? set[id];
   return {
     id: "betamouse",
+    thresholdDvdt: null,
     label: "Pancreatic beta cell (mouse)",
     short: "β-cell (mouse)",
     blurb:
@@ -342,6 +343,7 @@ export function betaMouse(set: DomSet = DOM_SETS.fast): ModelDef {
     settleMs: 2000,
     validation:
       "Transcribed from the paper, the PFK rate law from the authors' code. Checked against the paper's reported glycolytic periods, its bistability point, and its burst patterns; not yet against the authors' code run in XPP.",
+    pscNote: "No GABA synapses onto beta cells are described in these sources. In human islets the beta cells make GABA themselves, and it acts on them and their neighbors (autocrine and paracrine: Braun et al. 2010). Braun saw it released with insulin granules; Menegaz et al. 2019 found much of it leaving the cytosol in pulses through VRAC anion channels, since beta cells have no vesicular GABA transporter. How much GABA the islet holds is unknown: the cells' high-affinity GABA_A receptors open most often at 100–1000 nM and desensitize in saturating GABA (Korol et al. 2018). This mouse model has no GABA conductance of its own; these PSCs are the app's generic neuronal events, not measured in beta cells. The sources are human islets.",
     vcNote:
       "This cell's currents were not fitted to voltage-clamp recordings. Bertram et al. (2004) took them from earlier models and checked the cell against islet bursting and calcium, so the I–V and G–V curves here show what the model assumes, not what was measured in beta cells.",
   };

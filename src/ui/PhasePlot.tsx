@@ -1,21 +1,26 @@
 /**
  * Phase plot: dV/dt against V for one sweep. The kink where the trajectory
  * leaves the subthreshold cluster is spike threshold; the dashed line marks
- * the 20 V/s criterion the analysis uses to measure it.
+ * the criterion it is measured at (the model's own, or the one the switch
+ * picked), and the dot is where the first spike crosses it: the threshold.
  */
-import { THRESH_DVDT } from "../core/analysis.ts";
+import { detectSpikes } from "../core/analysis.ts";
 
 interface Props {
   vm: Float32Array;
   dt: number;
   color: string;
+  /** the dV/dt threshold criterion, V/s (= mV/ms) */
+  crit: number;
+  /** the level spikes are counted at, mV (the model's) */
+  spikeLevel?: number;
 }
 
 const W = 360;
 const H = 260;
 const M = { l: 48, r: 10, t: 10, b: 36 };
 
-export function PhasePlot({ vm, dt, color }: Props) {
+export function PhasePlot({ vm, dt, color, crit, spikeLevel }: Props) {
   const n = vm.length;
   let vMin = Infinity, vMax = -Infinity, dMin = Infinity, dMax = -Infinity;
   const d = new Float32Array(n);
@@ -28,8 +33,10 @@ export function PhasePlot({ vm, dt, color }: Props) {
   }
   vMin = Math.min(vMin, -80);
   vMax = Math.max(vMax, 0);
-  dMin = Math.min(dMin, -10);
-  dMax = Math.max(dMax, 40);
+  // room for the criterion line above the trajectory, scaled to the criterion: a 40 V/s floor (enough for 20 V/s)
+  // would flatten a beta cell's 7 V/s spike onto the axis
+  dMax = Math.max(dMax * 1.05, 2 * crit, 2);
+  dMin = Math.min(dMin * 1.05, -0.15 * dMax);
   const x = (v: number) => M.l + ((v - vMin) / (vMax - vMin)) * (W - M.l - M.r);
   const y = (g: number) => H - M.b - ((g - dMin) / (dMax - dMin)) * (H - M.t - M.b);
 
@@ -44,6 +51,9 @@ export function PhasePlot({ vm, dt, color }: Props) {
     lx = px;
     ly = py;
   }
+
+  // the first spike's threshold at this criterion (NaN if it never reaches it, or there is no spike)
+  const thr = detectSpikes(vm, dt, spikeLevel, crit)[0]?.threshold ?? NaN;
 
   const vTicks = ticks(vMin, vMax, 5);
   const dTicks = ticks(dMin, dMax, 5);
@@ -61,9 +71,10 @@ export function PhasePlot({ vm, dt, color }: Props) {
           <text x={x(t)} y={H - M.b + 16} textAnchor="middle" className="tick">{t}</text>
         </g>
       ))}
-      <line x1={M.l} x2={W - M.r} y1={y(THRESH_DVDT)} y2={y(THRESH_DVDT)} className="crit" />
-      <text x={W - M.r - 4} y={y(THRESH_DVDT) - 4} textAnchor="end" className="tick">{THRESH_DVDT} V/s</text>
+      <line x1={M.l} x2={W - M.r} y1={y(crit)} y2={y(crit)} className="crit" />
+      <text x={W - M.r - 4} y={y(crit) - 4} textAnchor="end" className="tick">{crit} V/s</text>
       <path d={path} fill="none" stroke={color} strokeWidth={1.25} />
+      {Number.isFinite(thr) && <circle cx={x(thr)} cy={y(crit)} r={3.5} className="thr-dot"><title>{`threshold ${thr.toFixed(1)} mV at ${crit} V/s`}</title></circle>}
       <text x={(M.l + W - M.r) / 2} y={H - 4} textAnchor="middle" className="axlabel">Vm (mV)</text>
       <text transform={`translate(12 ${(M.t + H - M.b) / 2}) rotate(-90)`} textAnchor="middle" className="axlabel">dV/dt (V/s)</text>
     </svg>
@@ -75,6 +86,6 @@ function ticks(lo: number, hi: number, n: number): number[] {
   const mag = 10 ** Math.floor(Math.log10(raw));
   const step = [1, 2, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? raw;
   const out: number[] = [];
-  for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) out.push(Math.round(t));
+  for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) out.push(Number(t.toFixed(6)));
   return out;
 }

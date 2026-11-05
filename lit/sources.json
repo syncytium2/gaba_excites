@@ -586,11 +586,13 @@
       "models": [
         "gnrh"
       ],
-      "took": "The 1 V/s dV/dt criterion for GnRH action-potential threshold, which the owner defined in this paper. The notebook's report tabulates threshold at 1 V/s alongside 2, 10 and 20 V/s. Also the report that estradiol lowers GnRH threshold and latency through I_A, which motivated the K⁺-block experiments. Attributed on the owner's word (2026-10-18); the PDF has not been read here, so there is no quotation yet.",
+      "took": "The 1 V/s dV/dt criterion for GnRH action-potential threshold, which the owner defined in this paper. Since 2026-11-03 it is the GnRH cell's own threshold criterion (ModelDef.thresholdDvdt), and the report and the phase plot's switch offer it alongside 0.5, 2, 10 and 20 V/s. Also the report that estradiol lowers GnRH threshold and latency through I_A, which motivated the K⁺-block experiments. Attributed on the owner's word (2026-10-18); the PDF has not been read here, so there is no quotation yet.",
       "usedIn": [
         "src/core/threshold.ts",
         "src/core/report.ts",
-        "tools/experiments/threshold_criteria.ts"
+        "tools/experiments/threshold_criteria.ts",
+        "src/core/models.ts",
+        "src/App.tsx"
       ]
     },
     {
@@ -616,12 +618,14 @@
         "fs",
         "gnrh"
       ],
-      "took": "The 10 V/s threshold criterion, tabulated in the notebook's report. Also the comparison the threshold experiments reproduce: intracellular TEA, with a bias current restoring a negative rest, left voltage threshold unchanged and changed rheobase.",
+      "took": "The 10 V/s threshold criterion: since 2026-11-03 the cortical cells' and the squid axon's own (ModelDef.thresholdDvdt), and one the report and the phase plot's switch offer. Also the comparison the threshold experiments reproduce: intracellular TEA, with a bias current restoring a negative rest, left voltage threshold unchanged and changed rheobase.",
       "usedIn": [
         "src/core/threshold.ts",
         "src/core/report.ts",
         "tools/experiments/threshold_criteria.ts",
-        "tools/experiments/na_shift.ts"
+        "tools/experiments/na_shift.ts",
+        "src/core/models.ts",
+        "src/App.tsx"
       ],
       "quotes": [
         {
@@ -933,6 +937,274 @@
         "src/core/beta-run.ts"
       ],
       "notes": "notes/bertram2004.md"
+    },
+    {
+      "key": "riz2014",
+      "type": "article",
+      "authors": [
+        "Riz M",
+        "Braun M",
+        "Pedersen MG"
+      ],
+      "year": 2014,
+      "title": "Mathematical modeling of heterogeneous electrophysiological responses in human β-cells",
+      "journal": "PLoS Comput Biol",
+      "volume": "10",
+      "issue": "1",
+      "pages": "e1003389",
+      "doi": "10.1371/journal.pcbi.1003389",
+      "pmid": "24391482",
+      "pmcid": "PMC3879095",
+      "access": "open (PubMed Central; CC BY)",
+      "role": "model",
+      "models": [
+        "betahuman"
+      ],
+      "took": "The human beta cell: Equations 13–34 and Table 1 (every current, the submembrane and cytosolic calcium, the SK and GABA_A currents, Cm = 10 pF), the GABA_A conductances for 10 µM, 100 µM and 1 mM GABA, and the reported behavior the port is checked against: the interspike potential of about −70 mV (Fig. 3B), TTX silencing a cell with less L-type current (Fig. 3D), and GABA's single spike and ~−45 mV plateau in a silent cell and faster firing in an active one (Fig. 5). The glycolytic oscillator (Eqs. 35–47, Fig. 6) is not ported.",
+      "usedIn": [
+        "src/core/human.ts",
+        "src/core/pools.ts",
+        "src/core/human-run.ts",
+        "src/core/human.test.ts"
+      ],
+      "quotes": [
+        {
+          "text": "In a silent model cell with a rather large K(ATP)-conductance, simulated GABA application leads to a single action potential whereafter the membrane potential settles at ∼−45 mV (Fig. 5A), in close correspondence with the experimental results",
+          "where": "Results, Paracrine effects on electrical activity"
+        },
+        {
+          "text": "In an active cell, the simulation of activation of GABAA receptors leads to a minor depolarization and increased action potential firing (Fig. 5B), as found experimentally",
+          "where": "Results, Paracrine effects on electrical activity"
+        },
+        {
+          "text": "We estimate gGABAR from the findings that 1 mM GABA evokes a current of 9.4 pA/pF (but with substantial cell-to-cell variation) at a holding potential of −70 mV [12], which yields a conductance of ∼0.3 nS/pF.",
+          "where": "Methods, Modeling"
+        }
+      ],
+      "notes": "notes/riz2014.md",
+      "permission": "Morten Gram Pedersen, by email on 2026-11-03, to the owner's request to build this teaching simulation from his human beta cell model with attribution, writing it from the papers' equations and tables and using the authors' XPP files only as a check, none of them redistributed: “Absolutely - yes, that would be fine.”"
+    },
+    {
+      "key": "pedersen2010",
+      "type": "article",
+      "authors": [
+        "Pedersen MG"
+      ],
+      "year": 2010,
+      "title": "A biophysical model of electrical activity in human β-cells",
+      "journal": "Biophys J",
+      "volume": "99",
+      "issue": "10",
+      "pages": "3200–3207",
+      "doi": "10.1016/j.bpj.2010.09.004",
+      "pmid": "21081067",
+      "pmcid": "PMC2980734",
+      "access": "open (PubMed Central)",
+      "role": "model",
+      "models": [
+        "betahuman"
+      ],
+      "took": "The voltage-gated currents of the human beta cell, Equations 1–9 and Table 1, which Riz et al. 2014 keep; how each was taken from Braun et al. 2008's voltage-clamp data; his parameter set (no SK, HERG 0.2 nS/pF, g_K(ATP) 0.015 nS/pF, P/Q slope −10 mV); and the numbers the port is checked against: spikes at 4.6 Hz peaking at −8 mV with troughs at −68 mV, 7 Hz with HERG blocked, 4.0 Hz with τ_mHERG = 500 ms, interspike intervals 217 → 312 ms with TTX, and 163 → 178 ms at g_K(ATP) 0.008 nS/pF. From its Supporting Material (Figs. S1–S3): the reversal potentials the currents were fitted to Braun's recordings with, E_Ca = +40 mV and E_Na = +100 mV, against the +65 and +70 mV every firing simulation uses.",
+      "usedIn": [
+        "src/core/human.ts",
+        "src/core/human.test.ts"
+      ],
+      "quotes": [
+        {
+          "text": "Special attention has been given to choose model parameters directly from published, high-quality electrophysiological data, mainly from Braun et al. (3) ... Using published parameters reduced parameter tweaking to a minimum.",
+          "where": "Introduction"
+        },
+        {
+          "text": "the model produces action potentials peaking at −8 mV with troughs at −68 mV (Fig. 2). The spike frequency is 4.6 Hz",
+          "where": "Results, Spiking electrical activity"
+        },
+        {
+          "text": "blocking the HERG current increases the spike frequency by 52% from 4.6 Hz to 7 Hz (Fig. 2 D)",
+          "where": "Results, Spiking electrical activity"
+        },
+        {
+          "text": "setting gNa = 0 nS/pF increases the interspike interval dramatically (by 44% from 217 ms to 312 ms), but with lower K(ATP) conductance the interspike interval is increased much less, e.g., by 9% from 163 ms to 178 ms with gK(ATP) = 0.008 nS/pF",
+          "where": "Results, Spiking electrical activity"
+        },
+        {
+          "text": "Assuming a reversal potential of VNa = 100 mV allowed decent fitting to the Na+-currents measured by Braun et al. (3) (full, black). However, all simulations of electrical activity were done with VNa = 70 mV, which yields smaller Na+-currents",
+          "where": "Supporting Material, Fig. S2 legend"
+        },
+        {
+          "text": "Assuming a reversal potential of VCa = 40 mV (3) allowed decent fitting to the Ca2+-currents measured by Braun et al. (3).",
+          "where": "Supporting Material, Fig. S1 legend"
+        }
+      ],
+      "notes": "notes/riz2014.md",
+      "permission": "Morten Gram Pedersen, by email on 2026-11-03, to the owner's request to build this teaching simulation from his human beta cell model with attribution, writing it from the papers' equations and tables and using the authors' XPP files only as a check, none of them redistributed: “Absolutely - yes, that would be fine.”"
+    },
+    {
+      "key": "braun2008",
+      "type": "article",
+      "authors": [
+        "Braun M",
+        "Ramracheya R",
+        "Bengtsson M",
+        "Zhang Q",
+        "Karanauskaite J",
+        "Partridge C",
+        "Johnson PR",
+        "Rorsman P"
+      ],
+      "year": 2008,
+      "title": "Voltage-gated ion channels in human pancreatic β-cells: electrophysiological characterization and role in insulin secretion",
+      "journal": "Diabetes",
+      "volume": "57",
+      "issue": "6",
+      "pages": "1618–1628",
+      "doi": "10.2337/db07-0991",
+      "pmid": "18390794",
+      "access": "publisher",
+      "role": "parameter",
+      "models": [
+        "betahuman"
+      ],
+      "took": "The voltage-clamp recordings of human beta cells that Pedersen 2010 built the Na⁺, Ca²⁺, Kv and BK currents from, and Cm ≈ 10 pF. Cited through Pedersen 2010; no number here is read from it directly.",
+      "usedIn": [
+        "src/core/human.ts"
+      ]
+    },
+    {
+      "key": "braun2010",
+      "type": "article",
+      "authors": [
+        "Braun M",
+        "Ramracheya R",
+        "Bengtsson M",
+        "Clark A",
+        "Walker JN",
+        "Johnson PR",
+        "Rorsman P"
+      ],
+      "year": 2010,
+      "title": "γ-Aminobutyric acid (GABA) is an autocrine excitatory transmitter in human pancreatic β-cells",
+      "journal": "Diabetes",
+      "volume": "59",
+      "issue": "7",
+      "pages": "1694–1701",
+      "doi": "10.2337/db09-0797",
+      "pmid": "20413510",
+      "pmcid": "PMC2889769",
+      "access": "open (PubMed Central)",
+      "role": "parameter",
+      "models": [
+        "betahuman",
+        "betamouse"
+      ],
+      "took": "The GABA_A current of human beta cells (9.4 pA/pF for 1 mM GABA at −70 mV) and the firing responses to GABA that Riz et al. 2014 reproduce (its Fig. 7). Cited through Riz et al. 2014. Also, read from its abstract on 2026-11-04 for the siren's note on PSC inputs to the beta cells: beta cells secrete GABA themselves, by glucose-dependent exocytosis and a glucose-independent route, as an autocrine positive feedback loop.",
+      "usedIn": [
+        "src/core/beta.ts",
+        "src/core/human.ts"
+      ]
+    },
+    {
+      "key": "menegaz2019",
+      "type": "article",
+      "authors": [
+        "Menegaz D",
+        "Hagan DW",
+        "Almaça J",
+        "Cianciaruso C",
+        "Rodriguez-Diaz R",
+        "Molina J",
+        "Dolan RM",
+        "Becker MW",
+        "Schwalie PC",
+        "Nano R",
+        "Lebreton F",
+        "Kang C",
+        "Sah R",
+        "Gaisano HY",
+        "Berggren PO",
+        "Baekkeskov S",
+        "Caicedo A",
+        "Phelps EA"
+      ],
+      "year": 2019,
+      "title": "Mechanism and effects of pulsatile GABA secretion from cytosolic pools in the human beta cell",
+      "journal": "Nat Metab",
+      "volume": "1",
+      "issue": "11",
+      "pages": "1110–1126",
+      "doi": "10.1038/s42255-019-0135-7",
+      "pmid": "32432213",
+      "pmcid": "PMC7236889",
+      "access": "open (PubMed Central)",
+      "role": "background",
+      "models": [
+        "betahuman",
+        "betamouse"
+      ],
+      "took": "Read from its abstract only, 2026-11-04, for the siren's note on PSC inputs to the beta cells: human beta cells lack a vesicular GABA transporter, GABA accumulates in the cytosol and leaves in pulses through the volume-regulated anion channel (VRAC, LRRC8A). No number is taken.",
+      "usedIn": [
+        "src/core/human.ts",
+        "src/core/beta.ts"
+      ]
+    },
+    {
+      "key": "korol2018",
+      "type": "article",
+      "authors": [
+        "Korol SV",
+        "Jin Z",
+        "Jin Y",
+        "Bhandage AK",
+        "Tengholm A",
+        "Gandasi NR",
+        "Barg S",
+        "Espes D",
+        "Carlsson PO",
+        "Laver D",
+        "Birnir B"
+      ],
+      "year": 2018,
+      "title": "Functional characterization of native, high-affinity GABA_A receptors in human pancreatic β cells",
+      "journal": "EBioMedicine",
+      "volume": "30",
+      "pages": "273–282",
+      "doi": "10.1016/j.ebiom.2018.03.014",
+      "pmid": "29606630",
+      "pmcid": "PMC5952339",
+      "access": "open (PubMed Central)",
+      "role": "background",
+      "models": [
+        "betahuman",
+        "betamouse"
+      ],
+      "took": "Read from its abstract only, 2026-11-04, for the siren's note on PSC inputs to the beta cells: 100–1000 nM GABA gives the native GABA_A channels of human beta cells their maximal opening frequency, and saturating GABA desensitizes them. The abstract says the islet's own GABA concentration is unknown; the siren says so too (corrected 2026-11-04).",
+      "usedIn": [
+        "src/core/human.ts",
+        "src/core/beta.ts"
+      ]
+    },
+    {
+      "key": "riz14code",
+      "type": "code",
+      "authors": [
+        "Riz M",
+        "Pedersen MG"
+      ],
+      "year": 2014,
+      "title": "XPP files for Riz, Braun & Pedersen 2014 and Pedersen 2010 (PLoSCompBiol_Fig1.ode, human-BJ2010.ode)",
+      "url": "https://www.dei.unipd.it/~pedersen/",
+      "access": "open (code; no license in the files; Software S1 of a CC BY article)",
+      "role": "model",
+      "models": [
+        "betahuman"
+      ],
+      "took": "The initial values of Riz et al. 2014's Fig. 1A, which the cell starts from. The equations were also integrated literally, outside this repository, as a check on the port (lit/notes/riz2014.md). No file of the authors' is in this repository.",
+      "usedIn": [
+        "src/core/human.ts",
+        "src/core/human-run.ts",
+        "src/core/human.test.ts"
+      ],
+      "notes": "notes/riz2014.md",
+      "permission": "Morten Gram Pedersen, by email on 2026-11-03, to the owner's request to build this teaching simulation from his human beta cell model with attribution, writing it from the papers' equations and tables and using the authors' XPP files only as a check, none of them redistributed: “Absolutely - yes, that would be fine.”"
     }
   ]
 }

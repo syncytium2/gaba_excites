@@ -44,6 +44,8 @@ const RATE_SCALE: Record<ModelId, number[]> = {
   gnrh: [0, 10, 20, 30, 40, 50],
   // a few spikes a second, averaged over the readout's window
   betamouse: [0, 2, 4, 6, 8, 10],
+  // about 6 Hz on its own (Riz et al. 2014 defaults), faster with GABA
+  betahuman: [0, 2, 4, 6, 8, 10],
   // about 55 Hz at 6.3 °C, near 300 Hz when warmed to 18.5 °C
   hh: [0, 60, 120, 180, 240, 300],
 };

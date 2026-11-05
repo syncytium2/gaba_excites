@@ -11,6 +11,7 @@
  *
  * Pure TypeScript, no DOM: tested in report.test.ts.
  */
+import type { RheobaseFrom } from "./rheobase.ts";
 import type { CellParams } from "./cell.ts";
 import type { ModelDef } from "./models.ts";
 import type { NoiseParams } from "./noise.ts";
@@ -60,8 +61,14 @@ export interface RunRecord {
   cell: { vRest: number; rinRest: number; rinAtHold: number };
   measures: {
     rheobase: number;
-    /** threshold of the first spike at rheobase, at the app's 20 V/s */
+    /** the Vm the rheobase was measured from, mV; absent in records made before 2026-11-04 */
+    rheobaseVm?: number;
+    /** the holding current that set that Vm, pA, when the model measures from a standard potential */
+    rheobaseHold?: number;
+    /** threshold of the first spike at rheobase, at `threshDvdt` */
     threshold: number;
+    /** the criterion `threshold` was measured at, V/s; absent in records made before 2026-11-03, which used 20 */
+    threshDvdt?: number;
     apPeak: number;
     apHalfWidth: number;
     rinMeasured: number;
@@ -84,6 +91,8 @@ export interface RecordInput {
   cell: { vRest: number; rinRest: number; rinAtHold: number };
   sweeps: Sweep[];
   summary: FamilySummary;
+  /** rheobase from a standard potential, for a model that measures it so (ModelDef.rheobaseFromMv) */
+  rheoFrom?: RheobaseFrom;
   app: { version: string; updated: string };
   /** for tests; defaults to now */
   now?: Date;
@@ -132,7 +141,7 @@ export function recordRun(inp: RecordInput): RunRecord {
   let latency = NaN;
   if (rheoSweep) {
     const dt = rheoSweep.sampleMs;
-    const first = detectSpikes(rheoSweep.vm, dt).find((x) => x.t >= p.stepStart);
+    const first = detectSpikes(rheoSweep.vm, dt, rheoSweep.spikeLevel, rheoSweep.threshDvdt).find((x) => x.t >= p.stepStart);
     if (first) {
       const floor = Math.round(p.stepStart / dt);
       const ic = Math.ceil(first.t / dt);
@@ -158,8 +167,11 @@ export function recordRun(inp: RecordInput): RunRecord {
     settings: JSON.parse(JSON.stringify(settings)),
     cell: { vRest: r(inp.cell.vRest), rinRest: r(inp.cell.rinRest), rinAtHold: r(inp.cell.rinAtHold) },
     measures: {
-      rheobase: r(s.rheobase),
+      rheobase: r(inp.rheoFrom ? inp.rheoFrom.amp : s.rheobase),
+      rheobaseVm: r(inp.rheoFrom ? inp.rheoFrom.vBase : s.rheobaseVm, 1),
+      ...(inp.rheoFrom ? { rheobaseHold: r(inp.rheoFrom.hold, 2) } : {}),
       threshold: r(s.threshold, 2),
+      threshDvdt: s.threshDvdt,
       apPeak: r(s.apPeak, 2),
       apHalfWidth: r(s.apHalfWidth, 3),
       rinMeasured: r(s.rinMeasured),
@@ -278,7 +290,8 @@ function measuresTable(runs: RunRecord[]): string {
   const ref = runs[0];
   const cols: { label: string; get: (x: RunRecord) => number; d: number; unit: string }[] = [
     { label: "Rheobase", get: (x) => x.measures.rheobase, d: 1, unit: "pA" },
-    ...CRITERIA.map((c, i) => ({ label: `Threshold @${c.vps} V/s`, get: (x: RunRecord) => (x.thresholds[i]?.hitFloor ? NaN : x.thresholds[i]?.v ?? NaN), d: 1, unit: "mV" })),
+    { label: "Rheobase from", get: (x) => x.measures.rheobaseVm ?? NaN, d: 1, unit: "mV" },
+    ...CRITERIA.map((c) => ({ label: `Threshold @${c.vps} V/s`, get: (x: RunRecord) => { const t = x.thresholds.find((u) => u.vps === c.vps); return !t || t.hitFloor ? NaN : t.v; }, d: 1, unit: "mV" })),
     { label: "AP peak", get: (x) => x.measures.apPeak, d: 1, unit: "mV" },
     { label: "Half-width", get: (x) => x.measures.apHalfWidth, d: 2, unit: "ms" },
     { label: "Latency at rheobase", get: (x) => x.measures.latency, d: 1, unit: "ms" },

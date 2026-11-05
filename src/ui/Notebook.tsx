@@ -6,6 +6,7 @@
  * student downloads: the notebook as JSON, or the report, which carries its runs
  * and loads back in. Nothing is sent anywhere.
  */
+import type { RheobaseFrom } from "../core/rheobase.ts";
 import { useEffect, useRef, useState } from "react";
 import type { FamilySummary } from "../core/analysis.ts";
 import type { ModelDef } from "../core/models.ts";
@@ -38,7 +39,7 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(
 
 export function Notebook({ run, model, app }: {
   /** the last completed run and the settings that produced it; null while there is none */
-  run: { sweeps: Sweep[]; summary: FamilySummary; settings: RunSettings; cell: { vRest: number; rinRest: number; rinAtHold: number } } | null;
+  run: { sweeps: Sweep[]; summary: FamilySummary; settings: RunSettings; cell: { vRest: number; rinRest: number; rinAtHold: number }; rheoFrom?: RheobaseFrom } | null;
   model: ModelDef;
   app: { version: string; updated: string };
 }) {
@@ -61,7 +62,7 @@ export function Notebook({ run, model, app }: {
   const full = runs.length >= MAX_RUNS;
   const record = () => {
     if (!run || full) return;
-    const rec = recordRun({ title: title.trim() || `Run ${runs.length + 1}`, note: note.trim(), settings: run.settings, model, cell: run.cell, sweeps: run.sweeps, summary: run.summary, app });
+    const rec = recordRun({ title: title.trim() || `Run ${runs.length + 1}`, note: note.trim(), settings: run.settings, model, cell: run.cell, sweeps: run.sweeps, summary: run.summary, rheoFrom: run.rheoFrom, app });
     setRuns([...runs, rec]);
     setTitle("");
     setNote("");
@@ -124,7 +125,7 @@ export function Notebook({ run, model, app }: {
                 <div className="nb-run">
                   <input type="text" value={x.title} maxLength={120} aria-label={`Title of run ${i + 1}`} onChange={(e) => update(i, { title: e.target.value })} />
                   <div className="small">
-                    {x.model.short} · rheobase {fmt(x.measures.rheobase)} pA · threshold {fmt(x.measures.threshold)} mV at 20 V/s
+                    {x.model.short} · rheobase {fmt(x.measures.rheobase)} pA · threshold {fmt(x.measures.threshold)} mV at {x.measures.threshDvdt ?? 20} V/s
                     {t1 && !t1.hitFloor ? `, ${fmt(t1.v)} mV at 1 V/s` : ""} · Rin {fmt(x.measures.rinMeasured)} MΩ
                   </div>
                   {i > 0 && <div className="small">Changed from run 1: {diff.length ? diff.join("; ") : "nothing (a repeat)"}</div>}

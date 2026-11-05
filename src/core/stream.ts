@@ -21,7 +21,7 @@ import type { BuiltCell } from "./cell.ts";
 import { settle, step, type Electrode, type Inputs, type SynNow } from "./simulate.ts";
 import { kinetics, rng, type SynInput, type SynKinetics } from "./synapses.ts";
 import { DEFAULT_NOISE, OU, Recorder, type NoiseParams } from "./noise.ts";
-import { REARM_LEVEL, SPIKE_LEVEL } from "./analysis.ts";
+import { SPIKE_LEVEL, rearmFor } from "./analysis.ts";
 
 /** A repeating current pulse, on top of the holding current. */
 export interface Pulse {
@@ -58,7 +58,7 @@ export interface Chunk {
   iCmd: Float32Array;
   gGlu: Float32Array;
   gGaba: Float32Array;
-  /** spike times in this chunk, ms (upward crossings of SPIKE_LEVEL on Vm) */
+  /** spike times in this chunk, ms (upward crossings of the cell's spike level on Vm: ModelDef.spikeLevel, or SPIKE_LEVEL) */
   spikes: number[];
   /** pulse onsets in this chunk, ms: what the scope triggers on */
   onsets: number[];
@@ -130,6 +130,10 @@ export class Stream {
   private pulseT0 = 0;
   private pulseHigh = false;
   private armed: boolean;
+  /** the Vm a spike rises through to count: the model's own, or the app's (analysis.ts) */
+  private get level(): number {
+    return this.cell.model.spikeLevel ?? SPIKE_LEVEL;
+  }
   private lastV: number;
   private syn: SynNow;
 
@@ -144,7 +148,7 @@ export class Stream {
     this.syn = { gGlu: 0, gGaba: 0, eGlu: inp.glu.erev, eGaba: inp.gaba.erev };
     this.setNoise(inp.noise ?? DEFAULT_NOISE);
     this.lastV = this.s[cell.iv];
-    this.armed = this.lastV < SPIKE_LEVEL;
+    this.armed = this.lastV < this.level;
   }
 
   get t(): number {
@@ -177,7 +181,7 @@ export class Stream {
     if (!same) {
       this.s = settle(cell, this.inp.electrode, this.inp.ihold, cell.model.settleMs, this.opt.dt);
       this.lastV = this.s[cell.iv];
-      this.armed = this.lastV < SPIKE_LEVEL;
+      this.armed = this.lastV < this.level;
     }
   }
 
@@ -238,13 +242,13 @@ export class Stream {
         gGlu[j] = this.syn.gGlu;
         gGaba[j] = this.syn.gGaba;
         j++;
-        // spikes as analysis.ts counts them: up through SPIKE_LEVEL, re-armed below REARM_LEVEL
+        // spikes as analysis.ts counts them: up through the cell's level, re-armed 20 mV below it
         if (this.armed) {
-          if (this.lastV < SPIKE_LEVEL && v >= SPIKE_LEVEL) {
+          if (this.lastV < this.level && v >= this.level) {
             spikes.push(t);
             this.armed = false;
           }
-        } else if (v < REARM_LEVEL) this.armed = true;
+        } else if (v < rearmFor(this.level)) this.armed = true;
         this.lastV = v;
       }
     }
