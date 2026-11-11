@@ -1882,3 +1882,18 @@ sides: the storage keys (Focus beside the pS/pF | nS/pF knob switch) and the pha
 criterion picker and follows the newest sweep while stepping. 293 tests and the screenshot check passed on the merge.
 `npm run deploy` shipped v0.2.15 (bundle `assets/index-Daqw7dF9.js`) to both domains, the classroom version at
 `/fall-2026/` unchanged. Recorded in `DEPLOYED.md`.
+
+## 2026-11-11 — a KNDy cell and dynamic clamp: prepared, not built
+
+The owner asked for a literature search on computational models of KNDy neurons, then for a handoff "to add the qiu
+model with dynamic clamp mode for the mendonca observation". The search found one single-cell, conductance-based
+model of the arcuate kisspeptin neuron: Qiu et al. 2024 (*eLife* 13:RP96691), with MATLAB code archived at Software
+Heritage and no license file. The code and the paper's parameter table disagree in about ten places, the model has
+no delayed-rectifier K⁺ current, and its leak alone is several times the resting conductance Mendonça et al. 2018
+measured. A td-resume session had the same afternoon written `docs/handoffs/2026-11-11-kndy-kv4-leak.md`, which
+carries the owner's objection to Mendonça's Kv4 dynamic clamp (the conductance is partly open at rest, so it changes
+the leak) and the experiment to test it. `docs/handoffs/2026-11-11-kndy-qiu-code.md` adds what this session read in
+the code and how the cell and an injected conductance fit the `Channel` seam and the amplifier's modes. No decision
+was taken: the handoff lists the ones that are the owner's (code or table as the source, the host parameter set, the
+dose axis, an ideal clamp or one through the electrode). The report and the downloaded sources are in the darkroom
+folder `gaba_excites/2026-11-11_kndy-models-lit-search/`; the MATLAB stays out of this repository. Branch `kndy-kv4`.

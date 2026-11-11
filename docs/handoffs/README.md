@@ -53,6 +53,10 @@ one CI step. It merges that framework to main first, so the other sessions can n
   cell, then test the owner's objection to Mendonça et al. 2018: a Kv4 conductance added by dynamic clamp is partly
   open at rest, so it changes the resting leak, and that change may explain the reported firing effects. Approved by
   the owner; written by a td-resume session.
+- [`2026-11-11-kndy-qiu-code.md`](2026-11-11-kndy-qiu-code.md): read with the handoff above. The Qiu 2024 reference
+  code is found (Software Heritage) and read: what a port has to face, where the code and the paper's table disagree,
+  an Octave oracle, and how an injected conductance and a fourth amplifier mode fit this codebase. Lists what the
+  owner must decide. On branch `kndy-kv4`, which the work should continue on.
 
 ## Superseded
 
