@@ -1996,3 +1996,19 @@ explains has to be measured in each cell. The KNDy number should not be quoted a
 
 `node scripts/screenshot.mjs` is clean with the section in place; it was also driven by hand in a browser on the
 GnRH cell in all three modes and at phone width.
+
+## 2026-11-11 — v0.2.16 deployed: dynamic clamp on the amplifier
+
+Asked "Say when to merge the dynamic clamp to `main` and deploy", the owner answered "merge and deploy. add the
+cross cell table". `kndy-kv4` was fast-forwarded into `main` (seven commits: the two handoffs' records, the KNDy
+cell, the injected-conductance seam, the Kv4 leak experiment, the amplifier's DYNAMIC CLAMP section). 335 tests
+passed in the deploy. `npm run deploy` shipped v0.2.16 (bundle `assets/index-DuAstzH8.js`) to both domains, the
+classroom version at `/fall-2026/` unchanged, and `node scripts/screenshot.mjs` against the live site is clean.
+Recorded in `DEPLOYED.md`.
+
+What went public with it: the dynamic clamp, its section of the methods page, and four literature entries (Qiu
+2024 and its code, marked "Not offered in the app"; Mendonça 2018 and 2016). The KNDy cell itself is in the
+repository and not in the app: `kndy.test.ts` holds it out of the model list.
+
+The Kv4 leak report in the darkroom folder now carries the cross-cell table: the matched leak is 92% of the Kv4's
+change in rheobase on the KNDy cell, 56% on the GnRH cell and 40% on the pyramidal cell.
