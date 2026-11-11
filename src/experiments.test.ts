@@ -12,6 +12,7 @@ import { sweepShifts } from "../tools/experiments/na_shift.ts";
 import { conditions, driveSweep, measure, startV } from "../tools/experiments/threshold_criteria.ts";
 import { gabaTrain } from "../tools/experiments/lts_gaba_rebound.ts";
 import { buildCond, carryOver, cvIsi, HOSTS, measureRest, passiveMendonca, Rig } from "../tools/experiments/kv4_leak.ts";
+import { runVm } from "../tools/experiments/kv4_vm.ts";
 
 describe("experiment: DeFazio & Moenter 2021 slow I_K inactivation on the Adams 2018 GnRH model", () => {
   it("at the measured V½ (−30 mV) the paper's Fig. 7F counts are unchanged", () => {
@@ -220,5 +221,42 @@ describe("experiment: is Mendonça's Kv4 dynamic clamp a change in gating or a c
     expect(cvIsi([0, 100, 200, 300])).toBeCloseTo(0, 12);
     expect(cvIsi([0, 50, 200])).toBeCloseTo(0.5, 12);
     expect(cvIsi([0, 100])).toBeNaN();
+  });
+});
+
+describe("experiment: the Kv4 dynamic clamp's effect on rheobase, with Vm free and with Vm fixed at the model's rest", () => {
+  // the GnRH cell at +0.4 nS/pF (8 nS at 0 mV)
+  const r = runVm("gnrh", 0.4);
+  const c = runVm("gnrh", 0).free.control!;
+
+  it("Vm free: Kv4 and its matched leak start from the same shifted rest, with the same input resistance", () => {
+    expect(r.v0).toBeCloseTo(-67.48, 1);
+    expect(r.free.kv4!.vStart).toBeCloseTo(-69.9, 1);
+    expect(r.free.leak!.vStart).toBeCloseTo(r.free.kv4!.vStart, 2);
+    expect(Math.abs(r.free.leak!.rin / r.free.kv4!.rin - 1)).toBeLessThan(1e-3);
+    expect(r.free.kv4!.hold).toBe(0);
+  });
+
+  it("Vm fixed: both are held at the model's native rest by the same bias, and have the same input resistance there", () => {
+    for (const k of ["kv4", "leak"] as const) expect(Math.abs(r.fixed[k]!.vStart - r.v0)).toBeLessThan(0.1);
+    expect(r.fixed.kv4!.hold).toBeCloseTo(7.46, 1);
+    expect(r.fixed.leak!.hold).toBeCloseTo(r.fixed.kv4!.hold, 6);
+    expect(Math.abs(r.fixed.leak!.rin / r.fixed.kv4!.rin - 1)).toBeLessThan(1e-3);
+    // gating only needs no bias: it rests at V0 with the control's input resistance
+    expect(r.fixed.gating!.hold).toBe(0);
+    expect(r.fixed.gating!.vStart).toBeCloseTo(r.v0, 2);
+    expect(Math.abs(r.fixed.gating!.rin / c.rin - 1)).toBeLessThan(1e-3);
+  });
+
+  it("fixing Vm shrinks the Kv4's effect and leaves the leak about half of it: 8.9 pA control; 35.6 and 23.8 free; 28.2 and 18.9 fixed", () => {
+    expect(c.rheobase).toBeCloseTo(8.9, 0);
+    expect(r.free.kv4!.rheobase).toBeCloseTo(35.6, 0);
+    expect(r.free.leak!.rheobase).toBeCloseTo(23.8, 0);
+    expect(r.fixed.kv4!.rheobase).toBeCloseTo(28.2, 0);
+    expect(r.fixed.leak!.rheobase).toBeCloseTo(18.9, 0);
+    expect(r.fixed.kv4!.rheobase).toBeLessThan(r.free.kv4!.rheobase);
+    const share = (s: typeof r.free) => (s.leak!.rheobase - c.rheobase) / (s.kv4!.rheobase - c.rheobase);
+    expect(share(r.free)).toBeCloseTo(0.56, 1);
+    expect(share(r.fixed)).toBeCloseTo(0.52, 1);
   });
 });

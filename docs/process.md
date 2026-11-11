@@ -2012,3 +2012,27 @@ repository and not in the app: `kndy.test.ts` holds it out of the model list.
 
 The Kv4 leak report in the darkroom folder now carries the cross-cell table: the matched leak is 92% of the Kv4's
 change in rheobase on the KNDy cell, 56% on the GnRH cell and 40% on the pyramidal cell.
+
+## 2026-11-11 — rheobase with Vm free and with Vm fixed
+
+The owner asked how the excitability tests control for the change in resting potential, and then: "re-do the runs
+with holding current adjusted to keep Vrest the same across all manipulations. choose the models native resting
+potential and keep it constant for each model. prepare a results table with Vm allowed to vary and a second set
+with Vm fixed. rerun all the models you tested." Until now only the KNDy cell had been measured from a matched
+potential; the GnRH and pyramidal numbers were from each cell's own rest, or for the GnRH cell from one holding
+current that left the cells at different potentials.
+
+`tools/experiments/kv4_vm.ts` runs four cells at nine doses, each twice. With Vm free every test starts from that
+cell's own rest. With Vm fixed every cell is held at the model's native resting potential, V0, by bias current.
+One thing changed from the earlier matched runs: with Vm fixed the matched leak is the Kv4's linearization at V0,
+the potential the cells are held at, not at the Kv4 cell's unheld rest. Then the Kv4 cell and its leak need the
+same bias and have the same input resistance where the test starts. The earlier KNDy "68 to 85% from a matched
+start" used a leak matched at the wrong potential for a held cell; matched at V0 it is 87 to 96%.
+
+At +0.6 nS/pF, fixing Vm removes 60% of the Kv4's change in rheobase on the KNDy cell (57% in its estradiol
+state), 25% on the GnRH cell and 13% on the pyramidal cell: the shift in rest matters most where the cell is
+tight and its threshold close. The leak's share of the change, adding doses, Vm free and then fixed: KNDy 91 to
+95% and 87 to 96%; KNDy with estradiol 100 to 103% and 100 to 110%; GnRH 49 to 76% and 48 to 63%; pyramidal 38
+to 44% and 38 to 40%. So fixing Vm changes how big the effect is far more than it changes how it divides
+between leak and gating. The GnRH cell cannot be held at V0 with 0.4 nS/pF subtracted: it is unstable there.
+The tables are in the darkroom folder `gaba_excites/2026-11-11_kv4-leak/`.
