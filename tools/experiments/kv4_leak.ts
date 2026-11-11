@@ -40,11 +40,15 @@
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { buildCell, cellHoldAt, type BuiltCell, type Injected } from "../../src/core/cell.ts";
+import { buildCell, cellHoldAt, publishedParams, type BuiltCell, type Injected } from "../../src/core/cell.ts";
 import { detectSpikes } from "../../src/core/analysis.ts";
 import { KV4, kv4Injection, kv4PeakFraction, kv4Window, linearizedAt, opposite } from "../../src/core/dynclamp.ts";
 import { KNDY_E2, KNDY_OVX } from "../../src/core/kndy.ts";
-import type { ModelDef } from "../../src/core/models.ts";
+import { MODELS, type ModelDef, type ModelId } from "../../src/core/models.ts";
+import { DEFAULT_SIM, runSweep } from "../../src/core/simulate.ts";
+import { sweepStats } from "../../src/core/analysis.ts";
+import { DEFAULT_GABA, DEFAULT_GLU } from "../../src/core/synapses.ts";
+import type { DynClamp } from "../../src/core/dynclamp.ts";
 import { OU } from "../../src/core/noise.ts";
 import { settle, step, stepVC, type Electrode, type SynNow } from "../../src/core/simulate.ts";
 
@@ -332,6 +336,44 @@ export function passiveMendonca(dosePerPf: number, rinGOhm = 1.34, e0 = -67.4, c
   }
   const slope = (i(v + 1e-3) - i(v - 1e-3)) / 2e-3;
   return { gmax0, gbar, vRest: v, rin: 1000 / slope, gAdded: slope - g0, stable: slope > 0 && Math.abs(i(v)) < 1e-6 };
+}
+
+export interface CrossCell {
+  id: string;
+  label: string;
+  cm: number;
+  gmax0: number;
+  /** rest (mV), input resistance (MΩ) and rheobase (pA) for the control, the Kv4, its matched leak and its gating alone */
+  rows: Record<"control" | "kv4" | "leak" | "gating", { vRest: number; rin: number; rheobase: number }>;
+  /** (leak − control) / (Kv4 − control), of the rheobase */
+  leakShare: number;
+}
+
+/**
+ * The same dose per pF on one of the app's own cells, through the app's dynamic clamp (CellParams.clamp), with
+ * rheobase as the app's step protocol measures it: an 800 ms step from the model's holding current.
+ */
+export function crossCell(id: ModelId, dosePerPf: number): CrossCell {
+  const m = MODELS[id];
+  const p = publishedParams(id);
+  const g = +(dosePerPf * p.cm).toFixed(3);
+  const one = (as: DynClamp["as"] | null) => {
+    const cell = buildCell(as ? { ...p, clamp: { on: true, kind: "kv4", g, erev: KV4.eK, as } } : p);
+    const e = { rs: 15, cp: 0, bridge: 1 };
+    const inp = { ihold: m.defaults.ihold, electrode: e, glu: DEFAULT_GLU, gaba: DEFAULT_GABA };
+    const proto = { sweepMs: 1000, stepStart: 100, stepDur: 800, amps: [0] };
+    const st = settle(cell, e, inp.ihold, m.settleMs, DEFAULT_SIM.dt);
+    const fires = (a: number) => sweepStats(runSweep(cell, inp, proto, a, st, DEFAULT_SIM, 0), proto).nInStep > 0;
+    let lo = 0, hi = 4 * m.rheobase + 50;
+    while (hi - lo > m.rheobaseTol) {
+      const mid = 0.5 * (lo + hi);
+      if (fires(mid)) hi = mid;
+      else lo = mid;
+    }
+    return { vRest: cell.vRest, rin: cell.rinRest, rheobase: hi };
+  };
+  const rows = { control: one(null), kv4: one("kv4"), leak: one("leak"), gating: one("gating") };
+  return { id, label: m.label, cm: p.cm, gmax0: g, rows, leakShare: (rows.leak.rheobase - rows.control.rheobase) / (rows.kv4.rheobase - rows.control.rheobase) };
 }
 
 export interface DoseResult {

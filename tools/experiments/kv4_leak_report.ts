@@ -9,7 +9,7 @@
  */
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { linePlot, type Series } from "../../src/core/svgplot.ts";
-import { DOSES, NOISE, NOISE_SEEDS, passiveMendonca, type DoseResult, type FiringMeasures } from "./kv4_leak.ts";
+import { crossCell, DOSES, NOISE, NOISE_SEEDS, passiveMendonca, type DoseResult, type FiringMeasures } from "./kv4_leak.ts";
 import { kv4PeakFraction, kv4Window } from "../../src/core/dynclamp.ts";
 
 const [resDir, traceDir, outFile] = process.argv.slice(2);
@@ -152,6 +152,17 @@ const cvRows = [...OVX.keys()].sort((a, b) => a - b).map((d) => {
 }).join("");
 
 const r = ctl.rest;
+// the same dose per pF on two of the app's own cells, beside the KNDy host
+const CROSS_DOSE = 0.4;
+const cross = [crossCell("gnrh", CROSS_DOSE), crossCell("rs", CROSS_DOSE)];
+const kshare = share(OVX, CROSS_DOSE, "own");
+const crossRow = (name: string, cm: number, g: number, c: { vRest: number; rin: number; rheobase: number }[], sh: number, how: string) =>
+  `<tr><td>${name}</td><td>${f(cm, 1)}</td><td>${f(g, 1)}</td><td>${f(c[0].vRest, 1)} → ${f(c[1].vRest, 1)}</td><td>${f(c[0].rin, 0)} → ${f(c[1].rin, 0)}</td><td>${f(c[0].rheobase, 1)}</td><td>${f(c[1].rheobase, 1)}</td><td>${f(c[2].rheobase, 1)}</td><td>${f(c[3].rheobase, 1)}</td><td>${f(100 * sh, 0)}%</td><td>${how}</td></tr>`;
+const kn = (c: CondKey) => { const x = c === "control" ? ctl : at(CROSS_DOSE, c); return { vRest: x.rest.vSettled, rin: x.rest.rinSlope, rheobase: x.own!.rheobase }; };
+const crossTable = `<table><tr><th>cell</th><th>Cm, pF</th><th>Kv4, nS at 0 mV</th><th>rest, mV: control → Kv4</th><th>Rin, MΩ: control → Kv4</th><th>rheobase, pA: control</th><th>Kv4</th><th>matched leak</th><th>gating only</th><th>leak's share</th><th>rheobase step</th></tr>
+${crossRow("KNDy (Qiu 2024, OVX)", OVX.get(CROSS_DOSE)!.gmax0 / CROSS_DOSE, OVX.get(CROSS_DOSE)!.gmax0, [kn("control"), kn("kv4"), kn("linear"), kn("compensated")], kshare.leak, "2 s, from rest")}
+${cross.map((x) => crossRow(x.label, x.cm, x.gmax0, [x.rows.control, x.rows.kv4, x.rows.leak, x.rows.gating], x.leakShare, x.id === "gnrh" ? "800 ms, from −6 pA hold" : "800 ms, from rest")).join("\n")}
+</table>`;
 const html = `<!doctype html><html lang="en"><meta charset="utf-8"><title>Kv4 by dynamic clamp is also a leak</title>
 <style>
 body{font:15px/1.5 system-ui,-apple-system,sans-serif;max-width:860px;margin:2rem auto;padding:0 16px;color:#0b0b0b;background:#fcfcfb}
@@ -168,6 +179,7 @@ td:first-child,th:first-child{text-align:left} .note{font-size:.85rem;color:#3a3
 <ul>
 <li><b>The injection changes the cell at rest, a lot.</b> In the Qiu cell, +0.6 nS/pF of Kv4 (the top of the paper's range) takes input resistance from ${f(ctl.rest.rinSlope, 0)} to ${f(at(0.6, "kv4").rest.rinSlope, 0)} MΩ and rest from ${f(ctl.rest.vSettled, 1)} to ${f(at(0.6, "kv4").rest.vSettled, 1)} mV. In a passive cell with the paper's own mean properties it takes 1340 MΩ to ${f(pas.find((p) => p.d === 0.6)!.rin, 0)} MΩ and moves rest by ${f(pas.find((p) => p.d === 0.6)!.vRest + 67.4, 1)} mV.</li>
 <li><b>For excitability, the leak is nearly the whole effect.</b> A plain leak matched to the Kv4 at rest reproduces ${range(posShares("own"))}% of the Kv4's change in rheobase across the adding doses (+0.05 to +0.6 nS/pF), measured from each cell's own rest; from a matched starting potential, ${range(posShares("matched"))}%. Kv4 with that leak subtracted, so only its gating is left, moves rheobase by ${f(Math.max(...[0.05, 0.1, 0.2, 0.4, 0.6].map((d) => Math.abs(at(d, "compensated").own!.rheobase - ctl.own!.rheobase))), 1)} pA at most at those doses, and by ${f(Math.abs(at(-0.4, "compensated").own!.rheobase - ctl.own!.rheobase), 1)} pA at −0.4 (control ${f(ctl.own!.rheobase)} pA; Kv4 at +0.6: ${f(at(0.6, "kv4").own!.rheobase)} pA).</li>
+<li><b>That share is this cell's, not a general number.</b> At the same dose per pF the matched leak is ${f(100 * cross[0].leakShare, 0)}% of the Kv4's change in rheobase on the GnRH cell and ${f(100 * cross[1].leakShare, 0)}% on the cortical pyramidal cell, against ${f(100 * kshare.leak, 0)}% here. In all three the leak reproduces the injected cell's rest and input resistance exactly. How much of the change in firing it explains has to be measured in each cell.</li>
 <li><b>Subtracting Kv4 can remove the cell's rest.</b> At −0.2 nS/pF and beyond the Qiu cell has no resting potential near −66 mV and settles near −40 mV; in the passive cell with Mendonça's properties that happens from −0.1 nS/pF.</li>
 <li><b>Irregularity cannot be settled in this host.</b> With no noise the Qiu cell fires perfectly regularly with or without Kv4. With membrane noise the CV of interspike intervals at 10 Hz is ${f(ctl.own!.cv10noise, 3)} in the control and stays within ${f(Math.max(...[0.05, 0.1, 0.2, 0.4].map((d) => Math.abs(at(d, "kv4").own!.cv10noise - ctl.own!.cv10noise))), 3)} of that up to +0.4 nS/pF; at +0.6 it is ${f(at(0.6, "kv4").own!.cv10noise, 3)}, against ${f(at(0.6, "linear").own!.cv10noise, 3)} for the matched leak. Subtracting Kv4 raises the CV as well (${f(at(-0.4, "kv4").matched!.cv10noise, 3)} at −0.4 nS/pF, held at the control's rest), the opposite of what the paper reports. The paper's effect is not here to be explained.</li>
 <li><b>The Qiu paper's parameter table does not make the cell its code makes.</b> The code fires at 7 to 13 Hz with 10 to 20 pA; the table's values give one spike at most. The port follows the code and matches it.</li>
@@ -183,6 +195,11 @@ ${figs[0]}${figs[1]}
 ${figs[2]}
 ${rheoTable(OVX, "Qiu 2024 KNDy cell, OVX")}
 ${figs[3]}
+
+<h2>The same dose in other cells</h2>
+<p>+${CROSS_DOSE} nS/pF of Kv4 on the KNDy host and on two cells the simulator already offers, with the app's own dynamic clamp. In each, "matched leak" is the plain leak with the Kv4's steady current and slope at the injected cell's rest, and "gating only" is the Kv4 with that leak, taken at the control's rest, subtracted.</p>
+${crossTable}
+<p class="note">The leak's share is (matched leak − control) / (Kv4 − control). It falls from ${f(100 * kshare.leak, 0)}% to ${f(100 * cross[1].leakShare, 0)}% across these cells. The matched leak is exact at rest and only there: it leaves out whatever more of the Kv4 opens between rest and threshold. Where the gating-only cell's rheobase rises well above the control's (GnRH, pyramidal), the gating is doing real work; in the KNDy host it does almost none. Why these cells differ was not tested; the KNDy host's unusually wide spikes and its own large A current are candidates. The rheobase protocols differ between rows as noted, so compare shares, not picoamps.</p>
 
 <h2>Irregularity</h2>
 ${figs[4]}
