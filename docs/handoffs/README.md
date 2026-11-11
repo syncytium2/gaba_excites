@@ -57,6 +57,10 @@ one CI step. It merges that framework to main first, so the other sessions can n
   code is found (Software Heritage) and read: what a port has to face, where the code and the paper's table disagree,
   an Octave oracle, and how an injected conductance and a fourth amplifier mode fit this codebase. Lists what the
   owner must decide. On branch `kndy-kv4`, which the work should continue on.
+- [`2026-11-11-kndy-built.md`](2026-11-11-kndy-built.md): the KNDy cell (private), the injected-conductance seam
+  and the Kv4 leak experiment are built on branch `kndy-kv4`, uncommitted; results in `docs/process.md`. Supersedes
+  the "nothing is built" of the two handoffs above. The dynamic clamp mode in the UI is not built and waits for the
+  owner to look at the figures.
 
 ## Superseded
 

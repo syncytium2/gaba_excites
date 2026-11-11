@@ -200,3 +200,24 @@ export function rizPool(p: {
     },
   };
 }
+
+/**
+ * A pool that clears calcium at a rate proportional to it, as the arcuate kisspeptin cell of Qiu et al. (2024)
+ * eLife 13:RP96691 writes it (Appendix 1, "Intracellular calcium dynamics"; Kiss1_model.m line 266):
+ *   dCa/dt = −γ·I_Ca − d·Ca
+ * γ in µM pA⁻¹ ms⁻¹ and per cell (the code keeps it when estradiol changes Cm), d in ms⁻¹. For the I_Ca of one
+ * step the equation is linear, so the step is exact. Calcium is not clipped at zero: the authors' code does not,
+ * and TRPC5's share of I_Ca turns outward above its reversal.
+ */
+export function linearPool(p: { gamma: number; d: number }): CaPool {
+  return {
+    reads: "after",
+    steady(iCa) {
+      return (-p.gamma * iCa) / p.d;
+    },
+    advance(ca, iCa, _cm, dt) {
+      const inf = (-p.gamma * iCa) / p.d;
+      return inf + (ca - inf) * Math.exp(-p.d * dt);
+    },
+  };
+}

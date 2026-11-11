@@ -36,6 +36,22 @@ export interface CellParams {
    * dose of a selective blocker (TTX for Na⁺, TEA for K⁺). Works in either clamp.
    */
   block?: string[];
+  /** conductances added by dynamic clamp (dynclamp.ts): not the cell's own, and not scaled by Cm */
+  inject?: Injected[];
+}
+
+/**
+ * A conductance a dynamic clamp adds to the cell: any `Channel`, at a conductance that may be negative (the clamp
+ * then subtracts what the cell has), with its own reversal. It joins the cell's channels after the model's own,
+ * so rest, input resistance and both clamps see it the way they see any channel, and the solver still learns
+ * about no particular one. The clamp is ideal: it reads Vm itself, every step, with no electrode and no delay.
+ */
+export interface Injected {
+  channel: Channel;
+  /** maximal conductance, nS, as set: negative subtracts */
+  g: number;
+  /** reversal, mV */
+  erev: number;
 }
 
 /** Every knob of the model, at the given values or the published ones. */
@@ -63,6 +79,10 @@ export interface BuiltCell {
   /** a reversal that follows calcium, where the channel has one (aligned with `channels`) */
   erevCa: (((ca: number) => number) | undefined)[];
   carriesCa: boolean[];
+  /** the share of each channel's current that feeds the calcium pool: 0, or 1, or a channel's own (ModelChannel.caFraction) */
+  caFrac: number[];
+  /** how many of `channels` are the model's own; any after them were added by dynamic clamp (CellParams.inject) */
+  nOwn: number;
   /** some channel reads the cell's Ca²⁺ current (Channel.readsICa), so the solver computes it for them */
   readsICa: boolean;
   pool: CaPool | null;
@@ -95,6 +115,8 @@ interface ActiveSet {
   erev: number[];
   erevCa: (((ca: number) => number) | undefined)[];
   carriesCa: boolean[];
+  caFrac: number[];
+  nOwn: number;
   readsICa: boolean;
   cm: number;
   pool: CaPool | null;
@@ -104,12 +126,15 @@ interface ActiveSet {
 function activeSet(p: CellParams, m: ModelDef = MODELS[p.model]): ActiveSet {
   const scale = p.cm / m.cmRef;
   const chs = m.channels(knobValues(m, p.knobs));
+  const inj = p.inject ?? [];
   return {
-    channels: chs.map((c) => c.channel),
-    gbar: chs.map((c) => (p.block?.includes(c.channel.id) ? 0 : c.gbar * scale)),
-    erev: chs.map((c) => c.erev),
-    erevCa: chs.map((c) => c.erevCa),
-    carriesCa: chs.map((c) => !!c.carriesCa),
+    channels: [...chs.map((c) => c.channel), ...inj.map((c) => c.channel)],
+    gbar: [...chs.map((c) => (p.block?.includes(c.channel.id) ? 0 : c.gbar * scale)), ...inj.map((c) => c.g)],
+    erev: [...chs.map((c) => c.erev), ...inj.map((c) => c.erev)],
+    erevCa: [...chs.map((c) => c.erevCa), ...inj.map(() => undefined)],
+    carriesCa: [...chs.map((c) => !!c.carriesCa), ...inj.map(() => false)],
+    caFrac: [...chs.map((c) => (c.carriesCa ? (c.caFraction ?? 1) : 0)), ...inj.map(() => 0)],
+    nOwn: chs.length,
     readsICa: chs.some((c) => c.channel.readsICa),
     cm: p.cm,
     pool: m.pool ?? null,
@@ -135,7 +160,7 @@ export function caSteady(a: ActiveSet, v: number): number {
   for (let it = 0; it < 50; it++) {
     let iCa = 0;
     for (let k = 0; k < a.channels.length; k++)
-      if (a.carriesCa[k]) iCa += a.gbar[k] * a.channels[k].openInf(v, ca) * (v - erevAt(a, k, ca));
+      if (a.carriesCa[k]) iCa += a.caFrac[k] * a.gbar[k] * a.channels[k].openInf(v, ca) * (v - erevAt(a, k, ca));
     const next = a.pool.steady(iCa, a.cm);
     if (Math.abs(next - ca) < 1e-12 * (1 + ca)) return next;
     ca = next;
@@ -151,7 +176,7 @@ export function iSteady(a: ActiveSet, gLeak: number, v: number): number {
   if (a.readsICa) {
     iCaD = 0;
     for (let k = 0; k < a.channels.length; k++)
-      if (a.carriesCa[k]) iCaD += a.gbar[k] * a.channels[k].openInf(v, ca) * (v - erevAt(a, k, ca));
+      if (a.carriesCa[k]) iCaD += a.caFrac[k] * a.gbar[k] * a.channels[k].openInf(v, ca) * (v - erevAt(a, k, ca));
     iCaD /= a.cm;
   }
   let i = gLeak * (v - a.eLeak);
@@ -228,6 +253,8 @@ export function buildCell(p: CellParams, model: ModelDef = MODELS[p.model]): Bui
     erev: a.erev,
     erevCa: a.erevCa,
     carriesCa: a.carriesCa,
+    caFrac: a.caFrac,
+    nOwn: a.nOwn,
     readsICa: a.readsICa,
     pool: a.pool,
     eLeak: a.eLeak,
@@ -247,7 +274,7 @@ export function buildCell(p: CellParams, model: ModelDef = MODELS[p.model]): Bui
 }
 
 function asActive(c: BuiltCell): ActiveSet {
-  return { channels: c.channels, gbar: c.gbar, erev: c.erev, erevCa: c.erevCa, carriesCa: c.carriesCa, readsICa: c.readsICa, cm: c.cm, pool: c.pool, eLeak: c.eLeak };
+  return { channels: c.channels, gbar: c.gbar, erev: c.erev, erevCa: c.erevCa, carriesCa: c.carriesCa, caFrac: c.caFrac, nOwn: c.nOwn, readsICa: c.readsICa, cm: c.cm, pool: c.pool, eLeak: c.eLeak };
 }
 
 /** Rin of a built cell at a given holding current, MΩ. */

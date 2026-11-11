@@ -54,6 +54,11 @@ export interface ModelChannel {
   /** contributes to I_Ca, which feeds the calcium pool */
   carriesCa?: boolean;
   /**
+   * the share of its current that is Ca²⁺, for a channel that carries Ca²⁺ among other ions (the KNDy cell's
+   * TRPC5: 0.9). Read only with `carriesCa`; absent: all of it.
+   */
+  caFraction?: number;
+  /**
    * a reversal that follows cytosolic calcium (µM → mV), replacing `erev`
    * while the cell runs; `erev` is then its value at the resting calcium
    */

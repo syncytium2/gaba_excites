@@ -1897,3 +1897,58 @@ the code and how the cell and an injected conductance fit the `Channel` seam and
 was taken: the handoff lists the ones that are the owner's (code or table as the source, the host parameter set, the
 dose axis, an ideal clamp or one through the electrode). The report and the downloaded sources are in the darkroom
 folder `gaba_excites/2026-11-11_kndy-models-lit-search/`; the MATLAB stays out of this repository. Branch `kndy-kv4`.
+
+## 2026-11-11 — the KNDy cell built from code and from table; Kv4 by dynamic clamp is mostly a leak
+
+Asked whether the code or the paper's table should be the source for the Qiu et al. 2024 cell, the owner
+answered "do both and compare. this will run in private mode until we know how well ti works", and that dynamic
+clamp "should definielty be added to public page for this same reason (DC models change passive properties)".
+The decisions are in [the KNDy ADR](adr/2026-11-11-7ccf-the-kndy-cell-is-ported-from-the-authors-code-not-the-papers.md)
+and [the dynamic clamp ADR](adr/2026-11-11-6db4-dynamic-clamp-is-an-injected-conductance-outside-the-model-a.md),
+both Proposed.
+
+**The oracle is MATLAB, not Octave.** The workstation has MATLAB R2025b, so `tools/kndy_oracle.m` runs the
+archived `Kiss1_model.m` unchanged, in the software it was written for, at tight tolerances (ode45, RelTol 1e-9;
+at the script's default tolerance spike times wander by milliseconds). It runs three parameter sources in both
+hormone states: the code as archived, the paper's table in the code's equations, and the table with the paper's
+leak equation as written.
+
+**Code against table.** Reading the published table (the handoff had only an agent's summary of it) found more
+than the handoff listed: fifteen values and one equation, the calcium leak, which the paper writes as a plain
+leak and the code gates by voltage. The code's cell fires at 7 to 13 Hz with 10 to 20 pA. The table's cell fires
+one spike at most; as written it sits at −55 mV with 21 MΩ. The archived script's own comment gives resting
+potentials the archived parameters do not reproduce. `lit/notes/qiu2024.md` has the tables.
+
+**The port.** `src/core/kndy.ts`, unregistered. Three additions to the core, none of them knowledge of a
+channel: `ModelChannel.caFraction` (TRPC5 passes nine tenths of its current to the calcium pool), `linearPool`,
+and `CellParams.inject`. The port rests where the code rests to 0.0001 mV in all six cells. Spike counts are
+exact from 5 to 60 pA; spike times drift by up to 5 ms over 5 s at dt = 0.01 ms and the drift halves with dt
+(0.5 ms at 0.001), which is this integrator's first order showing against a high-order solver, not a difference
+in the model. dt stays 0.01 ms. The cell's action potentials are 8 ms wide at half height: it has no delayed
+rectifier.
+
+**Input resistance is not the leak.** The model's leak is 3.5 nS (286 MΩ). The cell measures 414 MΩ by the
+slope of its steady-state I–V, 389 by a −2 pA step, 298 by a −20 pA step, 425 and 358 in voltage clamp at 10 ms
+and 3 s, and the conductances open at rest sum to 5.96 nS (168 MΩ).
+
+**The experiment** (`tools/experiments/kv4_leak.ts`, figures in the darkroom folder
+`gaba_excites/2026-11-11_kv4-leak/`). The handoff's matched-leak control was sharpened: a leak equal to the
+Kv4's open conductance gets the resting potential right and input resistance wrong, because depolarizing opens
+more of the window. The control that matches both is the Kv4's linearization at rest, a leak with its steady
+current and its slope (2.6 times the open conductance at +0.4 nS/pF). Results, OVX host:
+
+- +0.6 nS/pF of Kv4 takes input resistance from 414 to 210 MΩ and rest from −66.4 to −69.7 mV. A passive cell
+  with Mendonça's mean properties goes from 1340 to 585 MΩ and 8 mV down.
+- The linearized leak reproduces 91 to 94% of the Kv4's change in rheobase from each cell's own rest, and 68 to
+  85% from a matched starting potential. Kv4 with its linearization subtracted moves rheobase by 0.3 pA at most.
+  The estradiol host gives the same answer.
+- Subtracting 0.2 nS/pF or more removes the cell's rest.
+- Irregularity is not settled. The host fires perfectly regularly without noise, with or without Kv4. With a
+  3 pA membrane noise current the CV at 10 Hz is 0.139 in the control, unchanged to +0.4 nS/pF, 0.188 at +0.6
+  (its leak: 0.159), and subtraction raises it too, the opposite of the paper. The paper's effect is absent
+  here, so its cause cannot be tested here. Mendonça et al. 2016's own model, with channel noise, is where to
+  test it.
+- Sweeps were run in sequence on one cell with 5 s between them; a family repeated with 0.5 s or more between
+  sweeps gives the same counts as fresh starts.
+
+Nothing is deployed, pushed or committed by this session. The dynamic clamp mode in the UI is not built.

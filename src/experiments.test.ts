@@ -11,6 +11,7 @@ import { fig7fCounts, longStep, meanHInf, withSlowIk } from "../tools/experiment
 import { sweepShifts } from "../tools/experiments/na_shift.ts";
 import { conditions, driveSweep, measure, startV } from "../tools/experiments/threshold_criteria.ts";
 import { gabaTrain } from "../tools/experiments/lts_gaba_rebound.ts";
+import { buildCond, carryOver, cvIsi, HOSTS, measureRest, passiveMendonca, Rig } from "../tools/experiments/kv4_leak.ts";
 
 describe("experiment: DeFazio & Moenter 2021 slow I_K inactivation on the Adams 2018 GnRH model", () => {
   it("at the measured V½ (−30 mV) the paper's Fig. 7F counts are unchanged", () => {
@@ -160,5 +161,64 @@ describe("experiment: DeFazio et al. 2000's outside-out chloride calibration", (
     expect(b.offset).toBeCloseTo(2.2, 0);
     expect(b.anion).toBeCloseTo(0.7, 1);
     expect(b.chi2).toBeLessThan(4);
+  });
+});
+
+describe("experiment: is Mendonça's Kv4 dynamic clamp a change in gating or a change in leak? (Qiu 2024 KNDy host)", () => {
+  const host = HOSTS.ovx;
+  const control = buildCond(host, 0, "control");
+  // +0.4 nS/pF of peak conductance at 0 mV, inside the range of Mendonça 2018 Fig. 6E
+  const cells = Object.fromEntries((["kv4", "chord", "linear", "compensated"] as const).map((c) => [c, buildCond(host, 0.4, c)]));
+
+  it("the injection changes the cell at rest, and a plain leak reproduces that exactly", () => {
+    const r0 = measureRest(control.cell), k = measureRest(cells.kv4.cell), l = measureRest(cells.linear.cell), g = measureRest(cells.compensated.cell);
+    expect(r0.vSettled).toBeCloseTo(-66.36, 1);
+    expect(k.vSettled).toBeCloseTo(-68.89, 1);
+    expect(k.rinSlope / r0.rinSlope).toBeLessThan(0.6);
+    expect(l.vSettled).toBeCloseTo(k.vSettled, 1);
+    expect(Math.abs(l.rinSlope / k.rinSlope - 1)).toBeLessThan(0.01);
+    // measured the way a rig would, in current clamp and in voltage clamp, the two still agree
+    expect(Math.abs(l.rinCC / k.rinCC - 1)).toBeLessThan(0.02);
+    expect(Math.abs(l.rinVC / k.rinVC - 1)).toBeLessThan(0.05);
+    // gating only: rest and input resistance are the control's
+    expect(g.vSettled).toBeCloseTo(r0.vSettled, 2);
+    expect(Math.abs(g.rinSlope / r0.rinSlope - 1)).toBeLessThan(1e-3);
+    // input resistance is not the leak parameter: 3.5 nS alone would be 286 MΩ, the cell measures 414
+    expect(r0.rinFromLeak).toBeCloseTo(286, 0);
+    expect(r0.rinSlope).toBeCloseTo(414, 0);
+    expect(1000 / r0.gOpen).toBeCloseTo(168, 0);
+  });
+
+  it("the leak, not the gating, is what takes away the response to a 10 pA step", () => {
+    const n = (c: typeof control) => new Rig(c.cell).sweep(10, 2000, 0).length;
+    expect(n(control)).toBeGreaterThan(10);
+    expect(n(cells.kv4)).toBe(0);
+    expect(n(cells.linear)).toBe(0);
+    expect(n(cells.compensated)).toBeGreaterThan(10);
+  });
+
+  it("a large enough subtraction leaves the cell with no rest near the control's", () => {
+    const b = buildCond(host, -0.2, "kv4");
+    expect(b.linAtOwnRest).toBe(false);
+    expect(Math.abs(b.cell.vRest - control.cell.vRest)).toBeGreaterThan(15);
+  });
+
+  it("in a passive cell with Mendonça's mean properties the top dose more than halves input resistance", () => {
+    const p = passiveMendonca(0.6);
+    expect(p.stable).toBe(true);
+    expect(p.rin).toBeLessThan(0.5 * 1340);
+    expect(p.vRest).toBeLessThan(-67.4 - 5);
+    expect(passiveMendonca(-0.2).stable).toBe(false);
+    expect(passiveMendonca(0).rin).toBeCloseTo(1340, 6);
+  });
+
+  it("a sweep leaves nothing behind after half a second", () => {
+    for (const x of carryOver(control.cell, [20, 40, 20], 500)) expect(x.inSequence).toBe(x.fresh);
+  });
+
+  it("cvIsi is the SD of the intervals over their mean", () => {
+    expect(cvIsi([0, 100, 200, 300])).toBeCloseTo(0, 12);
+    expect(cvIsi([0, 50, 200])).toBeCloseTo(0.5, 12);
+    expect(cvIsi([0, 100])).toBeNaN();
   });
 });

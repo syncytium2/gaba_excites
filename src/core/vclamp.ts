@@ -152,7 +152,7 @@ function stepCaAt(cell: BuiltCell, v: number): number {
     for (let k = 0; k < cell.channels.length; k++) {
       if (!cell.carriesCa[k]) continue;
       const f = cell.erevCa[k];
-      iCa += cell.gbar[k] * cell.channels[k].openInf(v, ca) * (v - (f ? f(ca) : cell.erev[k]));
+      iCa += cell.caFrac[k] * cell.gbar[k] * cell.channels[k].openInf(v, ca) * (v - (f ? f(ca) : cell.erev[k]));
     }
     const next = pool.steady(iCa, cell.cm);
     if (Math.abs(next - ca) < 1e-12 * (1 + ca)) return next;

@@ -252,6 +252,36 @@ Braun M, Ramracheya R, Bengtsson M, Clark A, Walker JN, Johnson PR, et al. (2010
 
 **Used in:** [`src/core/beta.ts`](../src/core/beta.ts), [`src/core/human.ts`](../src/core/human.ts)
 
+### `mendonca2018`
+
+Mendonça PRF, Kyle V, Yeo S-H, Colledge WH, Robinson HPC (2018). Kv4.2 channel activity controls intrinsic firing dynamics of arcuate kisspeptin neurons. J Physiol 596(5):885–899.
+
+[doi:10.1113/JP274474](https://doi.org/10.1113/JP274474) · [PMID 29214635](https://pubmed.ncbi.nlm.nih.gov/29214635/) · [PMC5830417](https://pmc.ncbi.nlm.nih.gov/articles/PMC5830417/) · *open (CC BY)* · models: 
+
+**Took:** The Kv4-type conductance its authors injected by dynamic clamp: I = ḡ·m·h·(V − E_K) with its steady states and voltage-dependent time constants, and the dose stated as the peak conductance at 0 mV. Also the experiment's design (steps giving 7–13 Hz, the CV of interspike intervals, doses of about −0.4 to +0.6 nS/pF) and the cells' passive properties (1.34 GΩ, 33.7 pF, −67.4 mV), for an experiment asking how much of the injection's effect is the leak it adds at rest.
+
+> the amount of artificial Kv4‐type conductance (gKv4) injected is characterised by its peak value at 0 mV (gmax, 0 mV).
+> — Methods, Artificial conductance injection
+
+**Used in:** [`src/core/dynclamp.ts`](../src/core/dynclamp.ts), [`src/core/dynclamp.test.ts`](../src/core/dynclamp.test.ts), [`tools/experiments/kv4_leak.ts`](../tools/experiments/kv4_leak.ts)
+
+**Notes:** [`notes/mendonca2018.md`](notes/mendonca2018.md)
+
+### `mendonca2016`
+
+Mendonça PRF, Vargas-Caballero M, Erdélyi F, Szabó G, Paulsen O, Robinson HPC (2016). Stochastic and deterministic dynamics of intrinsically irregular firing in cortical inhibitory interneurons. eLife 5:e16475.
+
+[doi:10.7554/eLife.16475](https://doi.org/10.7554/eLife.16475) · [PMID 27536875](https://pubmed.ncbi.nlm.nih.gov/27536875/) · [PMC5030087](https://pmc.ncbi.nlm.nih.gov/articles/PMC5030087/) · *open (CC BY)* · models: 
+
+**Took:** Where the injected Kv4 kinetics were fitted (its Model 3, the equations Mendonça et al. 2018 reuse), the definition of the dose as the peak transient conductance at 0 mV, and the −90 mV K⁺ reversal taken for the injection. Also the authors' own shunt control, a static 2 nS conductance in cortical interneurons, cited beside the matched-leak control here.
+
+> we characterize the amount of conductance measured in voltage-clamp, and injected with each model by the peak transient value reached at a potential of 0 mV, gmax0
+> — Materials and methods, Fitting of voltage-clamped gKt and dynamic conductance injection
+
+**Used in:** [`src/core/dynclamp.ts`](../src/core/dynclamp.ts), [`tools/experiments/kv4_leak.ts`](../tools/experiments/kv4_leak.ts)
+
+**Notes:** [`notes/mendonca2018.md`](notes/mendonca2018.md)
+
 ## Methods
 
 How the numbers are computed.
@@ -540,3 +570,27 @@ DeFazio RA, Keros S, Quick MW, Hablitz JJ (2000). Potassium-coupled chloride cot
 **Used in:** [`tools/experiments/chloride_calibration.ts`](../tools/experiments/chloride_calibration.ts), [`src/experiments.test.ts`](../src/experiments.test.ts)
 
 **Notes:** [`notes/defazio2000.md`](notes/defazio2000.md)
+
+### `qiu2024`
+
+Qiu J, Voliotis M, Bosch MA, Li XF, Zweifel LS, Tsaneva-Atanasova K, et al. (2024). Estradiol elicits distinct firing patterns in arcuate nucleus kisspeptin neurons of females through altering ion channel conductances. eLife 13:RP96691.
+
+[doi:10.7554/eLife.96691](https://doi.org/10.7554/eLife.96691) · [PMID 39671233](https://pubmed.ncbi.nlm.nih.gov/39671233/) · [PMC11643640](https://pmc.ncbi.nlm.nih.gov/articles/PMC11643640/) · *open (CC BY)* · models: 
+
+**Took:** Not offered in the app. The arcuate kisspeptin (KNDy) neuron: its currents, calcium equation and the two parameter states (ovariectomized, and with estradiol), used as the host cell of an experiment on dynamic clamp. The cell is ported from the authors' code, not from this paper's Appendix 1—table 1, which disagrees with the code in fifteen values and one equation and describes a cell that does not fire; the table's cell is kept beside the code's so the comparison can be re-run.
+
+**Used in:** [`src/core/kndy.ts`](../src/core/kndy.ts), [`src/core/pools.ts`](../src/core/pools.ts), [`src/core/kndy.test.ts`](../src/core/kndy.test.ts), [`tools/experiments/kv4_leak.ts`](../tools/experiments/kv4_leak.ts)
+
+**Notes:** [`notes/qiu2024.md`](notes/qiu2024.md)
+
+### `qiu2024code`
+
+Voliotis M (2024). kiss1-arcuate-neuron-model: MATLAB code for Qiu et al. 2024 (Kiss1_model.m, Kiss1_model_parameters.m, Kiss1_model_scirpt.m).
+
+[archive.softwareheritage.org/swh:1:dir:585910cdf67ffc5ccef5aec83674b19da1aca8b1](https://archive.softwareheritage.org/swh:1:dir:585910cdf67ffc5ccef5aec83674b19da1aca8b1) · *open (code; no license file in the archive)* · models: 
+
+**Took:** Not offered in the app. Every parameter and equation of the KNDy cell, and the code itself, run unchanged in MATLAB as the oracle the port is tested against: resting potential, input resistance and the spike times of a step family, for the code's parameters and for the paper's table. No file of the authors' is in this repository.
+
+**Used in:** [`src/core/kndy.ts`](../src/core/kndy.ts), [`tools/kndy_oracle.m`](../tools/kndy_oracle.m), [`src/core/oracle/matlab_kndy.json`](../src/core/oracle/matlab_kndy.json), [`src/core/kndy.test.ts`](../src/core/kndy.test.ts)
+
+**Notes:** [`notes/qiu2024.md`](notes/qiu2024.md)

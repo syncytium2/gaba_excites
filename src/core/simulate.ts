@@ -154,7 +154,7 @@ export function step(cell: BuiltCell, e: Electrode, s: Float64Array, iCmd: numbe
     const er = f ? f(ca) : cell.erev[k];
     G += g;
     GE += g * er;
-    if (!pre && cell.carriesCa[k]) iCa0 += g * (v0 - er);
+    if (!pre && cell.carriesCa[k]) iCa0 += cell.caFrac[k] * g * (v0 - er);
   }
 
   const cdt = cell.params.cm / dt;
@@ -215,7 +215,7 @@ export function stepVC(cell: BuiltCell, s: Float64Array, vCmd: number, rs: numbe
     const er = f ? f(ca) : cell.erev[k];
     G += g;
     GE += g * er;
-    if (!pre && cell.carriesCa[k]) iCa0 += g * (v0 - er);
+    if (!pre && cell.carriesCa[k]) iCa0 += cell.caFrac[k] * g * (v0 - er);
   }
   const cdt = cell.params.cm / dt;
   let v1: number;
@@ -243,7 +243,7 @@ function caCurrent(cell: BuiltCell, s: Float64Array, v: number, ca: number): num
   for (let k = 0; k < cell.channels.length; k++) {
     if (!cell.carriesCa[k]) continue;
     const f = cell.erevCa[k];
-    i += cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca) * (v - (f ? f(ca) : cell.erev[k]));
+    i += cell.caFrac[k] * cell.gbar[k] * cell.channels[k].open(s, cell.offsets[k], ca) * (v - (f ? f(ca) : cell.erev[k]));
   }
   return i;
 }
