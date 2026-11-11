@@ -263,7 +263,7 @@ Mendonça PRF, Kyle V, Yeo S-H, Colledge WH, Robinson HPC (2018). Kv4.2 channel 
 > the amount of artificial Kv4‐type conductance (gKv4) injected is characterised by its peak value at 0 mV (gmax, 0 mV).
 > — Methods, Artificial conductance injection
 
-**Used in:** [`src/core/dynclamp.ts`](../src/core/dynclamp.ts), [`src/core/dynclamp.test.ts`](../src/core/dynclamp.test.ts), [`tools/experiments/kv4_leak.ts`](../tools/experiments/kv4_leak.ts)
+**Used in:** [`src/core/dynclamp.ts`](../src/core/dynclamp.ts), [`src/core/dynclamp.test.ts`](../src/core/dynclamp.test.ts), [`src/core/dynclamp-app.test.ts`](../src/core/dynclamp-app.test.ts), [`public/methods.html`](../public/methods.html), [`tools/experiments/kv4_leak.ts`](../tools/experiments/kv4_leak.ts)
 
 **Notes:** [`notes/mendonca2018.md`](notes/mendonca2018.md)
 

@@ -22,6 +22,7 @@
 import type { Channel } from "./channels.ts";
 import { MODELS, RS, type ModelDef, type ModelId } from "./models.ts";
 import type { CaPool } from "./pools.ts";
+import { kv4Injection, leakInjection, linearizedAt, opposite, type DynClamp } from "./dynclamp.ts";
 
 export interface CellParams {
   model: ModelId;
@@ -38,6 +39,11 @@ export interface CellParams {
   block?: string[];
   /** conductances added by dynamic clamp (dynclamp.ts): not the cell's own, and not scaled by Cm */
   inject?: Injected[];
+  /**
+   * The amplifier's dynamic clamp, as a setting (dynclamp.ts DynClamp): plain data, so it can cross to a worker,
+   * which channel objects cannot. Resolved into injected conductances when the cell is built.
+   */
+  clamp?: DynClamp;
 }
 
 /**
@@ -123,10 +129,35 @@ interface ActiveSet {
   eLeak: number;
 }
 
+/** How far a cell's rest may sit from the control's and still count as "its own rest", mV. */
+const OWN_REST_MV = 15;
+
+/**
+ * The dynamic clamp setting as injected conductances. "As its leak" and "gating only" need a resting potential
+ * to linearize at: the injected cell's own rest for the leak (so the leak reproduces that cell), the control's
+ * for gating only (so the control's rest and input resistance are what is left untouched). Where the injected
+ * cell has no rest near the control's (a subtraction larger than what the cell has), the control's rest is used.
+ * Rest here is at zero holding current.
+ */
+export function clampInjected(p: CellParams, m: ModelDef = MODELS[p.model]): Injected[] {
+  const c = p.clamp;
+  if (!c || !c.on || c.g === 0) return [];
+  if (c.kind === "leak") return [leakInjection(c.g, c.erev)];
+  const kv4 = kv4Injection(c.g, c.erev);
+  if (c.as === "kv4") return [kv4];
+  const bare: CellParams = { ...p, clamp: undefined };
+  const v0 = steadyV(activeSet(bare, m), p.gLeak);
+  if (!Number.isFinite(v0)) return [kv4];
+  if (c.as === "gating") return [kv4, opposite(linearizedAt(kv4, v0).slope)];
+  const v1 = steadyV(activeSet({ ...bare, inject: [...(p.inject ?? []), kv4] }, m), p.gLeak);
+  const at = Number.isFinite(v1) && Math.abs(v1 - v0) < OWN_REST_MV ? v1 : v0;
+  return [linearizedAt(kv4, at).slope];
+}
+
 function activeSet(p: CellParams, m: ModelDef = MODELS[p.model]): ActiveSet {
   const scale = p.cm / m.cmRef;
   const chs = m.channels(knobValues(m, p.knobs));
-  const inj = p.inject ?? [];
+  const inj = [...(p.inject ?? []), ...clampInjected(p, m)];
   return {
     channels: [...chs.map((c) => c.channel), ...inj.map((c) => c.channel)],
     gbar: [...chs.map((c) => (p.block?.includes(c.channel.id) ? 0 : c.gbar * scale)), ...inj.map((c) => c.g)],

@@ -71,7 +71,7 @@ const SIREN_WINDOW = 1000;
 export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = false, rig, ampControls, readoutSlot, screenH = 460, view, focus = false }: {
   cell: CellParams; inputs: StreamInputs; seed: number; limits: Limits; onExtremes: (reasons: string[]) => void; oldSchool?: boolean;
   /** the rig's panels as the app supplies them: amplifier sections (this adds the audio monitor), acquisition and simulation rows */
-  rig: { amp: React.ReactNode; ampSummary: string; acq: React.ReactNode; acqSummary: string; sim: React.ReactNode; simSummary: string };
+  rig: { amp: React.ReactNode; /** further amplifier rows, below the first (the dynamic clamp) */ ampMore?: React.ReactNode; ampSummary: string; acq: React.ReactNode; acqSummary: string; sim: React.ReactNode; simSummary: string };
   /** the mode switch and Old school, in the amplifier's name strip */
   ampControls?: React.ReactNode;
   /** the screen card's height, px: the same in both modes, so the amplifier below stays put */
@@ -342,7 +342,7 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
       </figure>
 
       <RigPanels controls={ampControls}
-        amplifier={{ rows: <AmpRow>{rig.amp}
+        amplifier={{ rows: <><AmpRow>{rig.amp}
         <AmpSection name="MONITOR">
           <AmpSlot label={(speed !== 1 || paused) && sound !== "off" ? "Sound (plays at 1× while running)" : "Sound"}>
             <span className="seg small" role="radiogroup" aria-label="Audio monitor">
@@ -360,7 +360,7 @@ export function ScopeMode({ cell, inputs, seed, limits, onExtremes, oldSchool = 
           </AmpSlot>
           {sound !== "off" && <AmpDial label="Volume" unit="%" value={volume} min={0} max={100} step={5} digits={0} onChange={setVolume} />}
         </AmpSection>
-        </AmpRow>, summary: rig.ampSummary + (sound !== "off" ? ` · sound: ${sound === "pop" ? "hiss & pop" : "tone"}` : "") }}
+        </AmpRow>{rig.ampMore}</>, summary: rig.ampSummary + (sound !== "off" ? ` · sound: ${sound === "pop" ? "hiss & pop" : "tone"}` : "") }}
         acquisition={{ rows: rig.acq, summary: rig.acqSummary }}
         simulation={{ rows: rig.sim, summary: rig.simSummary }} />
     </>

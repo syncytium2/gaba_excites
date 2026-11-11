@@ -21,6 +21,7 @@ import type { FamilySummary } from "./analysis.ts";
 import { detectSpikes } from "./analysis.ts";
 import { CRITERIA, thresholdAt, type ThresholdAt } from "./threshold.ts";
 import { esc, linePlot, type Series } from "./svgplot.ts";
+import { describeClamp } from "./dynclamp.ts";
 
 export const RECORD_VERSION = 1;
 /** a report compares at most this many runs: one categorical color each, never cycled */
@@ -227,6 +228,11 @@ const NAMES: Record<string, string> = {
   "cell.model": "model",
   "cell.gLeak": "gL (nS)",
   "cell.cm": "Cm (pF)",
+  "cell.clamp.on": "dynamic clamp on",
+  "cell.clamp.kind": "dynamic clamp injects",
+  "cell.clamp.g": "dynamic clamp conductance (nS)",
+  "cell.clamp.erev": "dynamic clamp reversal (mV)",
+  "cell.clamp.as": "dynamic clamp, Kv4 injected as",
   ihold: "Ihold (pA)",
   "electrode.rs": "Rs (MΩ)",
   "electrode.cp": "pipette C (pF)",
@@ -363,7 +369,7 @@ ${i > 0 ? `<p><b>Changed from run 1:</b> ${diff.length ? diff.map(esc).join("; "
 <p class="settings">Cm ${f(s.cell.cm, 1)} pF · gL ${f(s.cell.gLeak, 2)} nS · Ihold ${s.ihold} pA · rest ${f(x.cell.vRest, 1)} mV · Rin at rest ${f(x.cell.rinRest, 1)} MΩ ·
 steps ${amps.length > 4 ? `${amps[0]} to ${amps[amps.length - 1]} pA (${amps.length})` : amps.join(", ") + " pA"}, ${s.protocol.stepDur} ms from ${s.protocol.stepStart} ms ·
 ${esc(syn("glutamate", s.glu))} · ${esc(syn("GABA", s.gaba))} · electrode Rs ${s.electrode.rs} MΩ, bridge ${Math.round(s.electrode.bridge * 100)}%, Cp ${s.electrode.cp} pF ·
-membrane noise ${s.noise.memSigma} pA · seed ${s.seed}${s.preset ? ` · preset "${esc(s.preset)}"` : ""}</p>
+membrane noise ${s.noise.memSigma} pA${describeClamp(s.cell.clamp) ? ` · ${esc(describeClamp(s.cell.clamp))}` : ""} · seed ${s.seed}${s.preset ? ` · preset "${esc(s.preset)}"` : ""}</p>
 <div class="grid2">
 <figure>${linePlot({ series: traces, xlabel: "time (ms)", ylabel: "Vm (mV)", title: `Vm, ${x.traces.length} of ${amps.length} sweeps (rheobase sweep in color)` })}</figure>
 <table class="c"><tr><th>Criterion</th><th>Threshold</th><th>Convention</th></tr>${crit}</table>

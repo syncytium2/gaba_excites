@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type uPlot from "uplot";
 import { buildCell, cellRinAt, knobValues, publishedParams, type CellParams } from "./core/cell.ts";
+import { DEFAULT_CLAMP, describeClamp, kv4PeakFraction, type DynClamp } from "./core/dynclamp.ts";
 import { MODELS, MODEL_LIST, type ModelId } from "./core/models.ts";
 import { DEFAULT_NOISE, type NoiseParams } from "./core/noise.ts";
 import { FILTER_KHZ } from "./core/filter.ts";
@@ -450,6 +451,20 @@ export function App() {
     return { cell: c, vRest: c.vRest, rinRest: c.rinRest, rinAtHold: cellRinAt(c, ihold), areaUm2: c.areaUm2 };
   }, [cell, ihold]);
   const limits = useMemo(() => limitsFor(built.cell, MODELS[cell.model], [glu, gaba]), [built, cell.model, glu, gaba]);
+  // Dynamic clamp (src/core/dynclamp.ts): a conductance the amplifier adds to the cell, or subtracts. The cell with
+  // the clamp off is built beside it, so rest and input resistance can be read with and without.
+  const clamp: DynClamp = cell.clamp ?? DEFAULT_CLAMP;
+  const clampOn = clamp.on && clamp.g !== 0;
+  const putClamp = (patch: Partial<DynClamp>) => setCell({ ...cell, clamp: { ...clamp, ...patch } });
+  const control = useMemo(() => (clampOn ? buildCell({ ...cell, clamp: undefined }) : null), [cell, clampOn]);
+  // voltage clamp records the cell's own currents: a dynamic clamp is a current-clamp instrument, so it is off there
+  const vcCell = useMemo(() => (cell.clamp ? { ...cell, clamp: undefined } : cell), [cell]);
+  // a subtraction larger than what the cell has at rest leaves it with no rest of its own
+  const clampReasons = useMemo(() => {
+    if (!control || clamp.g > 0 || !Number.isFinite(control.vRest)) return [];
+    if (Number.isFinite(built.vRest) && Math.abs(built.vRest - control.vRest) < 15) return [];
+    return [`Dynamic clamp: subtracting this much leaves the cell with no resting potential near its own (${fmt(control.vRest, 1)} mV)${Number.isFinite(built.vRest) ? `; it settles at ${fmt(built.vRest, 1)} mV` : ""}. A negative conductance can exceed what the cell has, which no blocker could do: the total conductance at rest turns negative, and rest is no longer stable.`];
+  }, [control, clamp.g, built.vRest]);
   // The siren, step mode: any sweep of the last run driven past a real cell (src/core/extremes.ts)
   const stepReasons = useMemo(() => {
     if (!result) return [];
@@ -506,7 +521,7 @@ export function App() {
   const pinCurrent = () => {
     if (!summary) return;
     const label = `Pin ${pins.length + 1}: ${model.short}, gL ${fmt(cell.gLeak, 2)} nS (Rin ${fmt(rinRest, 0)} MΩ), Cm ${fmt(cell.cm, 0)} pF` +
-      (gaba.enabled ? `, GABA ${gaba.erev} mV` : "") + (glu.enabled ? ", glu on" : "") + (ihold ? `, Ihold ${cu.text(ihold, 1)}` : "") + (noise.memSigma ? `, noise ${noise.memSigma} pA` : "");
+      (gaba.enabled ? `, GABA ${gaba.erev} mV` : "") + (glu.enabled ? ", glu on" : "") + (ihold ? `, Ihold ${cu.text(ihold, 1)}` : "") + (noise.memSigma ? `, noise ${noise.memSigma} pA` : "") + (clampOn ? `, ${describeClamp(clamp)}` : "");
     setPins([...pins, { label, cm: result!.settings.cell.cm, points: summary.stats.map((s) => ({ amp: s.amp, rate: s.meanRate })).sort((a, b) => a.amp - b.amp) }].slice(-4));
   };
 
@@ -519,6 +534,7 @@ export function App() {
       `# glutamate ${glu.enabled ? `${glu.rate} Hz ${glu.gPeak} nS rise ${glu.tauRise} decay ${glu.tauDecay} ms E ${glu.erev} mV ${glu.pattern}` : "off"}`,
       `# GABA ${gaba.enabled ? `${gaba.rate} Hz ${gaba.gPeak} nS rise ${gaba.tauRise} decay ${gaba.tauDecay} ms E ${gaba.erev} mV ${gaba.pattern}` : "off"}`,
       `# noise: recording filter ${noise.recFilter ? `${noise.recFilter} kHz 4-pole Bessel` : "bypassed"}, noise ${noise.recSigma} mV RMS at 10 kHz, hum ${noise.humAmp} mV at ${noise.humHz} Hz; membrane ${noise.memSigma} pA SD, tau ${noise.memTau} ms`,
+      ...(clampOn ? [`# ${describeClamp(clamp)}; ideal (reads Vm, no electrode or delay); cell with the clamp off: rest ${fmt(control?.vRest ?? NaN, 2)} mV, Rin ${fmt(control?.rinRest ?? NaN, 2)} MOhm`] : []),
       `# seed ${seed}; measurements on Vm`,
       "step_pA,spikes_in_step,mean_rate_Hz,initial_rate_Hz,final_rate_Hz,latency_ms,v_baseline_mV,v_steady_mV,spikes_after_step,after_step_latency_ms",
     ];
@@ -639,7 +655,7 @@ export function App() {
   const blocked = new Set(cell.block ?? []);
   const channelsSection = (
         <AmpSection name="CHANNELS">
-          {built.cell.channels.map((c) => (
+          {built.cell.channels.slice(0, built.cell.nOwn).map((c) => (
             <AmpSlot key={c.id} label={c.label.split(" ")[0]}>
               <label className="check vc-block" title={blocked.has(c.id) ? `${c.label}: blocked` : `${c.label}: on`}>
                 <input type="checkbox" checked={!blocked.has(c.id)}
@@ -689,7 +705,7 @@ export function App() {
       </AmpRow>
     </>
   );
-  const blockedNames = built.cell.channels.filter((c) => blocked.has(c.id)).map((c) => c.label.split(" ")[0]);
+  const blockedNames = built.cell.channels.slice(0, built.cell.nOwn).filter((c) => blocked.has(c.id)).map((c) => c.label.split(" ")[0]);
   const simBase = `${model.short} · gL ${fmt(cell.gLeak, 2)} nS · Cm ${fmt(cell.cm, 1)} pF` + (blockedNames.length ? ` · ${blockedNames.join(", ")} blocked` : "");
   const simSummary = simBase +
     (gaba.enabled ? ` · GABA ${gaba.rate} Hz` : "") + (glu.enabled ? ` · glutamate ${glu.rate} Hz` : "") +
@@ -710,7 +726,40 @@ export function App() {
         </AmpSection>
     </>
   );
-  const ampSummary = `Current clamp · hold ${cu.text(ihold, 1)} · Rs ${electrode.rs} MΩ, bridge ${Math.round(electrode.bridge * 100)}% · Cp ${electrode.cp} pF · filter ${noise.recFilter ? `${noise.recFilter} kHz` : "bypass"}`;
+  // Dynamic clamp: the amplifier computes the current a conductance would pass at the present Vm and injects it.
+  // The dial runs over Mendonça's range and beyond, scaled to the cell's size: ±1 nS/pF.
+  const clampMax = niceStep(cell.cm);
+  const clampStep = niceStep(clampMax / 200);
+  const clampRow = (
+    <AmpRow>
+      <AmpSection name="DYNAMIC CLAMP" power={{ on: clamp.on, onChange: (on) => putClamp({ on }) }}>
+        <AmpChoice label="Inject" value={clamp.kind} options={[["kv4", "Kv4"], ["leak", "Leak"]] as const} disabled={!clamp.on} onChange={(kind) => putClamp({ kind })}
+          hint="A conductance the amplifier adds to the cell (or, with a negative value, subtracts): it reads Vm, computes g·(Vm − E), and injects that current, every step. Kv4 is the transient K⁺ conductance of Mendonça et al. (2016, 2018), with its gating. Leak is a conductance that is always open. This clamp is ideal: it reads true Vm, with no electrode in the way and no delay." />
+        <AmpDial label={clamp.kind === "kv4" ? "g at 0 mV" : "g"} unit="nS" value={clamp.g} min={-clampMax} max={clampMax} step={clampStep} digits={digitsFor(clampStep)} disabled={!clamp.on}
+          hint={clamp.kind === "kv4"
+            ? `The Kv4 dose as Mendonça et al. state it: the peak conductance on a step to 0 mV. The maximal conductance is ${fmt(1 / kv4PeakFraction(), 2)} times this. Negative subtracts. Now ${fmt(clamp.g / cell.cm, 3)} nS/pF; their experiments ran from about −0.4 to +0.6 nS/pF.`
+            : "The leak's conductance. Negative subtracts."}
+          onChange={(g) => putClamp({ g })} />
+        <AmpDial label="Reversal" unit="mV" value={clamp.erev} min={-110} max={0} step={1} digits={0} disabled={!clamp.on} onChange={(erev) => putClamp({ erev })}
+          hint="Where the injected current reverses. −90 mV is the K⁺ reversal of Mendonça et al. 2016's model; their 2018 paper does not state the one its dynamic clamp used." />
+        <AmpChoice label="Inject it as" value={clamp.as} options={[["kv4", "Kv4"], ["leak", "Its leak"], ["gating", "Gating only"]] as const} disabled={!clamp.on || clamp.kind !== "kv4"} onChange={(as) => putClamp({ as })}
+          hint="A voltage-gated conductance that is partly open at rest is also a leak. Kv4: the conductance itself. Its leak: in its place, a plain leak that passes the same steady current and has the same slope at rest, so it moves the resting potential and the input resistance exactly as the Kv4 does, with no gating. Gating only: the Kv4 with that leak subtracted, so rest and input resistance stay as they were. Whatever the leak alone reproduces is owed to the change in passive properties, not to the channel's gating." />
+        <AmpSlot label="Rest · Rin, clamp on">
+          {clampReasons.length > 0
+            ? <span className="amp-readout" id="clamp-rest-on" title={clampReasons[0]}>no rest</span>
+            : <>
+              <span className="amp-readout" id="clamp-rest-on">{clampOn ? fmt(built.vRest, 1) : "—"} <small>mV</small></span>
+              <span className="amp-readout" id="clamp-rin-on">{clampOn ? fmt(built.rinRest, 0) : "—"} <small>MΩ</small></span>
+            </>}
+        </AmpSlot>
+        <AmpSlot label="Rest · Rin, clamp off">
+          <span className="amp-readout" id="clamp-rest-off">{fmt(control ? control.vRest : built.vRest, 1)} <small>mV</small></span>
+          <span className="amp-readout" id="clamp-rin-off">{fmt(control ? control.rinRest : built.rinRest, 0)} <small>MΩ</small></span>
+        </AmpSlot>
+      </AmpSection>
+    </AmpRow>
+  );
+  const ampSummary = `Current clamp · hold ${cu.text(ihold, 1)} · Rs ${electrode.rs} MΩ, bridge ${Math.round(electrode.bridge * 100)}% · Cp ${electrode.cp} pF · filter ${noise.recFilter ? `${noise.recFilter} kHz` : "bypass"}` + (clampOn ? ` · ${describeClamp(clamp)}` : "");
   // The acquisition software: the step protocol, or on the scope the pulse train.
   const acqRows = (
     <AmpRow>
@@ -819,16 +868,16 @@ export function App() {
           <div className="modebar">
             {mode === "scope" && <div className="readout-slot" ref={setReadoutSlot} />}
             {mode === "steps" && <StepReadouts summary={playing ? undefined : summary} rheoFrom={playing ? undefined : result?.rheoFrom} crit={crit} rinRest={rinRest} rinHold={built.rinAtHold} refined={refinedValid} onRefine={refineRheobase} tol={model.rheobaseTol} cu={ru} />}
-            <Siren reasons={[...settingReasons, ...(mode === "scope" ? scopeReasons : stepReasons)]} />
+            <Siren reasons={[...settingReasons, ...(mode === "vc" ? [] : clampReasons), ...(mode === "scope" ? scopeReasons : stepReasons)]} />
             {error && <div className="warn" role="alert">Simulation failed: {error}</div>}
           </div>
 
           {mode === "vc" ? (
-            <VClampMode cell={cell} simSummary={simBase} ampControls={ampControls} pal={pal} screenH={screenH}
+            <VClampMode cell={vcCell} simSummary={simBase} ampControls={ampControls} pal={pal} screenH={screenH}
               simTop={simTop} />
           ) : mode === "scope" ? (
             <ScopeMode cell={cell} inputs={{ ihold, electrode, glu, gaba, noise, pulse }} seed={seed} limits={limits} onExtremes={setScopeReasons} oldSchool={oldSchool}
-              rig={{ amp: ampCC, ampSummary, acq: acqRows, acqSummary, sim: simRows, simSummary }} ampControls={ampControls} readoutSlot={readoutSlot} screenH={screenH} view={view} focus={focus} />
+              rig={{ amp: ampCC, ampMore: clampRow, ampSummary, acq: acqRows, acqSummary, sim: simRows, simSummary }} ampControls={ampControls} readoutSlot={readoutSlot} screenH={screenH} view={view} focus={focus} />
           ) : (
             <>
 
@@ -894,7 +943,7 @@ export function App() {
             )}
 
             <RigPanels controls={ampControls}
-              amplifier={{ rows: <AmpRow>{ampCC}</AmpRow>, summary: ampSummary }}
+              amplifier={{ rows: <><AmpRow>{ampCC}</AmpRow>{clampRow}</>, summary: ampSummary }}
               acquisition={{ rows: acqRows, summary: acqSummary }}
               simulation={{ rows: simRows, summary: simSummary }} />
 

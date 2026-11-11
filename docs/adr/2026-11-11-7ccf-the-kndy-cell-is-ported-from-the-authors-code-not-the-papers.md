@@ -1,6 +1,6 @@
 # ADR 2026-11-11-7ccf: The KNDy cell is ported from the authors code not the papers table and stays out of the app
 
-Status: Proposed, 2026-11-11
+Status: Accepted, 2026-11-11
 
 ## Context
 
@@ -22,7 +22,10 @@ values give a cell that fires one spike at most, and with the paper's leak equat
 
 - **The owner's:** both are built and compared, and the cell is private. `src/core/kndy.ts` exports it, and it
   is in neither `MODELS` nor `MODEL_LIST` (`src/core/models.ts`), so the app does not offer it.
-- **Proposed, for the owner to confirm:** the cell called "the KNDy cell" is the code's (`KNDY_OVX`, `KNDY_E2`).
+- **The owner's, after the comparison:** asked "Is the code's cell 'the KNDy cell' from here on? I assumed yes,
+  since the table's cell does not fire", he answered "yes, but note the table cell failure". The cell called "the
+  KNDy cell" is the code's (`KNDY_OVX`, `KNDY_E2`), and wherever it is described the table's failure is stated:
+  its `validation` line, `lit/notes/qiu2024.md`, and its entry in the literature list.
   The table's cells (`QIU_TABLE`, `QIU_TABLE_E2`, `QIU_AS_WRITTEN`) are kept only so the comparison can be re-run.
   The reason is the comparison itself: only the code's cell fires.
 - None of the authors' MATLAB is committed. The oracle's runner fetches it by its Software Heritage ID; the
@@ -38,6 +41,8 @@ values give a cell that fires one spike at most, and with the paper's leak equat
 - The cell has no delayed rectifier and its action potentials are about 8 ms wide. Anything built on it inherits that.
 - `ModelId` has no `kndy` member, so the cell's id is a cast (`KNDY_ID`). Making the cell public means adding it
   to the registry, giving it presets and a threshold criterion (2 V/s is set provisionally), and removing the cast.
+- The branch is pushed (the owner, 2026-11-11: "commit and push the branch to preserve the work for other machines"),
+  so "private" means the app and the website do not offer the cell, not that the repository hides it.
 - The literature list is public and now names Qiu 2024 and its code, each marked "Not offered in the app", as
   the experiment-only DeFazio & Moenter 2021 entry is.
 

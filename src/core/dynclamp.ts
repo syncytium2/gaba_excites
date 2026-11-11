@@ -121,7 +121,41 @@ export function linearizedAt(inj: Injected, v0: number): { chord: Injected; slop
   return { chord: leakInjection(gChord, inj.erev, "chord"), slope: leakInjection(gSlope, eSlope, "lin") };
 }
 
+/**
+ * The amplifier's dynamic clamp as a setting (CellParams.clamp): plain data, resolved into injected conductances
+ * when the cell is built (cell.ts clampInjected).
+ */
+export interface DynClamp {
+  on: boolean;
+  /** Mendonça's Kv4, or a plain leak */
+  kind: "kv4" | "leak";
+  /**
+   * nS; negative subtracts. For Kv4 it is the dose as Mendonça state it, the peak conductance at 0 mV
+   * (ḡ is 2.40 times it); for a leak, its conductance.
+   */
+  g: number;
+  /** reversal, mV */
+  erev: number;
+  /**
+   * Kv4 only: inject the Kv4 itself; or in its place the plain leak with its steady current and slope at rest
+   * ("leak"); or the Kv4 with that leak subtracted, which leaves rest and input resistance as they were and
+   * adds only the gating ("gating").
+   */
+  as: "kv4" | "leak" | "gating";
+}
+
+export const DEFAULT_CLAMP: DynClamp = { on: false, kind: "kv4", g: 0, erev: KV4.eK, as: "kv4" };
+
 /** The same leak with its sign flipped: subtracts what the other adds. */
 export function opposite(inj: Injected, id = `${inj.channel.id}neg`): Injected {
   return { channel: makeShunt(id), g: -inj.g, erev: inj.erev };
+}
+
+/** A dynamic clamp setting in words, for a summary line, a file header or a report; "" when it is off. */
+export function describeClamp(c: DynClamp | undefined): string {
+  if (!c || !c.on || c.g === 0) return "";
+  const g = `${c.g > 0 ? "+" : "−"}${+Math.abs(c.g).toFixed(3)} nS`;
+  if (c.kind === "leak") return `dynamic clamp: leak ${g}, reversing at ${c.erev} mV`;
+  const what = c.as === "leak" ? "the leak that matches Kv4 at rest, in place of Kv4" : c.as === "gating" ? "Kv4 with its leak at rest subtracted (gating only)" : "Kv4";
+  return `dynamic clamp: ${what}, ${g} peak at 0 mV, reversing at ${c.erev} mV`;
 }

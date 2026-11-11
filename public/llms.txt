@@ -150,6 +150,25 @@ rheobase is 561 pA without GABA, 765 pA with E_GABA = -80 mV, 628 pA at
 -50 mV (neutral), and 458 pA at -35 mV (excitatory). The crossover is about
 11 mV below spike threshold.
 
+## Dynamic clamp
+
+On the amplifier, in current clamp: a conductance added to the cell or, with a
+negative value, subtracted. Kv4 is the transient K+ conductance of Mendonca et
+al. 2016 (eLife 5:e16475), which Mendonca et al. 2018 (J Physiol 596:885)
+injected into arcuate kisspeptin neurons; the dose is their peak conductance
+at 0 mV (41.6% of the maximal conductance). The reversal, -90 mV, and the
+-90 mV start of that test step are assumptions: the 2018 paper states neither.
+The clamp is ideal (reads true Vm, no electrode or delay). A voltage-gated
+conductance partly open at rest is also a leak (1.4% of this Kv4 at -70 mV),
+so the panel shows rest and input resistance with the clamp on and off, and
+can inject, in place of the Kv4, the plain leak with its steady current and
+slope at rest, or the Kv4 with that leak subtracted (gating only). On the GnRH
+cell, 8 nS (0.4 nS/pF): rest -67.5 to -69.9 mV, Rin 506 to 307 MOhm, rheobase
+15.8 to 43.1 pA; its leak alone 31.0 pA, its gating alone 22.2 pA. The leak's
+share of the rheobase change is a little over half there and 40% on the
+pyramidal cell: it depends on the cell. Subtracting 6 nS leaves the GnRH cell
+with no stable rest.
+
 ## Limits
 
 One compartment; no Ih, calcium currents, NMDA, GABA-B, plasticity or

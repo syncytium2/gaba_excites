@@ -1,6 +1,6 @@
 # ADR 2026-11-11-6db4: Dynamic clamp is an injected conductance outside the model and it is ideal
 
-Status: Proposed, 2026-11-11
+Status: Accepted, 2026-11-11
 
 ## Context
 
@@ -28,8 +28,10 @@ learns about no particular channel (AGENTS.md, "Stock channels only").
 - **Every injection comes with its leak control.** `linearizedAt` builds the plain leak with the injection's
   steady current and slope at a potential, and `opposite` subtracts it. That pair is the lesson: what the leak
   reproduces is owed to passive properties, and what survives its subtraction is owed to gating.
-- **The owner's:** dynamic clamp goes on the public page. Not built yet: the mode in the UI, its presets and the
-  pages that quote numbers.
+- **The owner's:** dynamic clamp goes on the public page. Offered the first version as "Mendonça's Kv4 and a plain
+  leak on the cells already public, with the resting potential and input resistance shown beside the control's and
+  the matched-leak control one click away", he answered "agreed" (2026-11-11). That is an ideal clamp, which
+  settles the item above for the first version.
 
 ## Consequences
 

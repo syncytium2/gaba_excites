@@ -1287,6 +1287,8 @@
       "usedIn": [
         "src/core/dynclamp.ts",
         "src/core/dynclamp.test.ts",
+        "src/core/dynclamp-app.test.ts",
+        "public/methods.html",
         "tools/experiments/kv4_leak.ts"
       ],
       "quotes": [

@@ -77,6 +77,7 @@ beta cell's checks are of its bursting, not its channels, which were not fitted 
   <li><a href="#siren">The siren</a></li>
   <li><a href="#oldschool">Old school, and the audio monitor</a></li>
   <li><a href="#vclamp">Voltage clamp</a></li>
+  <li><a href="#dynclamp">Dynamic clamp</a></li>
   <li><a href="#validation">How each model was checked, in detail</a></li>
   <li><a href="#gaba">When GABA excites</a></li>
   <li><a href="#limits">What it leaves out</a></li>
@@ -668,6 +669,41 @@ taken as compensated.</p>
   −9.2 and −15.8 mV, and at 5 kHz −9.8 and −15.4 mV: the filter blunts the fastest peaks, and its ring after the
   one-step capacitive transient, −10 to −34 nA at 0.1 ms on the cortical cells, reaches into the window. Measured
   from 0.2 ms the same cell gave −20.5 and −8.5 mV unfiltered and −17.3 and −10.6 mV at 10 kHz.</li>
+</ul>
+
+<h2 id="dynclamp">6f. Dynamic clamp</h2>
+<p>A dynamic clamp reads the membrane potential, computes the current a conductance would pass, g·(V − E), and
+injects it, many times per millisecond, so the cell behaves as if it had that conductance, or with a negative g as if
+it had less. Here the injected conductance joins the cell's own channels for the run, at a conductance set in nS that
+does not scale with the cell's size, so the resting potential, the input resistance and both current-clamp modes feel
+it. The clamp is ideal: it reads the true membrane potential every 0.01 ms step, with no series resistance, filter
+or loop delay. It is off in voltage clamp, where the amplifier records the cell's own currents.</p>
+<ul>
+  <li><strong>Kv4</strong> is the transient K⁺ conductance of
+  <a href="https://doi.org/10.7554/eLife.16475">Mendonça et al. (2016)</a>, the one
+  <a href="https://doi.org/10.1113/JP274474">Mendonça et al. (2018)</a> injected into arcuate kisspeptin neurons:
+  I = ḡ·m·h·(V − E), m<sub>∞</sub> = 1/(1 + exp((−30 − V)/10)), τ<sub>m</sub> = 0.346·exp(−V/18.272) + 2.09 ms,
+  h<sub>∞</sub> = 1/(1 + exp(0.0878·(V + 55.1))), τ<sub>h</sub> = 2.1·exp(−V/21.2) + 4.627 ms. The dial is their
+  dose, the peak conductance on a step to 0 mV, which is 41.6% of ḡ on a step from −90 mV. Two things are assumed
+  because the 2018 paper states neither: that test step's starting potential, and the reversal, −90 mV, which is the
+  2016 model's E<sub>K</sub> and can be changed.</li>
+  <li><strong>Leak</strong> is a conductance that is always open, at a reversal you choose.</li>
+  <li><strong>A voltage-gated conductance that is partly open at rest is also a leak.</strong> At −70 mV 1.4% of this
+  Kv4's ḡ is open, and 2.9% at −60 mV. So injecting it changes the resting potential and the input resistance before
+  it changes anything else, and the panel shows both with the clamp on and off. <em>Inject it as</em> separates the
+  two things an injection does. <em>Its leak</em> replaces the Kv4 with the plain leak that has the same steady
+  current and the same slope at the injected cell's rest: it reproduces that cell's rest and input resistance
+  exactly, with no gating. (A leak equal only to the conductance that is open falls short on input resistance,
+  because depolarizing opens more of the window.) <em>Gating only</em> is the Kv4 with that leak, taken at the
+  control cell's rest, subtracted: rest and input resistance stay as they were. Rest here means zero holding
+  current.</li>
+  <li><strong>How much of an effect is leak depends on the cell.</strong> On the GnRH cell, 8 nS (0.4 nS/pF) takes rest
+  from −67.5 to −69.9 mV and input resistance from 506 to 307 MΩ. Rheobase (an 800 ms step from the −6 pA holding
+  current) goes from 15.8 to 43.1 pA; with its leak alone it is 31.0 pA, a little over half of the change, and with
+  its gating alone 22.2 pA. On the pyramidal cell at the same dose per pF the leak is 40% of the change.</li>
+  <li><strong>Subtraction has a limit a blocker does not.</strong> A negative conductance can exceed what the cell has
+  at rest; the total then turns negative and the resting potential is no longer stable. The GnRH cell loses its rest
+  with 6 nS subtracted. The siren says so, and the panel reads "no rest".</li>
 </ul>
 
 <h2 id="validation">7. How each model was checked, in detail</h2>

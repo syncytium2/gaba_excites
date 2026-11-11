@@ -1959,3 +1959,40 @@ A self-review the same day corrected four statements made here and in the report
 kisspeptin spikes was asserted from memory with no source and is withdrawn; "three to four times leakier by any
 measure" was true of four of the seven measures; "about half" of the rheobase change removed by matching the
 starting potential is 60%; and the gating-only cell's 0.3 pA is over the adding doses (0.8 pA at −0.4 nS/pF).
+
+## 2026-11-11 — the owner's answers, and dynamic clamp on the amplifier
+
+The owner, answering the day's open questions: "commit and push the branch to preserve the work for other
+machines", so private means the app and the website, not the repository; the code's cell is the KNDy cell, "yes,
+but note the table cell failure"; "yes. see if the 2016 paper can be reproduced" (running as a separate piece of
+work, outside this repository until it has an answer); the first public version of dynamic clamp as proposed,
+"agreed"; and a report of the findings to the LatchBio prep session, sent. Both ADRs of the day are now Accepted.
+
+**Dynamic clamp is built as a section of the amplifier, not a fourth mode.** The roadmap called it a fourth mode
+beside current clamp, voltage clamp and the oscilloscope. But an injected conductance is part of the cell for the
+run, so the step protocol and the oscilloscope both already feel it; a separate mode would have had to copy one of
+them. It is a DYNAMIC CLAMP section with its own power switch on the amplifier panel, present in the step
+protocol and the oscilloscope, and off in voltage clamp, where the amplifier records the cell's own currents.
+
+- **The setting is plain data** (`DynClamp`, `CellParams.clamp`), resolved into injected conductances when the
+  cell is built (`clampInjected`), because a cell's settings cross to a worker by message and channel objects
+  cannot. `CellParams.inject` stays for experiments that build their own.
+- **What it offers**, as agreed: Mendonça's Kv4 or a plain leak; the dose in nS (for Kv4, the peak at 0 mV, with
+  nS/pF in the dial's hint), over ±1 nS/pF of the cell; the reversal; and "Inject it as": the Kv4, its leak, or its
+  gating only. Rest and input resistance are read out with the clamp on and off, side by side.
+- **Subtraction is not bounded, it is flagged.** The ADR said the knob would have to be bounded. A hard bound
+  would hide the lesson, so the siren says when a subtraction leaves no rest near the cell's own, and the readout
+  says "no rest".
+- The notebook's report, the CSV header, the pin label and the folded amplifier line all state the clamp.
+- No presets: the numbers the pages quote are pinned by `src/core/dynclamp-app.test.ts` instead.
+
+**The leak's share depends on the cell, and the public cells say so.** On the KNDy cell the matched leak gave 91 to
+94% of the Kv4's change in rheobase. On the GnRH cell at the same dose per pF (8 nS): rheobase 15.8 pA, 43.1 with
+Kv4, 31.0 with its leak, 22.2 with its gating alone, so the leak is a little over half. On the pyramidal cell it is
+40%. The linearization is exact at rest and only there; a cell whose threshold sits further above rest gives the
+Kv4's activation more room. So the general statement is the one the mode teaches: the injection always changes
+rest and input resistance, a matched leak always reproduces those, and how much of the change in firing that
+explains has to be measured in each cell. The KNDy number should not be quoted as if it were general.
+
+`node scripts/screenshot.mjs` is clean with the section in place; it was also driven by hand in a browser on the
+GnRH cell in all three modes and at phone width.
