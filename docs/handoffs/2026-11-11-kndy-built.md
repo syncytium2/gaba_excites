@@ -5,9 +5,10 @@
 [`2026-11-11-kndy-qiu-code.md`](2026-11-11-kndy-qiu-code.md). It supersedes their "nothing is built".** Their
 experiment and their list of what a port has to face still stand as the brief.
 
-## What exists, on branch `kndy-kv4` (worktree `../gaba_excites-worktrees/kndy-kv4`), uncommitted
+## What exists, on branch `kndy-kv4` (worktree `../gaba_excites-worktrees/kndy-kv4`), committed and not pushed
 
-The owner did not ask for a commit, so none was made. `npm test` and `npx tsc -b` pass.
+Not pushed because this repository is public and the owner asked for private mode; whether that covers the
+repository or only the website is his to say. `npm test` and `npx tsc -b` pass.
 
 - `tools/kndy_oracle.m` and `src/core/oracle/matlab_kndy.json`: the authors' code run unchanged in MATLAB.
 - `src/core/kndy.ts`, `src/core/kndy.test.ts`: the cell, private (not in `MODELS`), held to the oracle.

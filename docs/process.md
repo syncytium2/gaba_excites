@@ -1921,7 +1921,7 @@ potentials the archived parameters do not reproduce. `lit/notes/qiu2024.md` has 
 
 **The port.** `src/core/kndy.ts`, unregistered. Three additions to the core, none of them knowledge of a
 channel: `ModelChannel.caFraction` (TRPC5 passes nine tenths of its current to the calcium pool), `linearPool`,
-and `CellParams.inject`. The port rests where the code rests to 0.0001 mV in all six cells. Spike counts are
+and `CellParams.inject`. The port rests where the code rests to 0.0001 mV in all six cells as measured (the test holds 0.001). Spike counts are
 exact from 5 to 60 pA; spike times drift by up to 5 ms over 5 s at dt = 0.01 ms and the drift halves with dt
 (0.5 ms at 0.001), which is this integrator's first order showing against a high-order solver, not a difference
 in the model. dt stays 0.01 ms. The cell's action potentials are 8 ms wide at half height: it has no delayed
@@ -1951,4 +1951,11 @@ current and its slope (2.6 times the open conductance at +0.4 nS/pF). Results, O
 - Sweeps were run in sequence on one cell with 5 s between them; a family repeated with 0.5 s or more between
   sweeps gives the same counts as fresh starts.
 
-Nothing is deployed, pushed or committed by this session. The dynamic clamp mode in the UI is not built.
+Committed on `kndy-kv4` when the turn-end check asked for it; not pushed, because this repository is public and the
+owner asked for private mode, and whether that covers the repository is his to say. Nothing is deployed. The dynamic
+clamp mode in the UI is not built.
+
+A self-review the same day corrected four statements made here and in the report: the 1 ms width of recorded
+kisspeptin spikes was asserted from memory with no source and is withdrawn; "three to four times leakier by any
+measure" was true of four of the seven measures; "about half" of the rheobase change removed by matching the
+starting potential is 60%; and the gating-only cell's 0.3 pA is over the adding doses (0.8 pA at −0.4 nS/pF).
