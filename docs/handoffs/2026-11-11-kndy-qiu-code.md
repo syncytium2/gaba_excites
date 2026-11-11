@@ -23,6 +23,25 @@ observation". "Mode" is his word: see "Dynamic clamp as a mode" below.
   it are fine to commit. Asking the authors for a license is the owner's call.
 - `lit/sources.json` has no entry for Qiu 2024, Mendonça 2018 or Mendonça 2016 yet.
 
+## The companion paper from the same group: Mendonça et al. 2016, eLife
+
+The owner pointed to it on 2026-11-11. Mendonça PRF, Vargas-Caballero M, Erdélyi F, Szabó G, Paulsen O, Robinson HPC
+(2016) Stochastic and deterministic dynamics of intrinsically irregular firing in cortical inhibitory interneurons.
+*eLife* 5:e16475, [doi:10.7554/eLife.16475](https://doi.org/10.7554/eLife.16475), PMID 27536875, PMC5030087 (open
+access). **Only its PubMed record and abstract have been read; read the paper before building.** It matters here
+three ways:
+
+- **It is where the injected Kv4's kinetics come from.** The 2018 paper took them from these cortical interneuron
+  recordings. The transcription for `lit/notes/` should start from this paper and check the 2018 equations against it.
+- **It says where the irregularity comes from, and it is noise.** The abstract: spike-time irregularity "is generated
+  by a nonlinear dynamical interaction of voltage-dependent sodium and fast-inactivating potassium channels just
+  below spike threshold, amplifying channel noise". So a deterministic cell should not be expected to fire
+  irregularly on its own, and the paper's noise is channel noise, which is not the same thing as this simulator's
+  membrane noise current. Find how their model put the noise in before choosing how to measure CV_ISI here.
+- **It has its own computational model and its own conductance injection.** The owner's leak objection may apply to
+  the 2016 injections as well; check what they report at rest. Their model is also a candidate second host for the
+  experiment, in the cell type the kinetics were measured in. Whether its code is public is not known.
+
 ## What the archived code is (read on 2026-11-11, not run)
 
 One compartment, 19 state variables, units nS, pF, pA, mV, ms, µM. Two parameter sets: ovariectomized (the default)
@@ -112,7 +131,8 @@ The other handoff calls it "an experiment rather than a channel of the cell". Bo
 - **Irregularity needs a source.** The core is deterministic. Mendonça attribute the irregular firing to Kv4
   interacting with persistent Na⁺; whether this model does that without noise is unknown. Membrane noise exists
   (`src/core/noise.ts`: a current at the membrane, which the cell feels, with its own seed) and the other handoff
-  says to measure CV_ISI with it on. Measure it with noise off as well, and report both.
+  says to measure CV_ISI with it on. Measure it with noise off as well, and report both. Mendonça et al. 2016
+  (above) say the mechanism amplifies channel noise, so read that paper first.
 - **In the UI it is the fourth mode on the same amplifier**, scoped so that no claim measured on the KNDy cell
   shows under another model. Run `node scripts/screenshot.mjs` after any change there.
 
