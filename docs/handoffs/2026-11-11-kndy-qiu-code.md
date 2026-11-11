@@ -25,22 +25,48 @@ observation". "Mode" is his word: see "Dynamic clamp as a mode" below.
 
 ## The companion paper from the same group: Mendonça et al. 2016, eLife
 
-The owner pointed to it on 2026-11-11. Mendonça PRF, Vargas-Caballero M, Erdélyi F, Szabó G, Paulsen O, Robinson HPC
-(2016) Stochastic and deterministic dynamics of intrinsically irregular firing in cortical inhibitory interneurons.
-*eLife* 5:e16475, [doi:10.7554/eLife.16475](https://doi.org/10.7554/eLife.16475), PMID 27536875, PMC5030087 (open
-access). **Only its PubMed record and abstract have been read; read the paper before building.** It matters here
-three ways:
+The owner pointed to it on 2026-11-11 and supplied the PDF, now at `lit/pdf/mendonca2016.pdf` in this worktree
+(gitignored; `lit/pdf/` is never committed). Mendonça PRF, Vargas-Caballero M, Erdélyi F, Szabó G, Paulsen O, Robinson
+HPC (2016) Stochastic and deterministic dynamics of intrinsically irregular firing in cortical inhibitory
+interneurons. *eLife* 5:e16475, [doi:10.7554/eLife.16475](https://doi.org/10.7554/eLife.16475), PMID 27536875,
+PMC5030087 (open access). **Read on 2026-11-11 as text extracted from the PDF, in which equations lose their minus
+signs and Greek letters; check every number below on the page before using it.** The figures were not looked at.
 
-- **It is where the injected Kv4's kinetics come from.** The 2018 paper took them from these cortical interneuron
-  recordings. The transcription for `lit/notes/` should start from this paper and check the 2018 equations against it.
-- **It says where the irregularity comes from, and it is noise.** The abstract: spike-time irregularity "is generated
-  by a nonlinear dynamical interaction of voltage-dependent sodium and fast-inactivating potassium channels just
-  below spike threshold, amplifying channel noise". So a deterministic cell should not be expected to fire
-  irregularly on its own, and the paper's noise is channel noise, which is not the same thing as this simulator's
-  membrane noise current. Find how their model put the noise in before choosing how to measure CV_ISI here.
-- **It has its own computational model and its own conductance injection.** The owner's leak objection may apply to
-  the 2016 injections as well; check what they report at rest. Their model is also a candidate second host for the
-  experiment, in the cell type the kinetics were measured in. Whether its code is public is not known.
+- **It is where the injected Kv4 comes from, and there were three versions of it.** Hodgkin–Huxley models with one
+  activation and one inactivation variable were fitted to voltage-clamp steps in irregular-spiking cortical
+  interneurons. Three parameter sets were injected ("Models 1 and 2" in rate-constant form, "Model 3" in steady-state
+  and time-constant form) and their results pooled. The 2018 kisspeptin paper's equations are Model 3. The dose,
+  "gmax0", is the peak transient conductance reached at 0 mV, defined here. The native current in these cells was
+  22.37 ± 14.41 nS by that measure (n = 8); their input resistance was 331 ± 164 MΩ.
+- **They ran a shunt control, which bears directly on the owner's objection.** A static 2 nS shunting conductance
+  reversing at −70 mV, "effectively greatly reducing input resistance", made spikes smaller and reduced the
+  afterhyperpolarizations and the fluctuations between spikes, "but irregularity is not reduced" (Figure 5—figure
+  supplement 1). They add that the artificial K⁺ conductance "also decreases input resistance" and raised
+  variability. So the authors knew the injection changes input resistance. What this control does not cover, as
+  far as has been read: it is in cortical cells with about 3 nS at rest, not kisspeptin cells with about 0.75 nS; it
+  reverses at −70 mV, not at E_K; it is a fixed shunt, not one matched to the injected conductance's steady opening;
+  and it speaks to irregularity, not to excitability. Whether the 2018 paper repeated it in kisspeptin neurons has
+  not been checked. The matched-leak control in the other handoff is the same idea done to measure; cite this
+  supplement beside it, and say plainly what the authors did do.
+- **Irregularity has deterministic and stochastic parts.** The model fires irregularly in its deterministic form
+  through two mechanisms (long pauses and unstable subthreshold oscillations; Figures 6 and 7), and more so with
+  channel noise, which the Na⁺ conductance amplifies. So measure CV_ISI in the port with no noise and with noise,
+  as two separate results.
+- **Their noise is channel noise with a variance that follows the current**, not a fixed current noise like this
+  simulator's membrane noise. Each of persistent Na⁺ and the transient K⁺ conductance gets an Ornstein–Uhlenbeck
+  term updated exactly each step, with variance i·Ī − Ī²/N (single-channel current i, mean current Ī, N channels):
+  500 persistent Na⁺ channels of 20 pS with a 1 ms burst time, 700 transient K⁺ channels of 10 pS with a 10 ms
+  burst time. If the leak question turns on irregularity, this is the noise to add, as an object beside
+  `src/core/noise.ts`, and it needs its own test.
+- **Their model and its code.** Two compartments: a soma (8.04 pF, 4.1 nS leak) joined through 2 GΩ to a passive
+  dendrite (80 pF, 0.5 nS). Soma: transient and persistent Na⁺, Kv1, Kv3, the transient K⁺ conductance (7 nS
+  deterministic) and persistent Na⁺ (10 nS deterministic); E_K −90, E_L −70, E_Na 60 mV. Written in Java and called
+  from MATLAB, fourth-order Runge–Kutta. The code is published with the paper as "Source code 1"
+  (`irregmodelcode.zip`, doi:10.7554/eLife.16475.025); it has not been downloaded. It is a candidate second host,
+  in the cell type the kinetics were measured in, but this simulator's cells are single compartments, so hosting it
+  is its own piece of work.
+- **Dynamic clamp hardware**, for the "ideal or through the electrode" decision: update rate above 50 kHz (under
+  20 µs per cycle), signals filtered at 6 kHz and sampled at 20 kHz.
 
 ## What the archived code is (read on 2026-11-11, not run)
 
@@ -132,7 +158,7 @@ The other handoff calls it "an experiment rather than a channel of the cell". Bo
   interacting with persistent Na⁺; whether this model does that without noise is unknown. Membrane noise exists
   (`src/core/noise.ts`: a current at the membrane, which the cell feels, with its own seed) and the other handoff
   says to measure CV_ISI with it on. Measure it with noise off as well, and report both. Mendonça et al. 2016
-  (above) say the mechanism amplifies channel noise, so read that paper first.
+  (above) found both a deterministic and a channel-noise part.
 - **In the UI it is the fourth mode on the same amplifier**, scoped so that no claim measured on the KNDy cell
   shows under another model. Run `node scripts/screenshot.mjs` after any change there.
 
