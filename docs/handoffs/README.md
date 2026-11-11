@@ -49,6 +49,11 @@ one CI step. It merges that framework to main first, so the other sessions can n
   **Done 2026-11-04:** the owner said "Yep go", then "deploy"; merged to `main` and deployed as v0.2.13. These three
   human-beta handoffs are closed.
 
+- [`2026-11-11-kndy-kv4-leak.md`](2026-11-11-kndy-kv4-leak.md): build the Qiu et al. 2024 arcuate kisspeptin (KNDy)
+  cell, then test the owner's objection to Mendonça et al. 2018: a Kv4 conductance added by dynamic clamp is partly
+  open at rest, so it changes the resting leak, and that change may explain the reported firing effects. Approved by
+  the owner; written by a td-resume session.
+
 ## Superseded
 
 - [`2026-10-18-adrs-addendum.md`](2026-10-18-adrs-addendum.md): superseded the same day by
