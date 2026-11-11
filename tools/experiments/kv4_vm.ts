@@ -5,7 +5,8 @@
  * manipulations. choose the models native resting potential and keep it constant for each model. prepare a
  * results table with Vm allowed to vary and a second set with Vm fixed."
  *
- * Four cells: the Qiu 2024 KNDy cell in its two states, the GnRH cell and the cortical pyramidal cell. For each
+ * Five cells: the Qiu 2024 KNDy cell in its two states, the GnRH cell, and the cortical pyramidal cell and
+ * fast-spiking interneuron. For each
  * dose (nS of peak conductance at 0 mV per pF, as Mendonça state it) four conditions: the control, Kv4 injected,
  * a plain leak matched to the Kv4, and the Kv4 with a matched leak subtracted (gating only).
  *
@@ -41,6 +42,7 @@ export const CELLS: Record<string, { model: ModelDef; params: CellParams; name: 
   kndye2: { model: KNDY_E2, params: { model: KNDY_E2.id, cm: KNDY_E2.defaults.cm, gLeak: KNDY_E2.defaults.gLeak }, name: "KNDy, OVX+E2 (Qiu 2024)" },
   gnrh: { model: MODELS.gnrh, params: publishedParams("gnrh"), name: "GnRH (Adams 2018)" },
   rs: { model: MODELS.rs, params: publishedParams("rs"), name: "Cortical pyramidal (Pospischil 2008)" },
+  fs: { model: MODELS.fs, params: publishedParams("fs"), name: "Cortical fast-spiking interneuron (Pospischil 2008)" },
 };
 export type VmCond = "control" | "kv4" | "leak" | "gating";
 
@@ -134,7 +136,7 @@ export function runVm(hostKey: string, dosePerPf: number): VmResult {
 // ---------------------------------------------------------------- tables
 
 const f = (x: number | undefined, d = 1) => (x !== undefined && Number.isFinite(x) ? x.toFixed(d).replace(/^-/, "−") : "—");
-const digits = (hostKey: string) => (hostKey === "rs" ? 0 : 1);
+const digits = (hostKey: string) => (hostKey === "rs" || hostKey === "fs" ? 0 : 1);
 
 export function tables(results: VmResult[]): string {
   let html = "";
